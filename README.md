@@ -114,15 +114,14 @@ AX-1500: A Manuscript has the following properties:
 * modification timestamp.
 * hash.
 * manuscript format, see AX-1030.
-* manuscript thread.
+* manuscript thread id.
 * version number (one positive number).
 * commit message (not hashed, text goes on the blockchain).
 * title.
 * list of AuthorInfo items.
 * status.
 * journal.
-* list of reviews.
-* volume.
+* volume id.
 * first page.
 * last page.
 
@@ -160,14 +159,14 @@ AX-1540: The Client tool should allow an existing person to submit a new manuscr
 The system will then set remaining properties as follows:
 
 * The id is generated.
-* The creation time and the modification time are set to the current time according to the host preparing the command to be sent to the blockchain.
+* The creation time and the modification time are set to the current time according to the host preparing the command to be sent to the blockchain. See AX-5500.
 * The hash is calculated from the PDF text.
 * The manuscript format should be set to PDF.
 * A new manuscript thread is created with the manuscript included as the first item.
 * The version number is set to 1.
 * The status is set to INIT.
 * When the person signing the transaction is also in the list of authors, set didSign=true for that AuthorInfo.
-* The list of reviews, the volume, the first page and the last page are made empty.
+* The volume id, the first page and the last page are made empty.
 
 AX-1550: The Client tool should allow every author of a manuscript to submit a new version, provided that the status is not PUBLISHED or ASSIGNED. The following information should be included:
 
@@ -186,7 +185,7 @@ The system will set the remaining properties as follows:
 * The new manuscript is added to the manuscript thread.
 * The status is set to INIT.
 * the journal equals the journal of the previous version.
-* The list of reviews, the volume, the first page and the last page are made empty.
+* The volume, the first page and the last page are made empty.
 
 AX-1560: The Client tool should allow everyone in the list of authors to sign for being author. When every author has signed, the status should go to NEW or REVIEWABLE. The state will be NEW when the manuscript thread has isReviewable = false. Otherwise, the state will be REVIEWABLE.
 
@@ -226,9 +225,6 @@ AX-2000: A Journal should have the following mandatory properties:
 * descriptionHash.
 * descriptionFormat (see AX-1030).
 * List of EditorInfo.
-* List of reviewable manuscripts.
-* List of published unassigned manuscripts.
-* List of volumes.
 
 AX-2010: An EditorInfo has properties Person and EditorState. The editor state can be ACCEPTED or PROPOSED. These states allow the editors of a journal to resign and to assign colleagues, while each added editor should have both her own signature and the signature of an existing editor.
 
@@ -247,15 +243,12 @@ AX-2070. The Client tool should allow each editor of a Journal to invite another
 
 AX-2080: The Client tool should allow each PROPOSED editor to sign, taking the state to ACCEPTED.
 
-AX-2090: All manuscripts that have state REVIEWABLE that are also the last version should occur in the reviewable manuscripts list of their journal.
-
-AX-2100: All manuscripts that have state PUBLISHED should occur in the published unassigned list of their journal.
-
 AX-2110: The Client tool should allow each editor to create a Volume. A Volume has the following properties:
 
+* id.
+* creation time.
 * id of journal.
 * issue string.
-* list of manuscripts.
 
 AX-2120: A manuscript can only be in a volume when its state is ASSIGNED. An ASSIGNED journal should be in exactly one Volume.
 
@@ -274,7 +267,7 @@ AX-2500: A Review, see AX-1580, has the following properties:
 
 * id.
 * creation time.
-* The manuscript it is about.
+* The manuscript id it is about.
 * One author.
 * Hash of text.
 * Format of text.
@@ -283,9 +276,7 @@ AX-2500: A Review, see AX-1580, has the following properties:
 
 AX-2510: The Judgement in a review can be "ACCEPTED" or "REJECTED". There is no judgement for review requested, because a new version is treated here as a new manuscript.
 
-AX-2520: The order of reviews is important. This is the reason to keep a list of reviews with a manuscript.
-
-AX-2530: A review is not editable.
+AX-2530: A review is not editable, except the isUsedByEditor property.
 
 ## Credits
 
@@ -307,8 +298,6 @@ AX-3000: The following actions should cost credit:
 AX-3010: The Major tool should allow each major to adjust prices. Each action of AX-3000 should have its own price.
 
 AX-3015: The price list has an associated creation time and an associated modification time.
-
-AX-3020: The Major tool should allow each major to add and withdraw credit to everyone.
 
 ## User interface
 
@@ -374,7 +363,7 @@ AX-4420: The reviews list screen should include all versions and their reviews.
 
 AX-4700: The Major tool is an interactive command-line application.
 
-AX-4710: When the blockchain is empty, the Major tool should allow everyone to bootstrap the blockchain. The user should provide all price levels mentioned in AX-3000. The user should also provide person create information, see AX-10. This will result in a bootstrapped blockchain with one person who is major. The key of the person is the key that signed the bootstrap request.
+AX-4710: When the blockchain is empty, the Major tool should allow everyone to bootstrap the blockchain. The user should provide all price levels mentioned in AX-3000. The user should also provide person create information, see AX-10 and AX-90. This will result in a bootstrapped blockchain with one person who is major. The key of the person is the key that signed the bootstrap request.
 
 ## Blockchain
 
@@ -392,6 +381,7 @@ AX-5050: The following items are identified with an id property:
 * Manuscript
 * Manuscript thread
 * Journal
+* Volume
 * Review
 
 AX-5060: When a user creates an object with an id, she does not provide that id herself. The client tool or the major tool is responsible for generating the id. The id should be the blockchain address where the object is stored.
