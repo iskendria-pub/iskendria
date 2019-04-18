@@ -7,6 +7,7 @@ course described at https://www.3estack.io/en/training/.
 
 This application publishes hashes of scientific manuscripts on a Hyperledger Sawtooth blockchain. The blockchain thus offers
 cryptographic proof that a manuscript has been published. The following systems exist:
+
 * Blockchain: Holds hashes of scientific manuscripts along with status information. Data maintained in the blockchain is the
 final truth.
 * Client: Command-line application used by everyone who wants to edit the blockchain.
@@ -15,6 +16,7 @@ team, but it has to be maintained as long as other parties do not make portals t
 * Major Tool: Command-line user interface used by the Alexandria team to maintain the system.
 
 The following roles exist:
+
 * Author: The author of manuscripts.
 * Editor: Administrator of a scientific journal.
 * Reviewer: Writes reviews about manuscripts, allowing editors to make informed decisions about them.
@@ -27,6 +29,7 @@ Note that Authors, Editors and Reviewers are all a Person.
 ## Persons
 
 AX-10: The following properties should be maintained about each person:
+
 * id
 * public key.
 * private key.
@@ -55,6 +58,7 @@ should not be able to use the system when her saldo is zero. She should be able 
 system.
 
 AX-90: Each person has the following optional properties:
+
 * institution.
 * telephone number.
 * address.
@@ -80,6 +84,7 @@ AX-130: The Major tool should allow every major to see all information of every 
 ## Documents
 
 AX-1000: The following kinds of documents exist in the system:
+
 * Biography.
 * Manuscript.
 * Journal description.
@@ -94,6 +99,7 @@ AX-1030: Two formats are allowed for documents: PDF or UTF-8 text. UTF-8 text is
 within the Portal.
 
 AX-1040: The following properties of a document should be maintained on the Blockchain:
+
 * The hash.
 * The format.
 
@@ -108,6 +114,7 @@ AX-1090: Manuscripts are always PDF documents. Reviews, Journal Descriptions and
 ## Manuscript
 
 AX-1500: A Manuscript has the following properties:
+
 * id.
 * hash.
 * manuscript format, see AX-1030.
@@ -124,12 +131,14 @@ AX-1500: A Manuscript has the following properties:
 * last page.
 
 AX-1510: An AuthorInfo item has the following properties:
+
 * The author.
 * didSign: True if the author signed for being author.
 * authorSeq: The order of the author list of a publication is very significant.
 
 AX-1513: Each manuscript is part of a manuscript thread. A manuscript thread has
 the following properties:
+
 * id
 * manuscripts
 * isReviewable
@@ -138,6 +147,7 @@ AX-1516: The manuscripts property of a manuscript thread is an ordered list of
 manuscript ids. The order corresponds to the submission order.
 
 AX-1520: The status of a manuscript can be: INIT, NEW, REVIEWABLE, REJECTED, PUBLISHED or ASSIGNED. These mean:
+
 * INIT: The list of authors is being established.
 * NEW: The information is complete.
 * REVIEWABLE: The editor declared that the manuscript is suited for the journal, provided it gets the right positive reviews.
@@ -147,6 +157,7 @@ AX-1520: The status of a manuscript can be: INIT, NEW, REVIEWABLE, REJECTED, PUB
 
 AX-1540: The Client tool should allow an existing person to submit a new manuscript. The following information should be
 provided:
+
 * The PDF text.
 * The title.
 * The list of authors.
@@ -154,6 +165,7 @@ provided:
 * An optional commit message.
 
 The system will then set remaining properties as follows:
+
 * The id is generated.
 * The hash is calculated from the PDF text.
 * The manuscript format should be set to PDF.
@@ -164,6 +176,7 @@ The system will then set remaining properties as follows:
 
 AX-1550: The Client tool should allow every author of a manuscript to submit a new version, provided that the status is not PUBLISHED or ASSIGNED.
 The following information should be included:
+
 * The PDF text.
 * A mandatory commit message.
 * The previous version.
@@ -171,6 +184,7 @@ The following information should be included:
 * The list of authors.
 
 The system will set the remaining properties as follows:
+
 * The hash is calculated from the PDF text.
 * The manuscript format should be set to PDF.
 * The version number is one more than the version number of the previous version.
@@ -193,6 +207,7 @@ She is required to reference all the reviews that guided her decision.
 
 AX-1600: The Client tool should allow an editor to assign a volume to a published manuscript. The following information
 should be included:
+
 * The volume id.
 * The first page.
 * The last page.
@@ -206,6 +221,7 @@ AX-1620: The Client should allow everyone to see metadata about every Manuscript
 ## Journal
 
 AX-2000: A Journal should have the following mandatory properties:
+
 * id.
 * title.
 * isSigned (boolean).
@@ -222,6 +238,7 @@ These states allow the editors of a journal to resign and to assign colleagues, 
 should have both her own signature and the signature of an existing editor.
 
 AX-2030: The Client tool should allow every known person to create a journal. The following information should be provided:
+
 * The title.
 * An optional description.
 
@@ -246,6 +263,7 @@ manuscripts list of their journal.
 AX-2100: All manuscripts that have state PUBLISHED should occur in the published unassigned list of their journal.
 
 AX-2110: The Client tool should allow each editor to create a Volume. A Volume has the following properties:
+
 * id of journal.
 * issue string.
 * list of manuscripts.
@@ -258,6 +276,7 @@ AX-2130: Volumes should not be editable.
 ## Reviews
 
 AX-2500: A Review, see AX-1580, has the following properties:
+
 * id.
 * The manuscript it is about.
 * One author.
@@ -276,6 +295,7 @@ AX-2530: A review is not editable.
 ## Credits
 
 AX-3000: The following actions should cost credit:
+
 * Person edits her data.
 * Author submits new Manuscript.
 * Author submits new version of Manuscript.
@@ -322,6 +342,7 @@ of the journal, see AX-2000. It has separate link for each volume and additional
 published unassigned manuscripts.
 
 AX-4320: The journal details screen shows the journal description. There are three cases:
+
 * There is a journal description hash on the blockchain, but the corresponding text is not known to the portal. In this case,
 there is a Submit button allowing the user to upload the text.
 * There is a journal description hash on the blockchain and there is a corresponding text. Then the text is shown and
@@ -335,6 +356,7 @@ AX-4335: Editors, Authors and Reviewers who are signed persons should stand out.
 AX-4340: The CV screen shows person properties, see AX-10 and AX-90.
 
 AX-4350: There are three cases for the person Biography:
+
 * There is a person Biography on the blockchain (hasBiography = true), but the text is not known to Portal. In this case
 a Submit button is shown.
 * There is a person Biography and the text is known. In this case Portal shows a Verify button.
@@ -348,12 +370,14 @@ a list of manuscripts. Each entry in the list shows at least the title and the f
 AX-4370: The Portal tool has a manuscript detail screen. It shows all Manuscript properties.
 
 AX-4380: The Manuscript detail screen has two cases related to the full-text:
+
 * The full text is not known to the Portal. In this case there is a Submit button.
 * The full text is known. In this case there is a Verify button.
 
 AX-4390: The Manuscript details screen has links to reviews and previous versions.
 
 AX-4400: Portal has a reviews list screen. For each review, there are two cases:
+
 * The full text of the review is known. In this case, there is a verify button.
 * The full text of the review is not known. In this case, there is a Submit button.
 
@@ -388,6 +412,7 @@ AX-5040: Each transaction that costs credits should include the price. This way,
 between ordinary transactions and price changes.
 
 AX-5050: The following items are identified with an id property:
+
 * Person
 * Manuscript
 * Manuscript thread
