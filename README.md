@@ -26,19 +26,21 @@ Note that Authors, Editors and Reviewers are all a Person.
 
 AX-10: The following properties should be maintained about each person:
 
-* id
+* id.
+* creation timestamp
+* modification timestamp.
 * public key.
 * private key.
-* isMajor.
 * name.
 * email address.
+* isMajor.
 * isSigned: Boolean indicating whether the Alexandra team knows the person.
 * saldo.
 * hasBiography (boolean).
 
-AX-20: The Major Tool should allow majors to create new persons.
+AX-20: The Major Tool should allow only majors to create new persons.
 
-AX-30: A person should be identified by her id. The public key is not a good unique id because a user must be able to update that, see AX-60.
+AX-30: A person should be identified by her id. The public key is not a good unique id because a user must be able to update that, see AX-60. See AX-5060 about id fields.
 
 AX-50: The private key of a person should not be stored on the blockchain and it should not be sent over the network.
 
@@ -46,7 +48,9 @@ AX-60: The Client should allow each person to update her key pair, Name or Email
 
 AX-70: With the Major tool a major should be able to set or reset the isSigned property and the isMajor property of each person. When a person updates her personal data, these properties should not be reset. A Major can reset them if needed.
 
-AX-80: The saldo is an integer value. The saldo is decreased when the person uses the system. She should not be able to use the system when her saldo is zero. She should be able to buy new credits to continue usage of the system.
+AX-80: The saldo is an integer value. The saldo is decreased when the person uses the system. She should not be able to use the system when her saldo is zero.
+
+AX-85: Each major should be allowed to add saldo to every person.
 
 AX-90: Each person has the following optional properties:
 
@@ -65,11 +69,15 @@ AX-95: The Client tool should allow a person to clear her biography. The hasBiog
 
 AX-100: The Biography should be treated as a document, see AX-1000.
 
-AX-110: The Client should be able to generate a public/private key pair.
+AX-110: The Client tool should be able to generate a public/private key pair.
 
 AX-120: The Client tool should allow every person to see all of her information.
 
 AX-130: The Major tool should allow every major to see all information of every person.
+
+AX-140: The modification timestamp of a person should be updated when one or more of the properties of AX-10 or AX-90 is updated.
+
+AX-150: Although the Client Tool and the Portal tool provide curriculum vitae information (AX-4050 and AX-4340), a person does not have a list of manuscripts or a list of editorships. CV functionality should be provided by listening to events coming from the blockchain, not by keeping the information on the blockchain itself.
 
 ## Documents
 
@@ -102,6 +110,8 @@ AX-1090: Manuscripts are always PDF documents. Reviews, Journal Descriptions and
 AX-1500: A Manuscript has the following properties:
 
 * id.
+* creation timestamp.
+* modification timestamp.
 * hash.
 * manuscript format, see AX-1030.
 * manuscript thread.
@@ -111,7 +121,7 @@ AX-1500: A Manuscript has the following properties:
 * list of AuthorInfo items.
 * status.
 * journal.
-* list of review.
+* list of reviews.
 * volume.
 * first page.
 * last page.
@@ -150,12 +160,14 @@ AX-1540: The Client tool should allow an existing person to submit a new manuscr
 The system will then set remaining properties as follows:
 
 * The id is generated.
+* The creation time and the modification time are set to the current time according to the host preparing the command to be sent to the blockchain.
 * The hash is calculated from the PDF text.
 * The manuscript format should be set to PDF.
 * A new manuscript thread is created with the manuscript included as the first item.
 * The version number is set to 1.
 * The status is set to INIT.
 * When the person signing the transaction is also in the list of authors, set didSign=true for that AuthorInfo.
+* The list of reviews, the volume, the first page and the last page are made empty.
 
 AX-1550: The Client tool should allow every author of a manuscript to submit a new version, provided that the status is not PUBLISHED or ASSIGNED. The following information should be included:
 
@@ -167,16 +179,18 @@ AX-1550: The Client tool should allow every author of a manuscript to submit a n
 
 The system will set the remaining properties as follows:
 
+* The creation time and the modification time are set to the current time according to the host that prepares the command to be sent to the blockchain.
 * The hash is calculated from the PDF text.
 * The manuscript format should be set to PDF.
 * The version number is one more than the version number of the previous version.
 * The new manuscript is added to the manuscript thread.
 * The status is set to INIT.
 * the journal equals the journal of the previous version.
+* The list of reviews, the volume, the first page and the last page are made empty.
 
-AX-1560: The Client tool should allow everyone in the list of authors to sign for being author. When every author has signed, the status should go to NEW or REVIEWABLE.
+AX-1560: The Client tool should allow everyone in the list of authors to sign for being author. When every author has signed, the status should go to NEW or REVIEWABLE. The state will be NEW when the manuscript thread has isReviewable = false. Otherwise, the state will be REVIEWABLE.
 
-AX-1570: The Client tool should allow an editor to change the manuscript status from NEW to REVIEWABLE. An editor applies here to the journal of the manuscript. This change is applied to all manuscripts in the manuscript thread, property isReviewable in AX-1513.
+AX-1570: The Client tool should allow an editor to change the manuscript status from NEW to REVIEWABLE. An editor applies here to the journal of the manuscript. This change is applied to all manuscripts in the manuscript thread. All manuscripts in the thread with status NEW should be updated to REVIEWABLE. The isReviewable property of the thread should be set (AX-1513).
 
 AX-1580: The Client tool should allow reviewers to write reviews. This is allowed for documents that are not in state INIT or NEW.
 
@@ -194,11 +208,18 @@ AX-1610: The state machine for manuscripts should be such that the order of mani
 
 AX-1620: The Client should allow everyone to see metadata about every Manuscript.
 
+AX-1630: The modification time of a manuscript should be updated when:
+
+* An author signs for being author (AX-1560).
+* An editor changes the state (AX-1570, AX-1590, AX-1600)
+
 ## Journal
 
 AX-2000: A Journal should have the following mandatory properties:
 
 * id.
+* creation time.
+* modification time.
 * title.
 * isSigned (boolean).
 * hasDescription (boolean).
@@ -240,11 +261,19 @@ AX-2120: A manuscript can only be in a volume when its state is ASSIGNED. An ASS
 
 AX-2130: Volumes should not be editable.
 
+AX-2140: The modification time of a journal should be updated when:
+
+* The title is changed.
+* The isSigned property is changed.
+* The description is set, cleared or changed.
+* One or more of the EditorInfo items is changed.
+
 ## Reviews
 
 AX-2500: A Review, see AX-1580, has the following properties:
 
 * id.
+* creation time.
 * The manuscript it is about.
 * One author.
 * Hash of text.
@@ -254,7 +283,7 @@ AX-2500: A Review, see AX-1580, has the following properties:
 
 AX-2510: The Judgement in a review can be "ACCEPTED" or "REJECTED". There is no judgement for review requested, because a new version is treated here as a new manuscript.
 
-AX-2520: The order of reviews is not important.
+AX-2520: The order of reviews is important. This is the reason to keep a list of reviews with a manuscript.
 
 AX-2530: A review is not editable.
 
@@ -276,6 +305,8 @@ AX-3000: The following actions should cost credit:
 * Editor creates volume.
 
 AX-3010: The Major tool should allow each major to adjust prices. Each action of AX-3000 should have its own price.
+
+AX-3015: The price list has an associated creation time and an associated modification time.
 
 AX-3020: The Major tool should allow each major to add and withdraw credit to everyone.
 
@@ -367,4 +398,12 @@ AX-5060: When a user creates an object with an id, she does not provide that id 
 
 AX-5070: Each Hyperledger Sawtooth address should contain only one item. In theory, generating an address for a new item can result in an address collision. This is solved by basing generated addresses on a uuid. When a collision occurs, a new uuid can be generated resulting in a new address. This can be done until the generated address is free.
 
-AX-5080: There is a fixed address that is filled when the blockchain is bootstrapped. This address will hold the list of prices, AX-3000. Using a fixed address allows the user to check whether the blockchain was bootstrapped.
+AX-5080: There is a fixed address that is filled when the blockchain is bootstrapped. This address will hold the list of prices, AX-3000. Using a fixed address allows the blockchain to check whether there is bootstrap information.
+
+## Timestamps
+
+AX-5500: Creation times and modification times (timestamps) are generated by the host that sends requests to the blockchain.
+
+AX-5510: At the moment, the blockchain is not required to verify timestamps.
+
+AX-5520: Timestamps are sent and stored as seconds since epoch. This way, the time zone used by a host does not influence the value sent.
