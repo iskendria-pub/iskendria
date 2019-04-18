@@ -1,6 +1,7 @@
-# alexandria
+# Alexandria
+
 Scientific publications published on a Hyperledger Sawtooth blockchain. This project is part of Martijn Dirkse's internship at
-The Privacy Factory, Urmond, Limburg. The project is based on the report
+PrivacyO Technologies B.V., Urmond, Limburg. The project is based on the report
 "Blockchain Technology for Publishing Scientific Papers", written as the final paper of the Blockchain Technology Consultant
 course described at https://www.3estack.io/en/training/.
 
@@ -11,7 +12,7 @@ final truth.
 * Client: Command-line application used by everyone who wants to edit the blockchain.
 * Portal: Web application where users can find full-text manuscripts. This system is not the core business of the Alexandria
 team, but it has to be maintained as long as other parties do not make portals themselves.
-* Major: Command-line user interface used by the Alexandria team to maintain the system.
+* Major Tool: Command-line user interface used by the Alexandria team to maintain the system.
 
 The following roles exist:
 * Author: The author of manuscripts.
@@ -25,23 +26,21 @@ Note that Authors, Editors and Reviewers are all a Person.
 
 ## Persons
 
-AX-10: Each person in the system has the following mandatory attributes:
-* UUID
-* Public key.
-* Private key.
+AX-10: The following properties should be maintained about each person:
+* id
+* public key.
+* private key.
 * isMajor.
-* Name.
-* Email address.
+* name.
+* email address.
 * isSigned: Boolean indicating whether the Alexandra team knows the person.
 * saldo.
 * hasBiography (boolean).
 
-AX-20: The Client should allow anyone to add a person to the system, with isMajor = false.
+AX-20: The Major Tool should allow majors to create new persons.
 
-AX-30: A person should be identified by her UUID. The public key is not a good unique id because a user must be able to
-update it, see AX-60.
-
-AX-40: It is not allowed that a public key is shared between multiple persons.
+AX-30: A person should be identified by her id. The public key is not a good unique id because a user must be able to
+update that, see AX-60.
 
 AX-50: The private key of a person should not be stored on the blockchain and it should not be sent
 over the network.
@@ -55,14 +54,15 @@ AX-80: The saldo is an integer value. The saldo is decreased when the person use
 should not be able to use the system when her saldo is zero. She should be able to buy new credits to continue usage of the
 system.
 
-AX-90: Each person has the following optional attributes:
-* Institution.
-* Telephone number.
-* Address.
-* Zip code.
-* Country.
-* Government ID.
-* Biography.
+AX-90: Each person has the following optional properties:
+* institution.
+* telephone number.
+* address.
+* zip code.
+* country.
+* government ID.
+* biography.
+* biography format, see AX-1030.
 
 The Client tool should allow her to add and edit these.
 
@@ -95,51 +95,47 @@ within the Portal.
 
 AX-1040: The following properties of a document should be maintained on the Blockchain:
 * The hash.
-* The document kind.
 * The format.
-* Optional context values.
 
-AX-1050: Documents are identified by their hash; no two documents can exist with the same hash. When someone causes a hash
-collision by uploading a document, the document should be refused by the Blockchain with an error message. The user is
-required to apply a trivial modification to the document to have another hash. This is acceptable because the chance that a hash
-collisions occurs is negligible.
+AX-1050: Documents themselves are not identified, but only the entity it is part of. For example,
+a biography is treated as a property of a person.
 
 AX-1060: UTF-8 text documents are trimmed (leading and trailing space characters removed) before they are hashed. The reason is
 that text editors add trailing space characters sometimes as was observed with the editor vim.
-
-AX-1070: UTF-8 text documents can sometimes be short, for example reviews with the text "Good work". Therefore UTF-8 texts
-should be prepended by context values to make it unique. Here is an example: Assume that the user with UUID abcdef submits the
-review text "Good work\n\n\n" about the manuscript with hash 01234567. Then first AX-1060 is applied, resulting in "Good work".
-Then the text "01234567\nabcdef\nGood work" is hashed.
-
-AX-1080: Here are the context values to prepend to a UTF-8 text before hashing:
-* A Biography is prepended by the person id it is about.
-* A Journal Description is prepended by the Journal id.
-* A Review Text is prepended by the hash of the manuscript followed by the id of the reviewer.
 
 AX-1090: Manuscripts are always PDF documents. Reviews, Journal Descriptions and Biographies are always UTF-8 text.
 
 ## Manuscript
 
 AX-1500: A Manuscript has the following properties:
-* Hash.
-* Version number (one positive number).
-* Commit message (not hashed, text goes on the blockchain).
-* Hash of previous version (if version >= 2).
-* Hash of next version.
-* Title.
-* List of AuthorInfo items.
-* Status.
-* Journal.
-* List of Review.
-* Volume.
-* First page.
-* Last page.
+* id.
+* hash.
+* manuscript format, see AX-1030.
+* manuscript thread.
+* version number (one positive number).
+* commit message (not hashed, text goes on the blockchain).
+* title.
+* list of AuthorInfo items.
+* status.
+* journal.
+* list of review.
+* volume.
+* first page.
+* last page.
 
 AX-1510: An AuthorInfo item has the following properties:
 * The author.
 * didSign: True if the author signed for being author.
 * authorSeq: The order of the author list of a publication is very significant.
+
+AX-1513: Each manuscript is part of a manuscript thread. A manuscript thread has
+the following properties:
+* id
+* manuscripts
+* isReviewable
+
+AX-1516: The manuscripts property of a manuscript thread is an ordered list of
+manuscript ids. The order corresponds to the submission order.
 
 AX-1520: The status of a manuscript can be: INIT, NEW, REVIEWABLE, REJECTED, PUBLISHED or ASSIGNED. These mean:
 * INIT: The list of authors is being established.
@@ -148,8 +144,6 @@ AX-1520: The status of a manuscript can be: INIT, NEW, REVIEWABLE, REJECTED, PUB
 * REJECTED: The editor rejected this manuscript for publication. This does not prevent anyone to submit a new version.
 * PUBLISHED: The manuscript is published but has not been assigned to a volume.
 * ASSIGNED: The manuscript is published in a volume.
-
-AX-1530: The id of a Manuscript is its hash.
 
 AX-1540: The Client tool should allow an existing person to submit a new manuscript. The following information should be
 provided:
@@ -160,12 +154,16 @@ provided:
 * An optional commit message.
 
 The system will then set remaining properties as follows:
-* The Hash is calculated from the PDF text.
-* The Version Number is set to 1.
-* The Status is set to INIT.
+* The id is generated.
+* The hash is calculated from the PDF text.
+* The manuscript format should be set to PDF.
+* A new manuscript thread is created with the manuscript included as the first item.
+* The version number is set to 1.
+* The status is set to INIT.
 * When the person signing the transaction is also in the list of authors, set didSign=true for that AuthorInfo.
 
-AX-1550: The Client tool should allow every author of a manuscript to submit a new version, provided that the status is not PUBLISHED or ASSIGNED. The following information should be included:
+AX-1550: The Client tool should allow every author of a manuscript to submit a new version, provided that the status is not PUBLISHED or ASSIGNED.
+The following information should be included:
 * The PDF text.
 * A mandatory commit message.
 * The previous version.
@@ -174,17 +172,18 @@ AX-1550: The Client tool should allow every author of a manuscript to submit a n
 
 The system will set the remaining properties as follows:
 * The hash is calculated from the PDF text.
-* The Version Number is one more than the version number of the previous version.
+* The manuscript format should be set to PDF.
+* The version number is one more than the version number of the previous version.
+* The new manuscript is added to the manuscript thread.
 * The status is set to INIT.
-* the Journal equals the journal of the previous version.
-
-The system will also assign the nextHash property of the previous version.
+* the journal equals the journal of the previous version.
 
 AX-1560: The Client tool should allow everyone in the list of authors to sign for being author. When every author has signed,
 the status should go to NEW or REVIEWABLE.
 
 AX-1570: The Client tool should allow an editor to change the manuscript status from NEW to REVIEWABLE. An editor applies
-here to the journal of the manuscript. This change is propagated to previous and future versions.
+here to the journal of the manuscript. This change is applied to all manuscripts
+in the manuscript thread, property isReviewable in AX-1513.
 
 AX-1580: The Client tool should allow reviewers to write reviews. This is allowed for documents that are not in state
 INIT or NEW.
@@ -200,19 +199,19 @@ should be included:
 
 The system should update the manuscript state to ASSIGNED.
 
-AX-1610: The state machine for manuscripts should be such that the order of manipulations is not important. Each sequence
-of manipulations should result in the same bytes on the blockchain.
+AX-1610: The state machine for manuscripts should be such that the order of manipulations is not important.
 
 AX-1620: The Client should allow everyone to see metadata about every Manuscript.
 
 ## Journal
 
 AX-2000: A Journal should have the following mandatory properties:
-* UUID.
-* Title.
+* id.
+* title.
 * isSigned (boolean).
 * hasDescription (boolean).
-* Optional journal description, treated as document, see AX-1000.
+* descriptionHash.
+* descriptionFormat (see AX-1030).
 * List of EditorInfo.
 * List of reviewable manuscripts.
 * List of published unassigned manuscripts.
@@ -222,15 +221,9 @@ AX-2010: An EditorInfo has properties Person and EditorState. The editor state c
 These states allow the editors of a journal to resign and to assign colleagues, while each added editor
 should have both her own signature and the signature of an existing editor.
 
-AX-2020: A Journal is identified by its UUID.
-
 AX-2030: The Client tool should allow every known person to create a journal. The following information should be provided:
 * The title.
 * An optional description.
-
-The system should create a UUID and include it in the request to the Blockchain. The system should then set the provided
-properties and make the signer the first editor of the journal, with state ACCEPTED.
-The property hasDescription should be true iff a description was provided.
 
 AX-2040: The Client tool should allow each editor to update the title or the journal description. She should
 also be able to remove the journal description.
@@ -253,7 +246,7 @@ manuscripts list of their journal.
 AX-2100: All manuscripts that have state PUBLISHED should occur in the published unassigned list of their journal.
 
 AX-2110: The Client tool should allow each editor to create a Volume. A Volume has the following properties:
-* UUID of journal.
+* id of journal.
 * issue string.
 * list of manuscripts.
 
@@ -265,17 +258,18 @@ AX-2130: Volumes should not be editable.
 ## Reviews
 
 AX-2500: A Review, see AX-1580, has the following properties:
+* id.
 * The manuscript it is about.
 * One author.
 * Hash of text.
+* Format of text.
 * Judgement.
 * isUsedByEditor (see AX-1590).
 
 AX-2510: The Judgement in a review can be "ACCEPTED" or "REJECTED". There is no judgement for review requested,
 because a new version is treated here as a new manuscript.
 
-AX-2520: The order of reviews is not important. Each order of adding reviews should result in the same bytes stored on the
-blockchain.
+AX-2520: The order of reviews is not important.
 
 AX-2530: A review is not editable.
 
@@ -316,9 +310,6 @@ AX-4020: The Client tool should have a help command that shows context sensitive
 AX-4030: The Client should have a login command, allowing the user to impersonate a Person on the blockchain. The login command
 should give feedback on who you are.
 
-AX-4040: The Client tool should offer an Options within each of the four subcommands. The Options command shows what actions are
-possible given the saldo of the logged-in user.
-
 AX-4050: The Client tool should offer a command "cv", which shows the biography, submitted manuscripts and
 editorships of journals of the logged-in person.
 
@@ -330,7 +321,7 @@ AX-4310: When the user clicks a journal in the Portal tool, a screen with journa
 of the journal, see AX-2000. It has separate link for each volume and additional links pointing to reviewable manuscripts and
 published unassigned manuscripts.
 
-AX-4320: The journal details screen shows the description. There are three cases:
+AX-4320: The journal details screen shows the journal description. There are three cases:
 * There is a journal description hash on the blockchain, but the corresponding text is not known to the portal. In this case,
 there is a Submit button allowing the user to upload the text.
 * There is a journal description hash on the blockchain and there is a corresponding text. Then the text is shown and
@@ -376,13 +367,9 @@ AX-4420: The reviews list screen should include all versions and their reviews.
 AX-4700: The Major tool is an interactive command-line application.
 
 AX-4710: When the blockchain is empty, the Major tool should allow everyone to bootstrap the blockchain. The user should provide
-all price levels mentioned in AX-3000. The key that signed is the bootstrap key.
-
-AX-4720: The Major can use the Client tool to create a Person for herself that has the bootstrap key as key.
-Then she can use the Major tool to declare that person Major. She signs that with the bootstrap key.
-
-AX-4730: The Major tool should allow any Major to disable the bootstrap key. After that, the bootstrap key is still usable
-as long as it is the key of a person having isMajor = true.
+all price levels mentioned in AX-3000. The user should also provide person create information,
+see AX-10. This will result in a bootstrapped blockchain with one person who is major. The key
+of the person is the key that signed the bootstrap request.
 
 ## Blockchain
 
@@ -397,8 +384,27 @@ docs, a processor.InvalidTransactionError is used.
 AX-5020: When an ordered list on the blockchain (e.g. all versions of a Manuscript) is appended, then the request should
 reference the current last item. When the last current item is not correct anymore, then the transaction should be rejected.
 
-AX-5030: Unordered lists (e.g. the reviews of a Manuscript) should be stored with an artificial sort order. This way the
-same inserts produce the same list, irrespective of the order in which the inserts are applied.
-
 AX-5040: Each transaction that costs credits should include the price. This way, the blockchain can resolve conflicts
 between ordinary transactions and price changes.
+
+AX-5050: The following items are identified with an id property:
+* Person
+* Manuscript
+* Manuscript thread
+* Journal
+* Review
+
+AX-5060: When a user creates an object with an id, she does not provide that
+id herself. The client tool or the major tool is responsible for generating
+the id. The id should be the blockchain address where the object is stored.
+
+AX-5070: Each Hyperledger Sawtooth address should contain only one item.
+In theory, generating an address for a new item can result in an address
+collision. This is solved by basing generated addresses on a uuid. When
+a collision occurs, a new uuid can be generated resulting in a new address.
+This can be done until the generated address is free.
+
+AX-5080: There is a fixed address that is filled when the blockchain is
+bootstrapped. This address will hold the list of prices, AX-3000. Using
+a fixed address allows the user to check whether the blockchain was
+bootstrapped.
