@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option go_package = "model";
+
+message IntUpdate {
+    int32 oldValue = 1;
+    int32 newValue = 2;
+}
+
+message StringUpdate {
+    string oldValue = 1;
+    string newValue = 2;
+}
+
+message BoolUpdate {
+    bool oldValue = 1;
+    bool newValue = 2;
+}
+
+enum Judgement {
+    NEGATIVE = 0;
+    POSITIVE = 1;
+}

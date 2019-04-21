@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+import "common.proto";
+import "person.proto";
+
+message Settings {
+    int64 bootstrappedOn = 1;
+    int32 pricePersonEdit = 2;
+}
+
+message Bootstrap {
+    Settings settings = 1;
+    PersonCreate firstMajor = 2;
+}
+
+message SettingsUpdate {
+    string signerId = 1;
+    int64 timestamp = 2;
+    IntUpdate pricePersonEditUpdate = 3;
+}
