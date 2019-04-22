@@ -1,0 +1,61 @@
+# Design
+
+## Introduction
+
+This file gives the general design of Alexandria.
+
+First, we present the relevant data transformations using the example of bootstrapping.
+
+## Client Commands
+
+The flow starts on the client side. The UI should produce a struct BootstrapRequest. This BootstrapRequest should be transformed to a Command that can be used to produce a Hyperledger Sawtooth transaction. To make this possible, a Command should have the following properties:
+
+* A Google Protocol Buffers object BootstrapTransactionPayload.
+* A list of input Sawtooth addresses.
+* A list of output Sawtooth addresses.
+* The keypair to sign with.
+
+Introducing the Command interface allows testing without a real blockchain. We can apply Command objects to the state. To do this, we need a Golang interface that is implemented by the Hyperledger Sawtooth processor context. This means that we have an interface BlockchainAccess with methods GetState, SetState and DeleteState.
+
+## Server Command Processing
+
+The transaction handler's Apply method should wrap the transaction payload into a regenerated Command object and apply that to the BlockchainAccess instance that is the Sawtooth context. Applying the command should not update the state directly, but should result in a slice of StateUpdate objects. The StateUpdate objects are both used to do the updates of the state, and they are used to generate the Sawtooth events to emit. When a Bootstrap command is applied on the server side, two StateUpdate objects should result: one for the settings and one for the created person.
+
+When working with Sawtooth state, it is useful to hide unmarshaling and marshaling in a BlockchainAccessAdapter object. Applying a Command to the BlockchainAccess thus constitutes the following steps:
+
+* Create a BlockchainAccessAdapter and fill it by reading the relevant addresses.
+* Check the validity of the command.
+* Generate the StateUpdate objects.
+* Apply the StateUpdate objects to the BlockchainAccessAdapter.
+* Flush the BlockchainAccessAdapter by marshaling the modified Google Protocol Buffers objects and applying SetState and DeleteState on the BlockchainAccess.
+* Transform the StateUpdate objects into (eventType, attributes, payload) tuples.
+* Emit these tuples through the Hyperledger Sawtooth context.
+
+## Maintaining Local Data
+
+The Client and the Major tool should access a common Data Access Object (DAO) component that maintains the local database. The DAO should subscribe to the Sawtooth events. It should translate each packet of event data to an instance of Event. An Event should be able to apply itself to a database/sql transaction object. Finally, the common database component should provide methods to query the database resulting in structs holding data elements that are relevant within Alexandria. For example, the DAO should have methods like SearchPersonByKey(), IsBootstrapped() and GetPrices().
+
+## Packages
+
+We have the following packages:
+
+* model
+* command
+* dao
+* transaction
+* processor
+* major
+* client
+* portal
+
+Package **model** holds Google Protocol Buffers and Data Definition Language code to describe the data. It also holds helper functions to transform data. Bundling all these in the model package makes the data format and the data transformations visible.
+
+Package **command** holds all code about creating and applying commands to the state. It also implements BlockchainAccess, BlockchainAccessAdapter and StateUpdate as described earlier. It exposes structs to be used by the user interface to prepare commands.
+
+Package **dao** exposes structs that can be read from the local database and an init method that initializes the local database and subscribes to the incoming events.
+
+Package **transaction** holds code to send transactions based on Command instances and maybe to poll the status of transactions. This code is kept out of package command to make that package easier to test.
+
+Package **processor** holds the executable that is registered to Hyperledger Sawtooth as the transaction processor.
+
+Packages **major**, **client** and **portal** hold the executables for the Major Tool, the Client Tool and the Portal.
