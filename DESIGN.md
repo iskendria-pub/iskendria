@@ -19,7 +19,7 @@ Introducing the Command interface allows testing without a real blockchain. We c
 
 ## Server Command Processing
 
-The transaction handler's Apply method should wrap the transaction payload into a regenerated Command object and apply that to the BlockchainAccess instance that is the Sawtooth context. Applying the command should not update the state directly, but should result in a slice of StateUpdate objects. The StateUpdate objects are both used to do the updates of the state, and they are used to generate the Sawtooth events to emit. When a Bootstrap command is applied on the server side, two StateUpdate objects should result: one for the settings and one for the created person.
+The transaction handler's Apply method should wrap the transaction payload into a regenerated Command object and apply that to the BlockchainAccess instance that is the Sawtooth context. Applying the command should not update the state directly, but should result in a slice (Golang's version of an array) of StateUpdate objects. The StateUpdate objects are both used to do the updates of the state, and they are used to generate the Sawtooth events to emit.
 
 When working with Sawtooth state, it is useful to hide unmarshaling and marshaling in a BlockchainAccessAdapter object. Applying a Command to the BlockchainAccess thus constitutes the following steps:
 
@@ -33,7 +33,9 @@ When working with Sawtooth state, it is useful to hide unmarshaling and marshali
 
 ## Maintaining Local Data
 
-The Client and the Major tool should access a common Data Access Object (DAO) component that maintains the local database. The DAO should subscribe to the Sawtooth events. It should translate each packet of event data to an instance of Event. An Event should be able to apply itself to a database/sql transaction object. Finally, the common database component should provide methods to query the database resulting in structs holding data elements that are relevant within Alexandria. For example, the DAO should have methods like SearchPersonByKey(), IsBootstrapped() and GetPrices().
+The Client and the Major tool should access a common Data Access Object (DAO) component that maintains the local database. It should expose a function to receive Sawtooth events. The function should translate each incoming event to an Event object. An Event should be able to apply itself to a database/sql transaction object. Finally, the DAO component should provide methods to query the database resulting in structs holding data elements that are relevant within Alexandria. For example, the DAO should have methods like SearchPersonByKey(), IsBootstrapped() and GetPrices().
+
+Subscribing to Sawtooth events should not be in the DAO component to make the DAO component easier to test.
 
 ## Packages
 
@@ -42,7 +44,7 @@ We have the following packages:
 * model
 * command
 * dao
-* transaction
+* blockchain
 * processor
 * major
 * client
@@ -52,9 +54,9 @@ Package **model** holds Google Protocol Buffers and Data Definition Language cod
 
 Package **command** holds all code about creating and applying commands to the state. It also implements BlockchainAccess, BlockchainAccessAdapter and StateUpdate as described earlier. It exposes structs to be used by the user interface to prepare commands.
 
-Package **dao** exposes structs that can be read from the local database and an init method that initializes the local database and subscribes to the incoming events.
+Package **dao** exposes structs that can be read from the local database. It exposes an init method that initializes the local database. It also exposes a function that processes incoming Sawtooth events, but it does not register to them.
 
-Package **transaction** holds code to send transactions based on Command instances and maybe to poll the status of transactions. This code is kept out of package command to make that package easier to test.
+Package **blockchain** holds code to send transactions based on Command instances and maybe to poll the status of transactions. It also subscribes to Sawtooth events.
 
 Package **processor** holds the executable that is registered to Hyperledger Sawtooth as the transaction processor.
 
