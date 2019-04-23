@@ -4,13 +4,11 @@
 
 This file gives the general design of Alexandria.
 
-First, we present the relevant data transformations using the example of bootstrapping.
-
 ## Client Commands
 
-The flow starts on the client side. The UI should produce a struct BootstrapRequest. This BootstrapRequest should be transformed to a Command that can be used to produce a Hyperledger Sawtooth transaction. To make this possible, a Command should have the following properties:
+The flow starts on the client side. In the example of bootstrapping, the UI should produce a struct BootstrapRequest. This BootstrapRequest should be transformed to a Command that can be used to produce a Hyperledger Sawtooth transaction. To make this possible, a Command should have the following properties:
 
-* A Google Protocol Buffers object BootstrapTransactionPayload.
+* A Google Protocol Buffers object as specified in the data model.
 * A list of input Sawtooth addresses.
 * A list of output Sawtooth addresses.
 * The keypair to sign with.
@@ -52,7 +50,7 @@ We have the following packages:
 
 Package **model** holds Google Protocol Buffers and Data Definition Language code to describe the data. It also holds helper functions to transform data. Bundling all these in the model package makes the data format and the data transformations visible.
 
-Package **command** holds all code about creating and applying commands to the state. It also implements BlockchainAccess, BlockchainAccessAdapter and StateUpdate as described earlier. It exposes structs to be used by the user interface to prepare commands.
+Package **command** holds all code about creating commands and applying them to the state. It also implements BlockchainAccess, BlockchainAccessAdapter and StateUpdate as described earlier. It exposes structs to be used by the user interface to prepare commands.
 
 Package **dao** exposes structs that can be read from the local database. It exposes an init method that initializes the local database. It also exposes a function that processes incoming Sawtooth events, but it does not register to them.
 
