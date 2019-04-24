@@ -29,6 +29,8 @@ When working with Sawtooth state, it is useful to hide unmarshaling and marshali
 * Transform the StateUpdate objects into (eventType, attributes, payload) tuples.
 * Emit these tuples through the Hyperledger Sawtooth context.
 
+The client should be able to detect missed events. This is achieved by adding some extra data as is explained in the data model.
+
 ## Maintaining Local Data
 
 The Client and the Major tool should access a common Data Access Object (DAO) component that maintains the local database. It should expose a function to receive Sawtooth events. The function should translate each incoming event to an Event object. An Event should be able to apply itself to a database/sql transaction object. Finally, the DAO component should provide methods to query the database resulting in structs holding data elements that are relevant within Alexandria. For example, the DAO should have methods like SearchPersonByKey(), IsBootstrapped() and GetPrices().

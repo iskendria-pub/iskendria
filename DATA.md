@@ -1,6 +1,6 @@
 ## 1. Introduction
 
-This Golang package holds the data model. It consists of four parts:
+This file describes the data model of Alexandria. Definitions of the data are in the model package. The document consists of four parts:
 
 * Data definition of the state data on the blockchain.
 * Data definition of the transaction payload.
@@ -13,13 +13,13 @@ The remainder of this file motivates the chosen data storage and marshaling tool
 
 We had to choose between JSON and Google Protocol Buffers. JSON is easier to debug, but it turns out that marshaling Golang variables into JSON is not deterministic as pointed out here: https://stackoverflow.com/questions/44755089/does-serialized-content-strictly-follow-the-order-in-definition-use-encoding-jso. Google Protocol Buffers is not deterministic too in theory, but in practice it is as long as no maps are applied in the GPB data definitions. This is explained here: https://havoc.io/post/deterministic-protobuf/. The choice for Google Protocol Buffers is based on these sources.
 
-Using UUIDs, we can arrange that every Sawtooth address holds exactly one value. Each item mentioned in requirement AX-5050 has its id calculated as follows. When the item is created, the client doing so should first create a UUID. Then this id is hashed and the hex representation of the hash is taken. The digits a-f should be small caps. Then the last 62 digits are taken. The final address becomes:
+Using UUIDs, we can arrange that every Sawtooth address holds exactly one value. Each item mentioned in requirement AX-5050 has its id calculated as follows. When the item is created, the client doing so should first create a UUID. Then this UUID is hashed using SHA-512 and the hex representation of the hash is taken. The digits a-f should be small caps. Then the first 62 digits are taken. The final address becomes:
 
 <6-digid transaction family> + <2-digid type code> + <62-digid remainder>
 
 The exception to this scheme is the price list, which has a fixed address. This allows the blockchain to find its bootstrap information.
 
-Timestamps are stored as integer values, the number of seconds since Epoch. Timestamps are stored in 64-bit signed integers.
+Timestamps are stored as integer values, the number of seconds since Unix Epoch. Timestamps are stored in 64-bit signed integers.
 
 Optional fields do not need to be handled with omittd fields or null fields. The empty string is good enough, because an empty string is not a meaningful value itself.
 
@@ -29,9 +29,14 @@ The remainder of this section 2 gives detailed information per address type.
 
 The Settings address is the only address that is not randomly chosen. It is the 6-digid transaction family appended with 0x00 repeated 32 times. The contents of this address is a marshaled Google Protocol Buffers message. The message has the following fields:
 
+* priceMajorEditSettings int32.
+* priceMajorCreatePerson int32.
+* priceMajorChangePersonAuthorization int32.
+* priceMajorChangeJournalAuthorization int32.
 * pricePersonEdit int32.
 * priceAuthorSubmitNewManuscript int32.
 * priceAuthorSubmitNewVersion int32.
+* priceAuthorAcceptAuthorship int32.
 * priceReviewerSubmit int32.
 * priceEditorAllowManuscriptReview int32.
 * priceEditorRejectManuscript int32.
@@ -43,7 +48,7 @@ The Settings address is the only address that is not randomly chosen. It is the 
 * priceEditorAddColleague int32.
 * priceEditorAcceptDuty int32.
 
-There is no price for creating persons, because actions by majors are not charged as stated in requirement AX-3030.
+There is no price for bootstrapping and for resigning as editor. Charging bootstrapping makes no sense because initially no one has credit. Charging resigning as editor is not logical. If an editor does not have credit, she can not do her job. The only sensible thing to do is resigning.
 
 There is no need to save the bootstrap key in the settings address, because the bootstrap key is immediately embedded in person with isMajor = true.
 
@@ -59,15 +64,15 @@ Person addresses have type code 0x01. The contents of a Person address is a mars
 * email: string, not initialized as blank, but can be modified to blank.
 * isMajor: bool, not null.
 * isSigned: bool, not null.
-* saldo: int32, not null.
+* balance: int32, not null.
 * biographyHash: string, empty string means there is no bibliography.
 * biographyFormat: string, should be the empty string if there is no bibliography.
-* institution: string, empty string means not set.
+* organization: string, empty string means not set.
 * telephone: string, empty string means not set.
 * address: string, empty string means not set.
-* zipCode: string, empty string means not set.
+* postalCode: string, empty string means not set.
 * country: string, empty string means not set.
-* governmentId: string, empty string means not set.
+* extraInfo: string, empty string means not set.
 
 The createdOn and modifiedOn times are seconds since Epoch.
 
@@ -215,12 +220,12 @@ This message has the following fields:
 * nameUpdate: StringUpdate.
 * emailUpdate: StringUpdate.
 * biographyHashUpdate: StringUpdate.
-* institutionUpdate: StringUpdate.
+* organizationUpdate: StringUpdate.
 * telephoneUpdate: StringUpdate.
 * addressUpdate: StringUpdate.
-* zipCodeUpdate: StringUpdate.
+* postalCodeUpdate: StringUpdate.
 * countryUpdate: StringUpdate.
-* governmentIdUpdate: StringUpdate.
+* extraInfoUpdate: StringUpdate.
 
 StringUpdate is a Google Protocol Buffers similar to IntUpdate. A StringUpdate field is omitted if the value is not updated. If it is set, the OldValue and NewValue fields define the update.
 
@@ -232,12 +237,12 @@ This message has the following fields:
 * makeMajor: bool, nullable.
 * makeSigned: bool, nullable.
 
-#### 3.2.4. Person saldo increment
+#### 3.2.4. Person balance increment
 
 This message has the following fields:
 
 * id: string, the subject being updated.
-* saldoIncrement: int32, not null.
+* balanceIncrement: int32, not null.
 
 ### 3.3. Manuscript messages
 
@@ -417,15 +422,15 @@ The Person table has the following fields:
 * email: string.
 * isMajor: bool.
 * isSigned: bool.
-* saldo: int32.
+* balance: int32.
 * biographyHash: string.
 * biographyFormat: string.
-* institution: string.
+* organization: string.
 * telephone: string.
 * address: string.
-* zipCode: string.
+* postalCode: string.
 * country: string.
-* governmentId.
+* extraInfo.
 
 ### 4.3. Manuscript
 
@@ -508,7 +513,9 @@ Sawtooth events have the following fields:
 * Attributes, which are name/value pairs.
 * A byte array, which is opaque to Hyperledger Sawtooth.
 
-The event type and the attributes can be used to filter events. Therefore, we give every event an empty byte array, putting all the meaning in the event type and the attributes. Each event will have the properties "signerId" and "timestamp". Integer or boolean values corresponding to attributes have to be encoded as strings.
+The event type and the attributes can be used to filter events. Therefore, we give every event an empty byte array, putting all the meaning in the event type and the attributes. Integer or boolean values corresponding to attributes have to be encoded as strings.
+
+Each event will have the properties "signerId", "timestamp", "transactionId" and "eventSeq". The transaction id is the signature of the transaction header as explained in the Sawtooth documentation. The attributes "transactionId" and "eventSeq" are used to detect missed events as explained in section 5.9.
 
 Hyperledger Sawtooth bundles multiple events in a sing Google Protocol Buffers message. Therefore, one transaction can easily create many events. We create an event type for each combination of a table and an action. We introduce separate event types xxxModificationTime to direct the client to update the modifiedOn field. This way, the modifiedOn field is updated only once for a transaction. xxxUpdate events thus do not use the timestamp. Create events do fill the createdOn field with the timestamp of the event.  
 
@@ -548,15 +555,15 @@ This event updates one of the fields of the Person table. The attribute personId
 * email.
 * isMajor.
 * isSigned.
-* saldo.
+* balance.
 * biographyHash.
 * biographyFormat.
-* institution.
+* organization.
 * telephone.
 * address.
-* zipCode.
+* postalCode.
 * country.
-* governmentId.
+* extraInfo.
 
 #### 5.2.3. Event type personModificationTime
 
@@ -684,3 +691,11 @@ This event requires all of the following attributes:
 
 * reviewId.
 * isUsedByEditor.
+
+### 5.9. Event type transactionNumEvents
+
+For each transaction, one event of type transactionNumEvents is generated. It can be used by the client to see whether all events of a transaction have been received. The event has requires the following attribute:
+
+* numEvents.
+
+For example, when a transactionNumEvents is generated with eventSeq = 0 (see the beginning of section 5) and numEvents = 5, then the client should expect four additional events for the transaction with eventSeq = 1, eventSeq = 2, eventSeq = 3 and eventSeq = 4.
