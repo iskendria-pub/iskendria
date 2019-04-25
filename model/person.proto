@@ -2,99 +2,66 @@ syntax = "proto3";
 
 import "common.proto";
 
-message Person {
-    // These should always be set and non-blank.
+message StatePerson {
     string id = 1;
     int64 createdOn = 2;
     int64 modifiedOn = 3;
     string publicKey = 4;
     string name = 5;
-
-    // Should initially be non-blank, but setting it to
-    // the empty string later should be allowed.
     string email = 6;
-
-    // These should always be set.
     bool isMajor = 7;
     bool isSigned = 8;
-    int32 saldo = 9;
-
-    // Empty string means no bibliography.
+    int32 balance = 9;
     string biographyHash = 10;
-
-    // Should be empty string if no bibliography.
     string biographyFormat = 11;
-
-    // Empty string means not available.
-    string institution = 12;
+    string organization = 12;
     string telephone = 13;
     string address = 14;
-    string zipCode = 15;
+    string postalCode = 15;
     string country = 16;
-    string governmentId = 17;
+    string extraInfo = 17;
 }
 
-message PersonCreate {
-    // These should always be set and non-blank.
-    string newPersonId = 1;
-    string signerId = 2;
-    int64 timestamp = 3;
-    string publicKey = 4;
-    string name = 5;
-    string email = 6;
-
-    // Empty string means no bibliography.
-    string biographyHash = 7;
-
-    // Should be empty string if no bibliography.
-    string biographyFormat = 8;
-
-    // Empty string means not available.
-    string institution = 9;
-    string telephone = 10;
-    string address = 11;
-    string zipCode = 12;
-    string country = 13;
-    string governmentId = 14;
+message CommandPersonCreate {
+    string signer = 1;
+    int64 timestamp = 2;
+    int32 price = 3;
+    string newPersonId = 4;
+    string publicKey = 5;
+    string name = 6;
+    string email = 7;
 }
 
-// Fields that are not updated should not be set.
-message PersonAttributeUpdate {
-    // Should not be blank.
-    string subjectId = 1;
-    string signerId = 2;
-    int64 timestamp = 3;
-
-    // Omitted if not updated.
-    StringUpdate publicKeyUpdate = 4;
-    StringUpdate nameUpdate = 5;
-    StringUpdate emailUpdate = 6;
-    StringUpdate biographyHashUpdate = 7;
-    StringUpdate biographyFormatUpdate = 8;
-    StringUpdate institutionUpdate = 9;
+message CommandPersonUpdateProperties {
+    string signer = 1;
+    int64 timestamp = 2;
+    int32 price = 3;
+    string personId = 4;
+    StringUpdate publicKeyUpdate = 5;
+    StringUpdate nameUpdate = 6;
+    StringUpdate emailUpdate = 7;
+    StringUpdate biographyHashUpdate = 8;
+    StringUpdate organizationUpdate = 9;
     StringUpdate telephoneUpdate = 10;
     StringUpdate addressUpdate = 11;
-    StringUpdate zipCodeUpdate = 12;
+    StringUpdate postalCodeUpdate = 12;
     StringUpdate countryUpdate = 13;
-    StringUpdate governmentIdUpdate = 14;
+    StringUpdate extraInfoUpdate = 14;
 }
 
-message PersonAuthorizationUpdate {
-    // Should not be blank.
-    string subjectId = 1;
-    string signerId = 2;
-    int64 timestamp = 3;
-
-    // Omitted if not updated.
-    bool makeMajor = 4;
-    bool makeSigned = 5;
+message CommandPersonUpdateAuthorization {
+    string signer = 1;
+    int64 timestamp = 2;
+    int32 price = 3;
+    string personId = 4;
+    BoolUpdate makeMajor = 5;
+    BoolUpdate makeSigned = 6;
 }
 
-message PersonSaldoUpdate {
-    // Should not be blank.
-    string subjectId = 1;
-    string signerId = 2;
-    int64 timestamp = 3;
-
-    int32 saldoIncrement = 4;
+message CommandPersonUpdateBalanceIncrement {
+    string signer = 1;
+    int64 timestamp = 2;
+    int32 price = 3;
+    string personId = 4;
+    int32 balanceIncrement = 5;
 }

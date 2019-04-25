@@ -12,6 +12,12 @@ message StringUpdate {
     string newValue = 2;
 }
 
+enum BoolUpdate {
+    UNMODIFIED = 0;
+    MAKE_FALSE = 1;
+    MAKE_TRUE = 2;
+}
+
 message BoolUpdate {
     bool oldValue = 1;
     bool newValue = 2;

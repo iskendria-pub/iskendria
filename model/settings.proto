@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+import "common.proto";
+import "person.proto";
+
+message StateSettings {
+    int64 createdOnOn = 1;
+    int64 modifiedOn = 2;
+    PriceList priceList = 3;
+}
+
+message PriceList {
+    int32 priceMajorEditSettings = 1;
+    int32 priceMajorCreatePerson = 2;
+    int32 priceMajorChangePersonAuthorization = 3;
+    int32 priceMajorChangeJournalAuthorization = 4;
+    int32 pricePersonEdit = 5;
+    int32 priceAuthorSubmitNewManuscript = 6;
+    int32 priceAuthorSubmitNewVersion = 7;
+    int32 priceAuthorAcceptAuthorship = 8;
+    int32 priceReviewerSubmit = 9;
+    int32 priceEditorAllowManuscriptReview = 10;
+    int32 priceEditorRejectManuscript = 11;
+    int32 priceEditorPublishManuscript = 12;
+    int32 priceEditorAssignManuscript = 13;
+    int32 priceEditorCreateJournal = 14;
+    int32 priceEditorCreateVolume = 15;
+    int32 priceEditorEditJournal = 16;
+    int32 priceEditorAddColleague = 17;
+    int32 priceEditorAcceptDuty = 18;
+}
+
+message CommandBootstrap {
+    PriceList priceList = 1;
+    CommandPersonCreate firstMajor = 2;
+}
+
+message CommandSettingsUpdate {
+    string signer = 1;
+    int64 timestamp = 2;
+    int32 price = 3;
+    IntUpdate priceMajorEditSettingsUpdate = 4;
+    IntUpdate priceMajorCreatePersonUpdate = 5;
+    IntUpdate priceMajorChangePersonAuthorizationUpdate = 6;
+    IntUpdate priceMajorChangeJournalAuthorizationUpdate = 7;
+    IntUpdate pricePersonEditUpdate = 8;
+    IntUpdate priceAuthorSubmitNewManuscriptUpdate = 9;
+    IntUpdate priceAuthorSubmitNewVersionUpdate = 10;
+    IntUpdate priceAuthorAcceptAuthorshipUpdate = 11;
+    IntUpdate priceReviewerSubmitUpdate = 12;
+    IntUpdate priceEditorAllowManuscriptReviewUpdate = 13;
+    IntUpdate priceEditorRejectManuscriptUpdate = 14;
+    IntUpdate priceEditorPublishManuscriptUpdate = 15;
+    IntUpdate priceEditorAssignManuscriptUpdate = 16;
+    IntUpdate priceEditorCreateJournalUpdate = 17;
+    IntUpdate priceEditorCreateVolumeUpdate = 18;
+    IntUpdate priceEditorEditJournalUpdate = 19;
+    IntUpdate priceEditorAddColleagueUpdate = 20;
+    IntUpdate priceEditorAcceptDutyUpdate = 21;
+}
