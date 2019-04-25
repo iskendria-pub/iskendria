@@ -12,6 +12,8 @@ import (
 )
 
 type Context interface {
+	SetParent(context Context)
+	getContextStrategy() contextStrategyType
 	Run()
 }
 
@@ -34,23 +36,69 @@ type SingleLineHandler struct {
 }
 
 type groupContext struct {
+	contextStrategy contextStrategyType
+	formatEscape string
+	handlers []interface{}
+}
+
+type contextStrategyType interface {
+	getWelcome() string
+	getHelpScreenTitle() string
+	getPath() string
+	getLastPathComponent() string
+	getLastHelpScreenTitle() string
+	setParentContextStrategy(parent contextStrategyType)
+}
+
+type concreteContextStrategyType struct {
+	parent contextStrategyType
 	description string
 	title    string
 	pathTag string
-	formatEscape string
-	handlers []*SingleLineHandler
 }
 
-func NewGroupContext(description, title, pathTag, formatEscape string, inputHandlers []*SingleLineHandler) Context {
-	handlers := make([]*SingleLineHandler, len(inputHandlers))
+func (cs *concreteContextStrategyType) getWelcome() string {
+	return cs.description
+}
+
+func (cs *concreteContextStrategyType) getHelpScreenTitle() string {
+	if cs.parent != nil {
+		return cs.parent.getHelpScreenTitle() + " > " + cs.title
+	}
+	return cs.title
+}
+
+func (cs *concreteContextStrategyType) getPath() string {
+	if cs.parent != nil {
+		return cs.parent.getPath() + "/" + cs.pathTag
+	}
+	return cs.pathTag
+}
+
+func (cs *concreteContextStrategyType) getLastPathComponent() string {
+	return cs.pathTag
+}
+
+func (cs *concreteContextStrategyType) getLastHelpScreenTitle() string {
+	return cs.title
+}
+
+func (cs *concreteContextStrategyType) setParentContextStrategy(parentContextStrategy contextStrategyType) {
+	cs.parent = parentContextStrategy
+}
+
+func NewGroupContext(description, title, pathTag, formatEscape string, inputHandlers []interface{}) Context {
+	handlers := make([]interface{}, len(inputHandlers))
 	for i, handler := range inputHandlers {
 		checkHandler(handler)
-		handlers[i] = copyHandler(inputHandlers[i])
+		handlers[i] = inputHandlers[i]
 	}
 	result := &groupContext{
-		description: description,
-		title:    title,
-		pathTag: pathTag,
+		contextStrategy: &concreteContextStrategyType{
+			description: description,
+			title:    title,
+			pathTag: pathTag,
+		},
 		formatEscape: formatEscape,
 		handlers: handlers,
 	}
@@ -72,7 +120,18 @@ func NewGroupContext(description, title, pathTag, formatEscape string, inputHand
 	return result
 }
 
-func checkHandler(handler *SingleLineHandler) {
+func checkHandler(handler interface{}) {
+	switch specificHandler := handler.(type) {
+	case *SingleLineHandler:
+		checkSingleLineHandler(specificHandler)
+	case *groupContext:
+		checkGroupContextHandler(specificHandler)
+	default:
+		panic("Invalid handler type")
+	}
+}
+
+func checkSingleLineHandler(handler *SingleLineHandler) {
 	reflectHandlerType := reflect.TypeOf(handler.Handler)
 	if reflectHandlerType.Kind() != reflect.Func {
 		panic("Handler is not a function")
@@ -99,47 +158,85 @@ func checkHandler(handler *SingleLineHandler) {
 	}
 }
 
-func copyHandler(orig *SingleLineHandler) *SingleLineHandler {
-	copyArgNames := append(make([]string, 0), orig.ArgNames...)
-	return &SingleLineHandler{
-		Name:     orig.Name,
-		Handler:  orig.Handler,
-		ArgNames: copyArgNames,
-	}
+func checkGroupContextHandler(handler *groupContext) {
+}
+
+func (cg *groupContext) addHandler(handler interface{}) {
+	cg.handlers = append(cg.handlers, handler)
 }
 
 func (cg *groupContext) help(outputter Outputter) {
-	outputter("\n" + cg.title + "\n")
-	outputter(strings.Repeat("-", len(cg.title)) + "\n\n")
-	cg.listCommands(outputter)
+	title := cg.contextStrategy.getHelpScreenTitle()
+	outputter("\n" + title + "\n")
+	outputter(strings.Repeat("-", len(title)) + "\n\n")
+	cg.listHandlers(outputter)
 }
 
-func (cg *groupContext) listCommands(outputter Outputter) {
-	var sb strings.Builder
+func (cg *groupContext) listHandlers(outputter Outputter) {
+	groups, commands := cg.splitGroupsAndCommands()
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].contextStrategy.getLastPathComponent() < groups[j].contextStrategy.getLastPathComponent()
+	})
+	sort.Slice(commands, func(i, j int) bool {
+		return commands[i].Name < commands[j].Name
+	})
+	cg.listCommands(commands, outputter)
+	outputter("\n")
+	cg.listGroups(groups, outputter)
+	outputter("\n")
+}
+
+func (cg *groupContext) splitGroupsAndCommands() ([]*groupContext, []*SingleLineHandler) {
+	groups := make([]*groupContext, 0)
+	commands := make([]*SingleLineHandler, 0)
 	for _, handler := range cg.handlers {
+		switch specificHandler := handler.(type) {
+		case *groupContext:
+			groups = append(groups, specificHandler)
+		case *SingleLineHandler:
+			commands = append(commands, specificHandler)
+		default:
+			panic("Unknown handler type")
+		}
+	}
+	return groups, commands
+}
+
+func (cg *groupContext) listCommands(handlers []*SingleLineHandler, outputter Outputter) {
+	if len(handlers) == 0 {
+		return
+	}
+	outputter("Commands:\n")
+	var sb strings.Builder
+	for _, handler := range handlers {
 		items := []string{handler.Name}
 		for _, arg := range handler.ArgNames {
 			items = append(items, "<"+arg+">")
 		}
-		sb.WriteString(strings.Join(items, " ") + "\n")
+		sb.WriteString("  " + strings.Join(items, " ") + "\n")
 	}
 	outputter(sb.String())
 }
 
-func (cg *groupContext) addHandler(handler *SingleLineHandler) {
-	cg.handlers = append(cg.handlers, copyHandler(handler))
+func (cg *groupContext) listGroups(contexts []*groupContext, outputter Outputter) {
+	if len(contexts) == 0 {
+		return
+	}
+	outputter("Groups\n")
+	for _, context := range contexts {
+		outputter(fmt.Sprintf("  %s - %s\n",
+			context.contextStrategy.getLastPathComponent(),
+			context.contextStrategy.getLastHelpScreenTitle()))
+	}
 }
 
 func (cg *groupContext) init() {
-	sort.Slice(cg.handlers, func(i, j int) bool {
-		return cg.handlers[i].Name < cg.handlers[j].Name
-	})
 }
 
 func (cg *groupContext) Run() {
 	outputToStdout(cg.formatEscape)
 	defer outputToStdout(UNDO_FORMAT)
-	outputToStdout(cg.description + "\n\n")
+	outputToStdout(cg.contextStrategy.getWelcome() + "\n\n")
 	reader := bufio.NewReader(os.Stdin)
 	stop := cg.nextLine(reader)
 	for !stop {
@@ -170,26 +267,51 @@ func (cg *groupContext) nextLine(reader *bufio.Reader) bool {
 }
 
 func (cg *groupContext) prompt() {
-	outputToStdout(cg.pathTag + " |> ")
+	outputToStdout(cg.contextStrategy.getPath() + " |> ")
 }
 
 func (cg *groupContext) executeLine(line string) error {
 	words := strings.Split(strings.TrimSpace(line), " ")
-	handler := cg.getHandler(words[0])
-	if handler == nil {
-		return errors.New("Command not found: " + words[0])
+	group, command := cg.getHandler(words[0])
+	if group == nil && command == nil {
+		return errors.New("Name does not match a group or a command: " + words[0])
 	}
-	expectedNumArgs := len(handler.ArgNames)
+	if command != nil {
+		return cg.executeLineWithCommand(words, command)
+	}
+	if group != nil {
+		return cg.executeLineWithGroup(words, group)
+	}
+	return nil
+}
+
+func (cg *groupContext) getHandler(name string) (*groupContext, *SingleLineHandler) {
+	groups, commands := cg.splitGroupsAndCommands()
+	for _, group := range groups {
+		if group.contextStrategy.getLastPathComponent() == name {
+			return group, nil
+		}
+	}
+	for _, command := range commands {
+		if command.Name == name {
+			return nil, command
+		}
+	}
+	return nil, nil
+}
+
+func (cg *groupContext) executeLineWithCommand(words []string, command *SingleLineHandler) error {
+	expectedNumArgs := len(command.ArgNames)
 	actualNumArgs := len(words) - 1
 	if expectedNumArgs != actualNumArgs {
 		return errors.New(fmt.Sprintf("Wrong number of arguments, expected %d, got %d",
 			expectedNumArgs, actualNumArgs))
 	}
-	values, err := cg.getValues(handler, words[1:])
+	values, err := cg.getValues(command, words[1:])
 	if err != nil {
 		return err
 	}
-	callResultValue := reflect.ValueOf(handler.Handler).Call(values)
+	callResultValue := reflect.ValueOf(command.Handler).Call(values)
 	if len(callResultValue) != 0 {
 		panic("Expected exactly one result")
 	}
@@ -247,13 +369,21 @@ func (cg *groupContext) getValueInt(word string, numBits int) (reflect.Value, er
 	panic("Unsupported number of bits")
 }
 
-func (cg *groupContext) getHandler(name string) *SingleLineHandler {
-	for _, handler := range cg.handlers {
-		if handler.Name == name {
-			return handler
-		}
+func (cg *groupContext) executeLineWithGroup(words []string, group *groupContext) error {
+	if len(words) != 1 {
+		return errors.New("Entering a group does not require arguments")
 	}
+	group.Run()
 	return nil
+}
+
+func (cg *groupContext) getContextStrategy() contextStrategyType {
+	return cg.contextStrategy
+}
+
+func (cg *groupContext) SetParent(parent Context) {
+	var contextStrategy = parent.getContextStrategy()
+	cg.contextStrategy.setParentContextStrategy(contextStrategy)
 }
 
 type tableType struct {
