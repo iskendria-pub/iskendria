@@ -3,12 +3,29 @@ package main
 import (
 	"fmt"
 	"gitlab.bbinfra.net/3estack/alexandria/cli"
+	"strings"
 )
+
+var description = strings.TrimSpace(`
+Welcome to "White against black". This is a test of the cli package
+which is part of Alexandria. We have a fake dual against black and white.
+You can set their strength and let them play. The one you gave the
+highest strength wins.
+
+Unrelated to this game, there are test functions to check whether
+package cli can detect malformat numbers and boolean values. Out-of-range
+values for 32-bit integers and 64-bit integers should be detected.
+
+Please enter "help" to start or "exit" to quit.`)
+
+var makeGreen = "\033[32m"
 
 func main() {
 	context := cli.NewGroupContext(
-		"White against black",
-		prompt,
+		description,
+		"Black and White",
+		"black-white",
+		makeGreen,
 		[]*cli.SingleLineHandler{
 			{
 				Name:     "strengthWhite",

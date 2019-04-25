@@ -16,7 +16,6 @@ type Context interface {
 }
 
 type Outputter func(string)
-type Prompter func() string
 
 func outputToStdout(value string) {
 	fmt.Print(value)
@@ -25,6 +24,7 @@ func outputToStdout(value string) {
 const (
 	HELP = "help"
 	EXIT = "exit"
+	UNDO_FORMAT = "\033[0m"
 )
 
 type SingleLineHandler struct {
@@ -34,20 +34,24 @@ type SingleLineHandler struct {
 }
 
 type groupContext struct {
-	prompter Prompter
+	description string
 	title    string
+	pathTag string
+	formatEscape string
 	handlers []*SingleLineHandler
 }
 
-func NewGroupContext(title string, prompter Prompter, inputHandlers []*SingleLineHandler) Context {
+func NewGroupContext(description, title, pathTag, formatEscape string, inputHandlers []*SingleLineHandler) Context {
 	handlers := make([]*SingleLineHandler, len(inputHandlers))
 	for i, handler := range inputHandlers {
 		checkHandler(handler)
 		handlers[i] = copyHandler(inputHandlers[i])
 	}
 	result := &groupContext{
+		description: description,
 		title:    title,
-		prompter: prompter,
+		pathTag: pathTag,
+		formatEscape: formatEscape,
 		handlers: handlers,
 	}
 	var helpHandler *SingleLineHandler = &SingleLineHandler{
@@ -105,7 +109,8 @@ func copyHandler(orig *SingleLineHandler) *SingleLineHandler {
 }
 
 func (cg *groupContext) help(outputter Outputter) {
-	outputter(cg.title + "\n")
+	outputter("\n" + cg.title + "\n")
+	outputter(strings.Repeat("-", len(cg.title)) + "\n\n")
 	cg.listCommands(outputter)
 }
 
@@ -116,8 +121,7 @@ func (cg *groupContext) listCommands(outputter Outputter) {
 		for _, arg := range handler.ArgNames {
 			items = append(items, "<"+arg+">")
 		}
-		sb.WriteString(strings.Join(items, " "))
-		sb.WriteString("\n")
+		sb.WriteString(strings.Join(items, " ") + "\n")
 	}
 	outputter(sb.String())
 }
@@ -133,16 +137,20 @@ func (cg *groupContext) init() {
 }
 
 func (cg *groupContext) Run() {
-	outputToStdout(cg.title + "\n")
+	outputToStdout(cg.formatEscape)
+	defer outputToStdout(UNDO_FORMAT)
+	outputToStdout(cg.description + "\n\n")
 	reader := bufio.NewReader(os.Stdin)
-	stop := cg.processLine(reader)
+	stop := cg.nextLine(reader)
 	for !stop {
-		stop = cg.processLine(reader)
+		stop = cg.nextLine(reader)
 	}
 }
 
-func (cg *groupContext) processLine(reader *bufio.Reader) bool {
-	outputToStdout(cg.prompter())
+func (cg *groupContext) nextLine(reader *bufio.Reader) bool {
+	cg.prompt()
+	outputToStdout(UNDO_FORMAT)
+	defer outputToStdout(cg.formatEscape)
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		panic(err)
@@ -154,36 +162,54 @@ func (cg *groupContext) processLine(reader *bufio.Reader) bool {
 	if line == EXIT {
 		return true
 	}
-	cg.executeLine(line)
+	outputToStdout(cg.formatEscape)
+	if err := cg.executeLine(line); err != nil {
+		fmt.Println(err)
+	}
 	return false
 }
 
-func (cg *groupContext) executeLine(line string) {
+func (cg *groupContext) prompt() {
+	outputToStdout(cg.pathTag + " |> ")
+}
+
+func (cg *groupContext) executeLine(line string) error {
 	words := strings.Split(strings.TrimSpace(line), " ")
 	handler := cg.getHandler(words[0])
 	if handler == nil {
-		fmt.Println("Command not found: " + words[0])
-		return
+		return errors.New("Command not found: " + words[0])
 	}
-	numArgs := len(handler.ArgNames)
-	if len(handler.ArgNames) != (len(words) - 1) {
-		fmt.Println("Wrong number of arguments")
-		return
+	expectedNumArgs := len(handler.ArgNames)
+	actualNumArgs := len(words) - 1
+	if expectedNumArgs != actualNumArgs {
+		return errors.New(fmt.Sprintf("Wrong number of arguments, expected %d, got %d",
+			expectedNumArgs, actualNumArgs))
 	}
-	values := make([]reflect.Value, numArgs+1)
-	values[0] = reflect.ValueOf(outputToStdout)
-	for i, word := range words[1:] {
-		value, err := cg.getValue(word, reflect.TypeOf(handler.Handler).In(i+1))
-		if err != nil {
-			fmt.Println("Type mismatch, possibly value out of range")
-			return
-		}
-		values[i+1] = value
+	values, err := cg.getValues(handler, words[1:])
+	if err != nil {
+		return err
 	}
 	callResultValue := reflect.ValueOf(handler.Handler).Call(values)
 	if len(callResultValue) != 0 {
 		panic("Expected exactly one result")
 	}
+	return nil
+}
+
+func (cg *groupContext) getValues(handler *SingleLineHandler, argWords []string) ([]reflect.Value, error) {
+	numArgWords := len(handler.ArgNames)
+	values := make([]reflect.Value, numArgWords+1)
+	values[0] = reflect.ValueOf(outputToStdout)
+	for argWordsIndex, word := range argWords {
+		allArgsIndex := argWordsIndex + 1
+		argumentType := reflect.TypeOf(handler.Handler).In(allArgsIndex)
+		value, err := cg.getValue(word, argumentType)
+		if err != nil {
+			return values, err
+		}
+		values[allArgsIndex] = value
+	}
+	return values, nil
 }
 
 func (cg *groupContext) getValue(word string, expectedType reflect.Type) (reflect.Value, error) {
@@ -197,18 +223,18 @@ func (cg *groupContext) getValue(word string, expectedType reflect.Type) (reflec
 	case reflect.Bool:
 		value, err := strconv.ParseBool(word)
 		if err != nil {
-			return reflect.ValueOf(false), err
+			return reflect.ValueOf(false), errors.New("Invalid boolean value")
 		}
 		return reflect.ValueOf(value), nil
 	default:
-		return reflect.ValueOf(nil), errors.New("Unknown type")
+		panic("Unsupported type")
 	}
 }
 
 func (cg *groupContext) getValueInt(word string, numBits int) (reflect.Value, error) {
 	value, err := strconv.ParseInt(word, 10, numBits)
 	if err != nil {
-		return reflect.ValueOf(0), err
+		return reflect.ValueOf(0), errors.New("Invalid integer value, possibly value out of range")
 	}
 	rawValue := reflect.ValueOf(value)
 	switch numBits {
@@ -283,9 +309,13 @@ func (table *tableType) getFieldLength(col int) int {
 }
 
 func (table *tableType) get(row, col int) string {
-	return table.data[table.numRows*row+col]
+	return table.data[table.getIndex(row, col)]
+}
+
+func (table *tableType) getIndex(row int, col int) int {
+	return table.numCols*row + col
 }
 
 func (table *tableType) set(row, col int, value string) {
-	table.data[table.numRows*row+col] = value
+	table.data[table.getIndex(row, col)] = value
 }
