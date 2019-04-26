@@ -27,21 +27,12 @@ can do here.
 var makeGreen = "\033[32m"
 
 func main() {
-	childGroup := cli.NewGroupContext(childDescription, "Side Track", "sideTrack", makeGreen,
-		[]interface{}{
-			&cli.SingleLineHandler{
-				Name:     "and",
-				Handler:  and,
-				ArgNames: []string{"first value", "second value"},
-			},
-		},
-	)
-	context := cli.NewGroupContext(
-		description,
-		"Black and White",
-		"black-white",
-		makeGreen,
-		[]interface{}{
+	context := &cli.Cli{
+		FullDescription:    description,
+		OneLineDescription: "Black and White",
+		Name:               "black-white",
+		FormatEscape:       makeGreen,
+		Handlers: []cli.Handler{
 			&cli.SingleLineHandler{
 				Name:     "strengthWhite",
 				Handler:  strengthWhite,
@@ -72,9 +63,20 @@ func main() {
 				Handler:  or,
 				ArgNames: []string{"first value", "second value"},
 			},
-			childGroup,
-		})
-	childGroup.SetParent(context)
+			cli.Handler(&cli.Cli{
+				FullDescription:    childDescription,
+				OneLineDescription: "Side Track",
+				Name:               "sideTrack",
+				Handlers: []cli.Handler{
+					&cli.SingleLineHandler{
+						Name:     "and",
+						Handler:  and,
+						ArgNames: []string{"first value", "second value"},
+					},
+				},
+			}),
+		},
+	}
 	context.Run()
 }
 
