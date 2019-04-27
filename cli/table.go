@@ -16,7 +16,7 @@ func NewTable(numRows, numCols int) *TableType {
 	}
 }
 
-func (table *TableType) Format() string {
+func (table *TableType) String() string {
 	fieldLengths := table.getFieldLengths()
 	var sb strings.Builder
 	for row := 0; row < table.numRows; row++ {

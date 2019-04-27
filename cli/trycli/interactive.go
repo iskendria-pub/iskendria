@@ -16,12 +16,22 @@ Unrelated to this game, there are test functions to check whether
 package cli can detect malformat numbers and boolean values. Out-of-range
 values for 32-bit integers and 64-bit integers should be detected.
 
+Also unrelated to this game, dialogs are tested. A dialog is a function
+that requires a list of name/value pairs to be set interactively.
+You can do "continue" to execute the function with the given
+values.
+
 Please enter "help" to start or "exit" to quit.`)
 
 var childDescription = strings.TrimSpace(`
 Welcome to the side track of "White against black". You can return
 to the game using "exit". Execute "help" to see what you
 can do here.
+`)
+
+var dialogDescription = strings.TrimSpace(`
+Welcome to the dialog test. Please fill some properties and do
+something trivial with them.
 `)
 
 var makeGreen = "\033[32m"
@@ -75,6 +85,12 @@ func main() {
 					},
 				},
 			}),
+			cli.Handler(&cli.StructRunnerHandler{
+				FullDescription:    dialogDescription,
+				OneLineDescription: "Dialog test",
+				Name:               "dialog",
+				Action:             executeDialogStruct,
+			}),
 		},
 	}
 	context.Run()
@@ -121,4 +137,11 @@ func or(outputter cli.Outputter, v1, v2 bool) {
 
 func and(outputter cli.Outputter, v1, v2 bool) {
 	outputter(fmt.Sprintf("%v\n", v1 && v2))
+}
+
+func executeDialogStruct(outputter cli.Outputter, v *cli.DialogStruct) {
+	outputter("Executing the dialog\n")
+	outputter(fmt.Sprintf("We take f1 = %v\n", v.F1))
+	outputter(fmt.Sprintf("We take f2 = %v\n", v.F2))
+	outputter(fmt.Sprintf("We take f3 = %v\n", v.F3))
 }

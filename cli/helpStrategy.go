@@ -23,6 +23,7 @@ type helpStrategyImpl struct {
 	oneLineDescription string
 	name               string
 	formatEscape       string
+	stopWords          map[string]bool
 }
 
 func (hsi *helpStrategyImpl) run(lineHandler lineHandlerType) {
@@ -48,14 +49,12 @@ func (hsi *helpStrategyImpl) nextLine(reader *bufio.Reader, lineHandler lineHand
 	if len(line) == 0 {
 		return false
 	}
-	if line == EXIT {
-		return true
-	}
 	outputToStdout(hsi.getFormatEscape())
 	if err := lineHandler(line); err != nil {
 		fmt.Println(err)
 	}
-	return false
+	_, stop := hsi.stopWords[line]
+	return stop
 }
 
 func (hsi *helpStrategyImpl) getFormattedHelpScreenTitle() string {

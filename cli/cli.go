@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"gitlab.bbinfra.net/3estack/alexandria/util"
 	"reflect"
 	"sort"
 	"strings"
@@ -29,27 +30,30 @@ type SingleLineHandler struct {
 func (slh *SingleLineHandler) build() runnableHandler {
 	reflectHandlerType := reflect.TypeOf(slh.Handler)
 	if reflectHandlerType.Kind() != reflect.Func {
-		panic("Handler is not a function")
+		panic(fmt.Sprintf("Handler is not a function: %+v", slh))
 	}
 	expectedNumFunctionArgs := len(slh.ArgNames) + 1
 	if reflectHandlerType.NumIn() != expectedNumFunctionArgs {
-		panic("Number of handler arguments does not match number of argument names or outputter function is missing")
+		panic(fmt.Sprintf(
+			"Number of handler arguments does not match number of argument names or outputter function is missing: %+v",
+			slh))
 	}
 	if reflectHandlerType.NumOut() != 0 {
-		panic("Handler should not return anything")
+		panic(fmt.Sprintf("Handler should not return anything: %+v", slh))
 	}
 	reflectFirstArgumentType := reflectHandlerType.In(0)
 	if reflectFirstArgumentType.Kind() != reflect.Func {
-		panic("The first argument of a handler should be of type func(string)")
+		panic(fmt.Sprintf("The first argument of a handler should be of type func(string): %+v", slh))
 	}
 	if reflectFirstArgumentType.NumIn() != 1 {
-		panic("The first argument of a handler should be a function with one argument")
+		panic(fmt.Sprintf("The first argument of a handler should be a function with one argument: %+v", slh))
 	}
 	if reflectFirstArgumentType.NumOut() != 0 {
-		panic("The first argument of a handler should be a function without outputs")
+		panic(fmt.Sprintf("The first argument of a handler should be a function without outputs: %+v", slh))
 	}
 	if reflectFirstArgumentType.In(0).Kind() != reflect.String {
-		panic("The first argument of a handler should be a function with a string argument")
+		panic(fmt.Sprintf(
+			"The first argument of a handler should be a function with a string argument: %+v", slh))
 	}
 	return slh
 }
@@ -121,6 +125,7 @@ func (c *Cli) buildMain() *groupContextRunnable {
 			oneLineDescription: c.OneLineDescription,
 			name:               c.Name,
 			formatEscape:       c.FormatEscape,
+			stopWords:          map[string]bool{EXIT: true},
 		},
 		handlers: runnableHandlers,
 	}
@@ -140,10 +145,6 @@ func (c *Cli) buildMain() *groupContextRunnable {
 	return result
 }
 
-func lessRunnableHandler(first, second runnableHandler) bool {
-	return first.getName() < second.getName()
-}
-
 type groupContextRunnable struct {
 	helpStrategy helpStrategy
 	handlers     []runnableHandler
@@ -158,10 +159,17 @@ func (gcr *groupContextRunnable) init() {
 		switch specificHandler := handler.(type) {
 		case *groupContextRunnable:
 			specificHandler.helpStrategy.setParent(gcr.helpStrategy)
-		default:
-			panic("Unexpected handler type")
+		case *dialogContextRunnable:
+			specificHandler.helpStrategy.setParent(gcr.helpStrategy)
 		}
 	}
+	sort.Slice(gcr.handlers, func(i, j int) bool {
+		return lessRunnableHandler(gcr.handlers[i], gcr.handlers[j])
+	})
+}
+
+func lessRunnableHandler(first, second runnableHandler) bool {
+	return first.getName() < second.getName()
 }
 
 func (gcr *groupContextRunnable) addRunnableHandler(handler runnableHandler) {
@@ -174,74 +182,33 @@ func (gcr *groupContextRunnable) help(outputter Outputter) {
 }
 
 func (gcr *groupContextRunnable) showHandlers(outputter Outputter) {
-	groups, commands := gcr.splitGroupsAndCommands()
-	sort.Slice(groups, func(i, j int) bool {
-		return lessRunnableHandler(groups[i], groups[j])
-	})
-	sort.Slice(commands, func(i, j int) bool {
-		return lessRunnableHandler(groups[i], groups[j])
-	})
-	outputter(gcr.combineGroupsAndCommands(commands, groups))
+	groups, commands, dialogs := gcr.splitGroupsCommandsAndDialogs()
+	parts := lineGroups{
+		listSingleLineHandlers(commands),
+		listDialogContextRunnables(dialogs),
+		listGroupContextRunnables(groups),
+	}
+	outputter(parts.String())
 }
 
-func (gcr *groupContextRunnable) splitGroupsAndCommands() ([]*groupContextRunnable, []*SingleLineHandler) {
+func (gcr *groupContextRunnable) splitGroupsCommandsAndDialogs() (
+	[]*groupContextRunnable, []*SingleLineHandler, []*dialogContextRunnable) {
 	groups := make([]*groupContextRunnable, 0)
 	commands := make([]*SingleLineHandler, 0)
+	dialogs := make([]*dialogContextRunnable, 0)
 	for _, handler := range gcr.handlers {
 		switch specificHandler := handler.(type) {
 		case *groupContextRunnable:
 			groups = append(groups, specificHandler)
 		case *SingleLineHandler:
 			commands = append(commands, specificHandler)
+		case *dialogContextRunnable:
+			dialogs = append(dialogs, specificHandler)
 		default:
 			panic("Unknown handler type")
 		}
 	}
-	return groups, commands
-}
-
-func (gcr *groupContextRunnable) combineGroupsAndCommands(
-	commands []*SingleLineHandler, groups []*groupContextRunnable) string {
-	parts := make([]string, 2)
-	parts[0] = gcr.listCommands(commands)
-	parts[1] = gcr.listGroups(groups)
-	filledParts := make([]string, 0)
-	for _, part := range parts {
-		if part != "" {
-			filledParts = append(filledParts, part)
-		}
-	}
-	return strings.Join(filledParts, "\n") + "\n"
-}
-
-func (gcr *groupContextRunnable) listCommands(handlers []*SingleLineHandler) string {
-	if len(handlers) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	sb.WriteString("Commands:\n")
-	for _, handler := range handlers {
-		items := []string{handler.Name}
-		for _, arg := range handler.ArgNames {
-			items = append(items, "<"+arg+">")
-		}
-		sb.WriteString("  " + strings.Join(items, " ") + "\n")
-	}
-	return sb.String()
-}
-
-func (gcr *groupContextRunnable) listGroups(contexts []*groupContextRunnable) string {
-	if len(contexts) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	sb.WriteString("Groups\n")
-	for _, context := range contexts {
-		sb.WriteString(fmt.Sprintf("  %s - %s\n",
-			context.helpStrategy.getName(),
-			context.helpStrategy.getOneLineDescription()))
-	}
-	return sb.String()
+	return groups, commands, dialogs
 }
 
 func (gcr *groupContextRunnable) run() {
@@ -252,15 +219,276 @@ func (gcr *groupContextRunnable) run() {
 
 func (gcr *groupContextRunnable) executeLine(line string) error {
 	words := strings.Split(strings.TrimSpace(line), " ")
-	handler := gcr.getHandler(words[0])
+	handler := getHandler(words[0], gcr.handlers)
 	if handler == nil {
 		return errors.New("Name does not match a group or a command: " + words[0])
 	}
 	return handler.handleLine(words)
 }
 
-func (gcr *groupContextRunnable) getHandler(name string) runnableHandler {
-	for _, handler := range gcr.handlers {
+func (gcr *groupContextRunnable) handleLine(words []string) error {
+	if len(words) != 1 {
+		return errors.New("Entering a group does not require arguments")
+	}
+	gcr.run()
+	return nil
+}
+
+type StructRunnerHandler struct {
+	FullDescription    string
+	OneLineDescription string
+	Name               string
+	Action             interface{}
+}
+
+var _ Handler = new(StructRunnerHandler)
+
+func (srh *StructRunnerHandler) build() runnableHandler {
+	s := reflect.TypeOf(srh.Action).In(1).Elem()
+	if s.Kind() != reflect.Struct {
+		panic("The second argument of Action is expected to be a pointer to struct")
+	}
+	containerValue := reflect.New(s)
+	result := &dialogContextRunnable{
+		helpStrategy: &helpStrategyImpl{
+			fullDescription:    srh.FullDescription,
+			oneLineDescription: srh.OneLineDescription,
+			name:               srh.Name,
+			stopWords:          map[string]bool{CANCEL: true, CONTINUE: true},
+		},
+		containerValue: containerValue,
+		action:         srh.Action,
+	}
+	helpHandler := &SingleLineHandler{
+		Name:     HELP,
+		Handler:  result.help,
+		ArgNames: []string{},
+	}
+	reviewHandler := &SingleLineHandler{
+		Name:     REVIEW,
+		Handler:  result.review,
+		ArgNames: []string{},
+	}
+	continueHandler := &SingleLineHandler{
+		Name:     CONTINUE,
+		Handler:  result.doContinue,
+		ArgNames: []string{},
+	}
+	cancelHandler := &SingleLineHandler{
+		Name:     CANCEL,
+		Handler:  result.cancel,
+		ArgNames: []string{},
+	}
+	result.handlers = []runnableHandler{
+		helpHandler.build(),
+		reviewHandler.build(),
+		continueHandler.build(),
+		cancelHandler.build(),
+	}
+	dialogPropertyHandlers := make([]runnableHandler, s.NumField())
+	for i := 0; i < s.NumField(); i++ {
+		f := s.Field(i)
+		if f.Name != strings.Title(f.Name) {
+			panic("Field is not exported: " + f.Name)
+		}
+		dph := &dialogPropertyHandler{
+			name:           util.UnTitle(f.Name),
+			propertyType:   f.Type,
+			fieldNumber:    i,
+			containerValue: containerValue,
+		}
+		dialogPropertyHandlers[i] = dph
+	}
+	result.handlers = append(result.handlers, dialogPropertyHandlers...)
+	return result
+}
+
+type dialogContextRunnable struct {
+	helpStrategy   helpStrategy
+	handlers       []runnableHandler
+	containerValue reflect.Value
+	action         interface{}
+}
+
+var _ runnableHandler = new(dialogContextRunnable)
+
+func (dcr *dialogContextRunnable) getName() string {
+	return dcr.helpStrategy.getName()
+}
+
+func (dcr *dialogContextRunnable) help(outputter Outputter) {
+	outputter(dcr.helpStrategy.getFormattedHelpScreenTitle())
+	dcr.showHandlers(outputter)
+}
+
+func (dcr *dialogContextRunnable) showHandlers(outputter Outputter) {
+	commands, properties := dcr.splitCommandsAndProperties()
+	parts := lineGroups{
+		listDialogPropertyHandlers(properties),
+		listSingleLineHandlers(commands),
+	}
+	outputter(parts.String())
+}
+
+func (dcr *dialogContextRunnable) splitCommandsAndProperties() (
+	[]*SingleLineHandler, []*dialogPropertyHandler) {
+	commands := make([]*SingleLineHandler, 0)
+	properties := make([]*dialogPropertyHandler, 0)
+	for _, handler := range dcr.handlers {
+		switch specificHandler := handler.(type) {
+		case *SingleLineHandler:
+			commands = append(commands, specificHandler)
+		case *dialogPropertyHandler:
+			properties = append(properties, specificHandler)
+		default:
+			panic("Unknown handler type")
+		}
+	}
+	return commands, properties
+}
+
+func (dcr *dialogContextRunnable) review(outputter Outputter) {
+	var propertyHandlers []*dialogPropertyHandler
+	_, propertyHandlers = dcr.splitCommandsAndProperties()
+	numFields := dcr.containerValue.Elem().NumField()
+	result := NewTable(numFields, 2)
+	for i := 0; i < numFields; i++ {
+		result.Set(i, 0, propertyHandlers[i].name)
+		result.Set(i, 1, fmt.Sprintf("%v", dcr.containerValue.Elem().Field(i).Interface()))
+	}
+	outputter(result.String())
+}
+
+func (dcr *dialogContextRunnable) doContinue(outputter Outputter) {
+	actionValue := reflect.ValueOf(dcr.action)
+	actionValue.Call([]reflect.Value{
+		reflect.ValueOf(outputter),
+		dcr.containerValue,
+	})
+}
+
+func (dcr *dialogContextRunnable) cancel(_ Outputter) {
+}
+
+func (dcr *dialogContextRunnable) handleLine(words []string) error {
+	if len(words) != 1 {
+		return errors.New("Entering a group does not require arguments")
+	}
+	dcr.run()
+	return nil
+}
+
+func (dcr *dialogContextRunnable) run() {
+	dcr.helpStrategy.run(func(line string) error {
+		return dcr.executeLine(line)
+	})
+}
+
+func (dcr *dialogContextRunnable) executeLine(line string) error {
+	rawWords := strings.Split(line, "=")
+	words := make([]string, len(rawWords))
+	for i, rawWord := range rawWords {
+		words[i] = strings.TrimSpace(rawWord)
+	}
+	handler := getHandler(words[0], dcr.handlers)
+	if handler == nil {
+		return errors.New("Name does not match a command or a property: " + words[0])
+	}
+	return handler.handleLine(words)
+}
+
+type dialogPropertyHandler struct {
+	name           string
+	propertyType   reflect.Type
+	fieldNumber    int
+	containerValue reflect.Value
+}
+
+var _ runnableHandler = new(dialogPropertyHandler)
+
+func (dph *dialogPropertyHandler) getName() string {
+	return dph.name
+}
+
+func (dph *dialogPropertyHandler) handleLine(words []string) error {
+	value := reflect.Zero(dph.propertyType)
+	var err error
+	if len(words) == 2 && words[1] != "" {
+		if value, err = getValue(words[1], dph.propertyType); err != nil {
+			return errors.New(fmt.Sprintf("Type mismatch for property %s: %s",
+				dph.name, words[1]))
+		}
+	}
+	setField(dph.containerValue, dph.fieldNumber, value)
+	return nil
+}
+
+func listSingleLineHandlers(handlers []*SingleLineHandler) *lineGroup {
+	if len(handlers) == 0 {
+		return &lineGroup{}
+	}
+	var lines []string
+	for _, handler := range handlers {
+		items := []string{handler.Name}
+		for _, arg := range handler.ArgNames {
+			items = append(items, "<"+arg+">")
+		}
+		lines = append(lines, strings.Join(items, " "))
+	}
+	return &lineGroup{
+		name:  "Commands",
+		lines: lines,
+	}
+}
+
+func listGroupContextRunnables(contexts []*groupContextRunnable) *lineGroup {
+	if len(contexts) == 0 {
+		return &lineGroup{}
+	}
+	var lines []string
+	for _, context := range contexts {
+		lines = append(lines, fmt.Sprintf("%s - %s",
+			context.helpStrategy.getName(),
+			context.helpStrategy.getOneLineDescription()))
+	}
+	return &lineGroup{
+		name:  "Groups",
+		lines: lines,
+	}
+}
+
+func listDialogContextRunnables(dialogs []*dialogContextRunnable) *lineGroup {
+	if len(dialogs) == 0 {
+		return &lineGroup{}
+	}
+	var lines []string
+	for _, dialog := range dialogs {
+		lines = append(lines, fmt.Sprintf("%s - %s",
+			dialog.helpStrategy.getName(),
+			dialog.helpStrategy.getOneLineDescription()))
+	}
+	return &lineGroup{
+		name:  "Dialogs",
+		lines: lines,
+	}
+}
+
+func listDialogPropertyHandlers(handlers []*dialogPropertyHandler) *lineGroup {
+	if len(handlers) == 0 {
+		return &lineGroup{}
+	}
+	var lines []string
+	for _, handler := range handlers {
+		lines = append(lines, handler.name)
+	}
+	return &lineGroup{
+		name:  "Properties that can be set:",
+		lines: lines,
+	}
+}
+
+func getHandler(name string, handlers []runnableHandler) runnableHandler {
+	for _, handler := range handlers {
 		if handler.getName() == name {
 			return handler
 		}
@@ -268,10 +496,8 @@ func (gcr *groupContextRunnable) getHandler(name string) runnableHandler {
 	return nil
 }
 
-func (group *groupContextRunnable) handleLine(words []string) error {
-	if len(words) != 1 {
-		return errors.New("Entering a group does not require arguments")
-	}
-	group.run()
-	return nil
+type DialogStruct struct {
+	F1 bool
+	F2 int32
+	F3 string
 }

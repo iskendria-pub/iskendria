@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 const (
 	HELP        = "help"
 	EXIT        = "exit"
+	CONTINUE    = "continue"
+	CANCEL      = "cancel"
+	REVIEW      = "review"
 	UNDO_FORMAT = "\033[0m"
 )
 
@@ -17,6 +21,14 @@ type Outputter func(string)
 
 func outputToStdout(value string) {
 	fmt.Print(value)
+}
+
+func setField(container reflect.Value, fieldNum int, value reflect.Value) {
+	containerType := container.Type()
+	if containerType.Elem().Kind() != reflect.Struct {
+		panic("Container is not a struct pointer")
+	}
+	container.Elem().Field(fieldNum).Set(value)
 }
 
 func getValue(word string, expectedType reflect.Type) (reflect.Value, error) {
@@ -52,4 +64,36 @@ func getValueInt(word string, numBits int) (reflect.Value, error) {
 		return rawValue, err
 	}
 	panic("Unsupported number of bits")
+}
+
+type lineGroups []*lineGroup
+
+func (lgs *lineGroups) String() string {
+	filled := make([]string, 0)
+	for _, lg := range []*lineGroup(*lgs) {
+		if !lg.isEmpty() {
+			filled = append(filled, lg.String())
+		}
+	}
+	return strings.Join(filled, "\n") + "\n"
+}
+
+type lineGroup struct {
+	name  string
+	lines []string
+}
+
+const lineGroupIndent = 2
+
+func (lg *lineGroup) String() string {
+	var sb strings.Builder
+	sb.WriteString(lg.name + ":\n")
+	for _, line := range lg.lines {
+		sb.WriteString(strings.Repeat(" ", lineGroupIndent) + line + "\n")
+	}
+	return sb.String()
+}
+
+func (lg *lineGroup) isEmpty() bool {
+	return lg.lines == nil || len(lg.lines) == 0
 }
