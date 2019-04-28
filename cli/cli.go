@@ -42,7 +42,7 @@ and "var _ runnableHandler = ..." to enforce that every
 type implements the intended interfaces.
 
 The runnableHandler implementations groupContextRunnable and
-dialogContextRunnable have a helpStrategy that implements
+dialogContextRunnable have an interactionStrategy that implements
 reading and parsing user input and that provides helper
 functions for formatting. When the user has entered a line,
 the parsed line is fed to groupContextRunnable.executeLine()
@@ -52,7 +52,21 @@ appropriate runnableHandler and executes its handleLine
 method. groupContextRunnable and dialogContextRunnable are
 themselves runnableHandler implementations because a
 dialog is called from a command group and a command group
-can be the child of another command group.
+can be the child of another command group. To summarize:
+A command wrapped by a runnableHandler is executed using its
+handleLine() method. When the runnableHandler is a group,
+it has an executeLine() to select and run a command within
+the group.
+
+The interaction strategy does not provide help information.
+groupContextRunnable and dialogContextRunnable have help
+methods. The build() methods of Cli and StructRunnerHandler
+wrap these help methods in runnableHandler instances
+and register these handlers. This registration ensures
+that a help screen's list of options shows the help
+function itself as one of the options. dialogRunnableHandler
+applies the same idea to provide "continue", "cancel",
+"review" and "clear" commands.
 */
 type Handler interface {
 	build() runnableHandler
@@ -107,18 +121,18 @@ func (slh *SingleLineHandler) getName() string {
 	return slh.Name
 }
 
-func (command *SingleLineHandler) handleLine(words []string) error {
-	expectedNumArgs := len(command.ArgNames)
+func (slh *SingleLineHandler) handleLine(words []string) error {
+	expectedNumArgs := len(slh.ArgNames)
 	actualNumArgs := len(words) - 1
 	if expectedNumArgs != actualNumArgs {
 		return errors.New(fmt.Sprintf("Wrong number of arguments, expected %d, got %d",
 			expectedNumArgs, actualNumArgs))
 	}
-	values, err := getValues(command, words[1:])
+	values, err := getValues(slh, words[1:])
 	if err != nil {
 		return err
 	}
-	callResultValue := reflect.ValueOf(command.Handler).Call(values)
+	callResultValue := reflect.ValueOf(slh.Handler).Call(values)
 	if len(callResultValue) != 0 {
 		panic("Expected exactly one result")
 	}
@@ -165,7 +179,7 @@ func (c *Cli) buildMain() *groupContextRunnable {
 		runnableHandlers[i] = c.Handlers[i].build()
 	}
 	result := &groupContextRunnable{
-		helpStrategy: &helpStrategyImpl{
+		interactionStrategy: &interactionStrategyImpl{
 			fullDescription:    c.FullDescription,
 			oneLineDescription: c.OneLineDescription,
 			name:               c.Name,
@@ -191,23 +205,23 @@ func (c *Cli) buildMain() *groupContextRunnable {
 }
 
 type groupContextRunnable struct {
-	helpStrategy helpStrategy
-	handlers     []runnableHandler
+	interactionStrategy interactionStrategy
+	handlers            []runnableHandler
 }
 
 var _ runnableHandler = new(groupContextRunnable)
 
 func (gcr *groupContextRunnable) getName() string {
-	return gcr.helpStrategy.getName()
+	return gcr.interactionStrategy.getName()
 }
 
 func (gcr *groupContextRunnable) init() {
 	for _, handler := range gcr.handlers {
 		switch specificHandler := handler.(type) {
 		case *groupContextRunnable:
-			specificHandler.helpStrategy.setParent(gcr.helpStrategy)
+			specificHandler.interactionStrategy.setParent(gcr.interactionStrategy)
 		case *dialogContextRunnable:
-			specificHandler.helpStrategy.setParent(gcr.helpStrategy)
+			specificHandler.interactionStrategy.setParent(gcr.interactionStrategy)
 		}
 	}
 	sort.Slice(gcr.handlers, func(i, j int) bool {
@@ -224,7 +238,7 @@ func (gcr *groupContextRunnable) addRunnableHandler(handler runnableHandler) {
 }
 
 func (gcr *groupContextRunnable) help(outputter Outputter) {
-	outputter(gcr.helpStrategy.getFormattedHelpScreenTitle())
+	outputter(gcr.interactionStrategy.getFormattedHelpScreenTitle())
 	gcr.showHandlers(outputter)
 }
 
@@ -259,7 +273,7 @@ func (gcr *groupContextRunnable) splitGroupsCommandsAndDialogs() (
 }
 
 func (gcr *groupContextRunnable) run() {
-	gcr.helpStrategy.run(func(line string) error {
+	gcr.interactionStrategy.run(func(line string) error {
 		return gcr.executeLine(line)
 	})
 }
@@ -297,7 +311,7 @@ func (srh *StructRunnerHandler) build() runnableHandler {
 	}
 	containerValue := reflect.New(s)
 	result := &dialogContextRunnable{
-		helpStrategy: &helpStrategyImpl{
+		interactionStrategy: &interactionStrategyImpl{
 			fullDescription:    srh.FullDescription,
 			oneLineDescription: srh.OneLineDescription,
 			name:               srh.Name,
@@ -357,20 +371,20 @@ func (srh *StructRunnerHandler) build() runnableHandler {
 }
 
 type dialogContextRunnable struct {
-	helpStrategy   helpStrategy
-	handlers       []runnableHandler
-	containerValue reflect.Value
-	action         interface{}
+	interactionStrategy interactionStrategy
+	handlers            []runnableHandler
+	containerValue      reflect.Value
+	action              interface{}
 }
 
 var _ runnableHandler = new(dialogContextRunnable)
 
 func (dcr *dialogContextRunnable) getName() string {
-	return dcr.helpStrategy.getName()
+	return dcr.interactionStrategy.getName()
 }
 
 func (dcr *dialogContextRunnable) help(outputter Outputter) {
-	outputter(dcr.helpStrategy.getFormattedHelpScreenTitle())
+	outputter(dcr.interactionStrategy.getFormattedHelpScreenTitle())
 	dcr.showHandlers(outputter)
 }
 
@@ -440,7 +454,7 @@ func (dcr *dialogContextRunnable) handleLine(words []string) error {
 }
 
 func (dcr *dialogContextRunnable) run() {
-	dcr.helpStrategy.run(func(line string) error {
+	dcr.interactionStrategy.run(func(line string) error {
 		return dcr.executeLine(line)
 	})
 }
@@ -509,8 +523,8 @@ func listGroupContextRunnables(contexts []*groupContextRunnable) *lineGroup {
 	var lines []string
 	for _, context := range contexts {
 		lines = append(lines, fmt.Sprintf("%s - %s",
-			context.helpStrategy.getName(),
-			context.helpStrategy.getOneLineDescription()))
+			context.interactionStrategy.getName(),
+			context.interactionStrategy.getOneLineDescription()))
 	}
 	return &lineGroup{
 		name:  "Groups",
@@ -525,8 +539,8 @@ func listDialogContextRunnables(dialogs []*dialogContextRunnable) *lineGroup {
 	var lines []string
 	for _, dialog := range dialogs {
 		lines = append(lines, fmt.Sprintf("%s - %s",
-			dialog.helpStrategy.getName(),
-			dialog.helpStrategy.getOneLineDescription()))
+			dialog.interactionStrategy.getName(),
+			dialog.interactionStrategy.getOneLineDescription()))
 	}
 	return &lineGroup{
 		name:  "Dialogs",
