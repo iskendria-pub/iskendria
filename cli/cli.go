@@ -269,6 +269,11 @@ func (srh *StructRunnerHandler) build() runnableHandler {
 		Handler:  result.review,
 		ArgNames: []string{},
 	}
+	clearHandler := &SingleLineHandler{
+		Name:     CLEAR,
+		Handler:  result.clear,
+		ArgNames: []string{},
+	}
 	continueHandler := &SingleLineHandler{
 		Name:     CONTINUE,
 		Handler:  result.doContinue,
@@ -282,6 +287,7 @@ func (srh *StructRunnerHandler) build() runnableHandler {
 	result.handlers = []runnableHandler{
 		helpHandler.build(),
 		reviewHandler.build(),
+		clearHandler.build(),
 		continueHandler.build(),
 		cancelHandler.build(),
 	}
@@ -359,6 +365,14 @@ func (dcr *dialogContextRunnable) review(outputter Outputter) {
 	outputter(result.String())
 }
 
+func (dcr *dialogContextRunnable) clear(outputter Outputter) {
+	numFields := dcr.containerValue.Elem().NumField()
+	for i := 0; i < numFields; i++ {
+		field := dcr.containerValue.Elem().Field(i)
+		field.Set(reflect.Zero(field.Type()))
+	}
+}
+
 func (dcr *dialogContextRunnable) doContinue(outputter Outputter) {
 	actionValue := reflect.ValueOf(dcr.action)
 	actionValue.Call([]reflect.Value{
@@ -415,11 +429,11 @@ func (dph *dialogPropertyHandler) handleLine(words []string) error {
 	var err error
 	if len(words) == 2 && words[1] != "" {
 		if value, err = getValue(words[1], dph.propertyType); err != nil {
-			return errors.New(fmt.Sprintf("Type mismatch for property %s: %s",
+			return errors.New(fmt.Sprintf("Type mismatch or value out of range for property %s: %s",
 				dph.name, words[1]))
 		}
 	}
-	setField(dph.containerValue, dph.fieldNumber, value)
+	dph.containerValue.Elem().Field(dph.fieldNumber).Set(value)
 	return nil
 }
 
@@ -482,7 +496,7 @@ func listDialogPropertyHandlers(handlers []*dialogPropertyHandler) *lineGroup {
 		lines = append(lines, handler.name)
 	}
 	return &lineGroup{
-		name:  "Properties that can be set:",
+		name:  "Properties that can be set",
 		lines: lines,
 	}
 }
@@ -494,10 +508,4 @@ func getHandler(name string, handlers []runnableHandler) runnableHandler {
 		}
 	}
 	return nil
-}
-
-type DialogStruct struct {
-	F1 bool
-	F2 int32
-	F3 string
 }

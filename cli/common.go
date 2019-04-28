@@ -14,6 +14,7 @@ const (
 	CONTINUE    = "continue"
 	CANCEL      = "cancel"
 	REVIEW      = "review"
+	CLEAR       = "clear"
 	UNDO_FORMAT = "\033[0m"
 )
 
@@ -21,14 +22,6 @@ type Outputter func(string)
 
 func outputToStdout(value string) {
 	fmt.Print(value)
-}
-
-func setField(container reflect.Value, fieldNum int, value reflect.Value) {
-	containerType := container.Type()
-	if containerType.Elem().Kind() != reflect.Struct {
-		panic("Container is not a struct pointer")
-	}
-	container.Elem().Field(fieldNum).Set(value)
 }
 
 func getValue(word string, expectedType reflect.Type) (reflect.Value, error) {

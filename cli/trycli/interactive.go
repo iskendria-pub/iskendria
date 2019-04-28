@@ -21,7 +21,8 @@ that requires a list of name/value pairs to be set interactively.
 You can do "continue" to execute the function with the given
 values.
 
-Please enter "help" to start or "exit" to quit.`)
+Note that your options are sorted alphabetically. Please enter "help" to
+start or "exit" to quit.`)
 
 var childDescription = strings.TrimSpace(`
 Welcome to the side track of "White against black". You can return
@@ -30,8 +31,11 @@ can do here.
 `)
 
 var dialogDescription = strings.TrimSpace(`
-Welcome to the dialog test. Please fill some properties and do
-something trivial with them.
+Welcome to the dialog test. Please fill some properties. We will do
+something trivial with them on "continue".
+
+Please note that your options are not sorted alphabetically, but
+according to the field order of the Golang struct being filled.
 `)
 
 var makeGreen = "\033[32m"
@@ -139,9 +143,18 @@ func and(outputter cli.Outputter, v1, v2 bool) {
 	outputter(fmt.Sprintf("%v\n", v1 && v2))
 }
 
-func executeDialogStruct(outputter cli.Outputter, v *cli.DialogStruct) {
+// The sort order should be first, second, fourth. We
+// test that the fields are not sorted alphabetically
+// in the help text of the dialog.
+type DialogStruct struct {
+	First  bool
+	Second int32
+	Fourth string
+}
+
+func executeDialogStruct(outputter cli.Outputter, v *DialogStruct) {
 	outputter("Executing the dialog\n")
-	outputter(fmt.Sprintf("We take f1 = %v\n", v.F1))
-	outputter(fmt.Sprintf("We take f2 = %v\n", v.F2))
-	outputter(fmt.Sprintf("We take f3 = %v\n", v.F3))
+	outputter(fmt.Sprintf("We take first = %v\n", v.First))
+	outputter(fmt.Sprintf("We take second = %v\n", v.Second))
+	outputter(fmt.Sprintf("We take fourth = %v\n", v.Fourth))
 }
