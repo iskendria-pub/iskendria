@@ -9,6 +9,51 @@ import (
 	"strings"
 )
 
+/*
+This package implements a generic interactive command-line interface.
+To use it, fill a cli.Cli struct with help text and instances of
+Handler. Then call the Run method. See trycli/interactive.go to see
+how the cli package is used. When the cli starts, the end user gets
+a welcome message and a prompt. She can enter commands and sees
+a prompt after a command is completed. The user defines the
+user interface by filling Cli with help texts and Handler instances.
+
+Cli itself implements Handler because groups of commands can be nested.
+Other Handler implementations are SingleLineHandler and
+StructRunnerHandler.
+
+SingleLineHandler wraps a Golang-function with
+arbitrary arguments of type bool, int32, int64 or string. A
+StructRunnerHandler wraps a function taking a struct pointer.
+This handler starts a dialog allowing the end user to set
+all fields of the struct. A command "continue" is added
+automatically that allows the end user to call the function.
+There is also "cancel" to go back without executing the
+function. On "continue" or "cancel", the entered values are not
+thrown away. The end user can do "clear" to clear entered values.
+The end user can do "review" to get an overview of the entered
+properties.
+
+The cli is implemented as follows. The top-level Handler's
+"build" method is executed to get a runnableHandler instance.
+This is done recursively resulting in a nested structure of
+runnableHandler instances. There are "var _ Handler = ... "
+and "var _ runnableHandler = ..." to enforce that every
+type implements the intended interfaces.
+
+The runnableHandler implementations groupContextRunnable and
+dialogContextRunnable have a helpStrategy that implements
+reading and parsing user input and that provides helper
+functions for formatting. When the user has entered a line,
+the parsed line is fed to groupContextRunnable.executeLine()
+or dialogContextRunnable.executeLine(). The
+groupContextRunnable or dialogContextRunnable selects the
+appropriate runnableHandler and executes its handleLine
+method. groupContextRunnable and dialogContextRunnable are
+themselves runnableHandler implementations because a
+dialog is called from a command group and a command group
+can be the child of another command group.
+*/
 type Handler interface {
 	build() runnableHandler
 }
@@ -149,6 +194,8 @@ type groupContextRunnable struct {
 	helpStrategy helpStrategy
 	handlers     []runnableHandler
 }
+
+var _ runnableHandler = new(groupContextRunnable)
 
 func (gcr *groupContextRunnable) getName() string {
 	return gcr.helpStrategy.getName()
