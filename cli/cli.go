@@ -415,15 +415,8 @@ func (dcr *dialogContextRunnable) splitCommandsAndProperties() (
 }
 
 func (dcr *dialogContextRunnable) review(outputter Outputter) {
-	var propertyHandlers []*dialogPropertyHandler
-	_, propertyHandlers = dcr.splitCommandsAndProperties()
-	numFields := dcr.containerValue.Elem().NumField()
-	result := NewTable(numFields, 2)
-	for i := 0; i < numFields; i++ {
-		result.Set(i, 0, propertyHandlers[i].name)
-		result.Set(i, 1, fmt.Sprintf("%v", dcr.containerValue.Elem().Field(i).Interface()))
-	}
-	outputter(result.String())
+	table := StructToTable(dcr.containerValue.Interface())
+	outputter(table.String())
 }
 
 func (dcr *dialogContextRunnable) clear(outputter Outputter) {

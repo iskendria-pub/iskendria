@@ -1,6 +1,11 @@
 package cli
 
-import "strings"
+import (
+	"fmt"
+	"gitlab.bbinfra.net/3estack/alexandria/util"
+	"reflect"
+	"strings"
+)
 
 type TableType struct {
 	numRows int
@@ -14,6 +19,17 @@ func NewTable(numRows, numCols int) *TableType {
 		numCols: numCols,
 		data:    make([]string, numRows*numCols),
 	}
+}
+
+func StructToTable(i interface{}) *TableType {
+	structValue := reflect.Indirect(reflect.ValueOf(i))
+	numFields := structValue.NumField()
+	result := NewTable(numFields, 2)
+	for i := 0; i < numFields; i++ {
+		result.Set(i, 0, util.UnTitle(structValue.Type().Field(i).Name))
+		result.Set(i, 1, fmt.Sprintf("%v", structValue.Field(i).Interface()))
+	}
+	return result
 }
 
 func (table *TableType) String() string {
