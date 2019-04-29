@@ -23,7 +23,14 @@ Other Handler implementations are SingleLineHandler and
 StructRunnerHandler.
 
 SingleLineHandler wraps a Golang-function with
-arbitrary arguments of type bool, int32, int64 or string. A
+arbitrary arguments of type bool, int32, int64 or string.
+There are two possibilities for a SingleLineHandler:
+
+* It can take an extra argument of type Outputter that is called
+to report outputs.
+* It can take only the named arguments and return a value
+that implements error.
+
 StructRunnerHandler wraps a function taking a struct pointer.
 This handler starts a dialog allowing the end user to set
 all fields of the struct. A command "continue" is added
@@ -91,14 +98,23 @@ func (slh *SingleLineHandler) build() runnableHandler {
 	if reflectHandlerType.Kind() != reflect.Func {
 		panic(fmt.Sprintf("Handler is not a function: %+v", slh))
 	}
+	switch reflectHandlerType.NumOut() {
+	case 0:
+		slh.checkSingleLineHandlerThatTakesOutputter(reflectHandlerType)
+	case 1:
+		slh.checkSingleLineHandlerThatReturnsError(reflectHandlerType)
+	default:
+		panic(fmt.Sprintf("Handler should return zero or one value: %+v", slh))
+	}
+	return slh
+}
+
+func (slh *SingleLineHandler) checkSingleLineHandlerThatTakesOutputter(reflectHandlerType reflect.Type) {
 	expectedNumFunctionArgs := len(slh.ArgNames) + 1
 	if reflectHandlerType.NumIn() != expectedNumFunctionArgs {
 		panic(fmt.Sprintf(
 			"Number of handler arguments does not match number of argument names or outputter function is missing: %+v",
 			slh))
-	}
-	if reflectHandlerType.NumOut() != 0 {
-		panic(fmt.Sprintf("Handler should not return anything: %+v", slh))
 	}
 	reflectFirstArgumentType := reflectHandlerType.In(0)
 	if reflectFirstArgumentType.Kind() != reflect.Func {
@@ -114,7 +130,23 @@ func (slh *SingleLineHandler) build() runnableHandler {
 		panic(fmt.Sprintf(
 			"The first argument of a handler should be a function with a string argument: %+v", slh))
 	}
-	return slh
+}
+
+func (slh *SingleLineHandler) checkSingleLineHandlerThatReturnsError(reflectHandlerType reflect.Type) {
+	if reflectHandlerType.NumIn() != len(slh.ArgNames) {
+		panic(fmt.Sprintf(
+			"Number of handler arguments does not match number of argument names: %+v",
+			slh))
+	}
+	reflectReturnType := reflectHandlerType.Out(0)
+	errorType := reflect.TypeOf((*error)(nil)).Elem()
+	if reflectReturnType == errorType {
+		return
+	}
+	if !reflectReturnType.Implements(errorType) {
+		panic(fmt.Sprintf(
+			"Return type does not implement error: %s", reflectReturnType))
+	}
 }
 
 func (slh *SingleLineHandler) getName() string {
@@ -128,29 +160,56 @@ func (slh *SingleLineHandler) handleLine(words []string) error {
 		return errors.New(fmt.Sprintf("Wrong number of arguments, expected %d, got %d",
 			expectedNumArgs, actualNumArgs))
 	}
-	values, err := getValues(slh, words[1:])
-	if err != nil {
-		return err
-	}
-	callResultValue := reflect.ValueOf(slh.Handler).Call(values)
-	if len(callResultValue) != 0 {
-		panic("Expected exactly one result")
+	switch reflect.TypeOf(slh.Handler).NumOut() {
+	case 0:
+		return slh.handleLineUsingOutputter(words[1:])
+	case 1:
+		return slh.handleLineUsingReturnedError(words[1:])
 	}
 	return nil
 }
 
-func getValues(handler *SingleLineHandler, argWords []string) ([]reflect.Value, error) {
+func (slh *SingleLineHandler) handleLineUsingOutputter(argWords []string) error {
+	values, err := getValues(slh, argWords, func(i int) int { return i + 1 })
+	if err != nil {
+		return err
+	}
+	values = append([]reflect.Value{reflect.ValueOf(outputToStdout)}, values...)
+	callResultValue := reflect.ValueOf(slh.Handler).Call(values)
+	if len(callResultValue) != 0 {
+		panic("Did not expect a result")
+	}
+	return nil
+}
+
+func (slh *SingleLineHandler) handleLineUsingReturnedError(argWords []string) error {
+	values, err := getValues(slh, argWords, func(i int) int { return i })
+	if err != nil {
+		return err
+	}
+	callResultValue := reflect.ValueOf(slh.Handler).Call(values)
+	callResult := callResultValue[0].Interface()
+	if callResult == nil {
+		outputToStdout(OK + "\n")
+		return nil
+	}
+	err, isConvertedSuccessfully := callResult.(error)
+	if !isConvertedSuccessfully {
+		panic(fmt.Sprintf("Did not get proper error object: %v", callResultValue))
+	}
+	return err
+}
+
+func getValues(handler *SingleLineHandler, argWords []string, namedArgIdxToArgIdx func(int) int) ([]reflect.Value, error) {
 	numArgWords := len(handler.ArgNames)
-	values := make([]reflect.Value, numArgWords+1)
-	values[0] = reflect.ValueOf(outputToStdout)
-	for argWordsIndex, word := range argWords {
-		allArgsIndex := argWordsIndex + 1
-		argumentType := reflect.TypeOf(handler.Handler).In(allArgsIndex)
+	values := make([]reflect.Value, numArgWords)
+	for index, word := range argWords {
+		argumentType := reflect.TypeOf(handler.Handler).In(namedArgIdxToArgIdx(index))
 		value, err := getValue(word, argumentType)
 		if err != nil {
 			return values, err
 		}
-		values[allArgsIndex] = value
+		values[index] = value
 	}
 	return values, nil
 }

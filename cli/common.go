@@ -16,6 +16,7 @@ const (
 	REVIEW      = "review"
 	CLEAR       = "clear"
 	UNDO_FORMAT = "\033[0m"
+	OK          = "Ok"
 )
 
 type Outputter func(string)
@@ -39,7 +40,7 @@ func getValue(word string, expectedType reflect.Type) (reflect.Value, error) {
 		}
 		return reflect.ValueOf(value), nil
 	default:
-		panic("Unsupported type")
+		panic("Unsupported type for word: " + word)
 	}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"gitlab.bbinfra.net/3estack/alexandria/cli"
 	"strings"
@@ -15,6 +16,10 @@ highest strength wins.
 Unrelated to this game, there are test functions to check whether
 package cli can detect malformat numbers and boolean values. Out-of-range
 values for 32-bit integers and 64-bit integers should be detected.
+There is also a test that all types of SingleLineHandler work. Such
+a handler can take an Outputter as the first argument, or it can
+only take the arguments named in ArgNames and return error. This is
+tested with the "expectTrue" command.
 
 Also unrelated to this game, dialogs are tested. A dialog is a function
 that requires a list of name/value pairs to be set interactively.
@@ -76,6 +81,11 @@ func main() {
 				Name:     "or",
 				Handler:  or,
 				ArgNames: []string{"first value", "second value"},
+			},
+			&cli.SingleLineHandler{
+				Name:     "expectTrue",
+				Handler:  errorReturnerExpectingTrue,
+				ArgNames: []string{"test value"},
 			},
 			cli.Handler(&cli.Cli{
 				FullDescription:    childDescription,
@@ -157,4 +167,11 @@ func executeDialogStruct(outputter cli.Outputter, v *DialogStruct) {
 	outputter(fmt.Sprintf("We take first = %v\n", v.First))
 	outputter(fmt.Sprintf("We take second = %v\n", v.Second))
 	outputter(fmt.Sprintf("We take fourth = %v\n", v.Fourth))
+}
+
+func errorReturnerExpectingTrue(testValue bool) error {
+	if !testValue {
+		return errors.New("We expected to see true here")
+	}
+	return nil
 }
