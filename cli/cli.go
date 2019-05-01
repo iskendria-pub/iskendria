@@ -371,20 +371,8 @@ type StructRunnerHandler struct {
 var _ Handler = new(StructRunnerHandler)
 
 func (srh *StructRunnerHandler) build() runnableHandler {
-	actionInputType := reflect.TypeOf(srh.Action).In(1).Elem()
-	if actionInputType.Kind() != reflect.Struct {
-		panic("The second argument of Action is expected to be a pointer to struct")
-	}
-	if srh.ReferenceValueGetter != nil {
-		referenceGetterType := reflect.TypeOf(srh.ReferenceValueGetter)
-		if referenceGetterType.NumIn() != 0 || referenceGetterType.NumOut() != 1 {
-			panic("Reference value getter should have no inputs and one output")
-		}
-		referenceType := referenceGetterType.Out(0).Elem()
-		if actionInputType != referenceType {
-			panic("The ReferenceValueGetter must produce the type needed by Action")
-		}
-	}
+	actionInputType := srh.getAndCheckActionType()
+	srh.checkReferenceValueGetter(actionInputType)
 	result := &dialogContextRunnable{
 		interactionStrategy: &interactionStrategyImpl{
 			fullDescription:    srh.FullDescription,
@@ -396,38 +384,68 @@ func (srh *StructRunnerHandler) build() runnableHandler {
 		actionInpuType:       actionInputType,
 		referenceValueGetter: srh.ReferenceValueGetter,
 	}
+	srh.addCommandHandlers(result)
+	srh.addPropertyHandlers(actionInputType, result)
+	return result
+}
+
+func (srh *StructRunnerHandler) getAndCheckActionType() reflect.Type {
+	actionInputType := reflect.TypeOf(srh.Action).In(1).Elem()
+	if actionInputType.Kind() != reflect.Struct {
+		panic("The second argument of Action is expected to be a pointer to struct")
+	}
+	return actionInputType
+}
+
+func (srh *StructRunnerHandler) checkReferenceValueGetter(actionInputType reflect.Type) {
+	if srh.ReferenceValueGetter != nil {
+		referenceGetterType := reflect.TypeOf(srh.ReferenceValueGetter)
+		if referenceGetterType.NumIn() != 0 || referenceGetterType.NumOut() != 1 {
+			panic("Reference value getter should have no inputs and one output")
+		}
+		referenceType := referenceGetterType.Out(0).Elem()
+		if actionInputType != referenceType {
+			panic("The ReferenceValueGetter must produce the type needed by Action")
+		}
+	}
+}
+
+func (srh *StructRunnerHandler) addCommandHandlers(dcr *dialogContextRunnable) {
 	helpHandler := &SingleLineHandler{
 		Name:     HELP,
-		Handler:  result.help,
+		Handler:  dcr.help,
 		ArgNames: []string{},
 	}
 	reviewHandler := &SingleLineHandler{
 		Name:     REVIEW,
-		Handler:  result.review,
+		Handler:  dcr.review,
 		ArgNames: []string{},
 	}
 	clearHandler := &SingleLineHandler{
 		Name:     CLEAR,
-		Handler:  result.clear,
+		Handler:  dcr.clear,
 		ArgNames: []string{},
 	}
 	continueHandler := &SingleLineHandler{
 		Name:     CONTINUE,
-		Handler:  result.doContinue,
+		Handler:  dcr.doContinue,
 		ArgNames: []string{},
 	}
 	cancelHandler := &SingleLineHandler{
 		Name:     CANCEL,
-		Handler:  result.cancel,
+		Handler:  dcr.cancel,
 		ArgNames: []string{},
 	}
-	result.handlers = []runnableHandler{
+	dcr.handlers = []runnableHandler{
 		helpHandler.build(),
 		reviewHandler.build(),
 		clearHandler.build(),
 		continueHandler.build(),
 		cancelHandler.build(),
 	}
+}
+
+func (srh *StructRunnerHandler) addPropertyHandlers(actionInputType reflect.Type, dcr *dialogContextRunnable) {
 	dialogPropertyHandlers := make([]runnableHandler, actionInputType.NumField())
 	for i := 0; i < actionInputType.NumField(); i++ {
 		f := actionInputType.Field(i)
@@ -441,8 +459,7 @@ func (srh *StructRunnerHandler) build() runnableHandler {
 		}
 		dialogPropertyHandlers[i] = dph
 	}
-	result.handlers = append(result.handlers, dialogPropertyHandlers...)
-	return result
+	dcr.handlers = append(dcr.handlers, dialogPropertyHandlers...)
 }
 
 type dialogContextRunnable struct {
