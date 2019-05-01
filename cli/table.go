@@ -24,10 +24,11 @@ func NewTable(numRows, numCols int) *TableType {
 func StructToTable(i interface{}) *TableType {
 	structValue := reflect.Indirect(reflect.ValueOf(i))
 	numFields := structValue.NumField()
-	result := NewTable(numFields, 2)
+	result := NewTable(numFields, 3)
 	for i := 0; i < numFields; i++ {
 		result.Set(i, 0, util.UnTitle(structValue.Type().Field(i).Name))
-		result.Set(i, 1, fmt.Sprintf("%v", structValue.Field(i).Interface()))
+		result.Set(i, 1, "=")
+		result.Set(i, 2, fmt.Sprintf("%v", structValue.Field(i).Interface()))
 	}
 	return result
 }

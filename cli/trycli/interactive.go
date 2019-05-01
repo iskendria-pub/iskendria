@@ -26,6 +26,9 @@ that requires a list of name/value pairs to be set interactively.
 You can do "continue" to execute the function with the given
 values.
 
+There are two dialog tests, one without a reference value and one with
+a reference value.
+
 Note that your options are sorted alphabetically. Please enter "help" to
 start or "exit" to quit.`)
 
@@ -35,9 +38,21 @@ to the game using "exit". Execute "help" to see what you
 can do here.
 `)
 
-var dialogDescription = strings.TrimSpace(`
-Welcome to the dialog test. Please fill some properties. We will do
-something trivial with them on "continue".
+var dialogDescriptionNoRef = strings.TrimSpace(`
+Welcome to the dialog test without reference. Please fill some 
+properties. We will do something trivial with them on "continue".
+
+Please note that your options are not sorted alphabetically, but
+according to the field order of the Golang struct being filled.
+
+This test is without a reference value.
+`)
+
+var dialogDescriptionRef = strings.TrimSpace(`
+Welcome to the dialog test with reference. Please fill some 
+properties. We will do something trivial with them on "continue".
+Note that when you enter the dialog, the struct is already
+filled with the reference values.
 
 Please note that your options are not sorted alphabetically, but
 according to the field order of the Golang struct being filled.
@@ -100,10 +115,17 @@ func main() {
 				},
 			}),
 			cli.Handler(&cli.StructRunnerHandler{
-				FullDescription:    dialogDescription,
-				OneLineDescription: "Dialog test",
-				Name:               "dialog",
+				FullDescription:    dialogDescriptionNoRef,
+				OneLineDescription: "Dialog test without reference",
+				Name:               "dialog-noref",
 				Action:             executeDialogStruct,
+			}),
+			cli.Handler(&cli.StructRunnerHandler{
+				FullDescription:      dialogDescriptionRef,
+				OneLineDescription:   "Dialog test with reference",
+				Name:                 "dialog-ref",
+				Action:               executeDialogStruct,
+				ReferenceValueGetter: createReference,
 			}),
 		},
 	}
@@ -174,4 +196,12 @@ func errorReturnerExpectingTrue(testValue bool) error {
 		return errors.New("We expected to see true here")
 	}
 	return nil
+}
+
+func createReference() *DialogStruct {
+	return &DialogStruct{
+		First:  true,
+		Second: 8,
+		Fourth: "Martijn Dirkse",
+	}
 }

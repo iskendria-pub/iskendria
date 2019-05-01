@@ -31,15 +31,21 @@ to report outputs.
 * It can take only the named arguments and return a value
 that implements error.
 
-StructRunnerHandler wraps a function taking a struct pointer.
-This handler starts a dialog allowing the end user to set
-all fields of the struct. A command "continue" is added
-automatically that allows the end user to call the function.
+StructRunnerHandler wraps a function taking a struct pointer,
+the Action. This handler starts a dialog allowing the end user
+to set all fields of the struct. A command "continue" is added
+automatically that allows the end user to call the Action.
 There is also "cancel" to go back without executing the
-function. On "continue" or "cancel", the entered values are not
-thrown away. The end user can do "clear" to clear entered values.
-The end user can do "review" to get an overview of the entered
-properties.
+Action. The end user can do "review" to get an overview of
+the entered properties.
+
+StructRunnerHandler has an optional ReferenceValueGetter, a
+function that returns a reference value. The reference value
+should produce a value of the type needed by the Action.
+When the dialog is started, the read value is initialized
+with the reference value. There is a "clear" function that
+fills the read value with the reference value, or the zero
+values of the struct if there is no ReferenceValueGetter.
 
 The cli is implemented as follows. The top-level Handler's
 "build" method is executed to get a runnableHandler instance.
@@ -355,20 +361,30 @@ func (gcr *groupContextRunnable) handleLine(words []string) error {
 }
 
 type StructRunnerHandler struct {
-	FullDescription    string
-	OneLineDescription string
-	Name               string
-	Action             interface{}
+	FullDescription      string
+	OneLineDescription   string
+	Name                 string
+	Action               interface{}
+	ReferenceValueGetter interface{}
 }
 
 var _ Handler = new(StructRunnerHandler)
 
 func (srh *StructRunnerHandler) build() runnableHandler {
-	s := reflect.TypeOf(srh.Action).In(1).Elem()
-	if s.Kind() != reflect.Struct {
+	actionInputType := reflect.TypeOf(srh.Action).In(1).Elem()
+	if actionInputType.Kind() != reflect.Struct {
 		panic("The second argument of Action is expected to be a pointer to struct")
 	}
-	containerValue := reflect.New(s)
+	if srh.ReferenceValueGetter != nil {
+		referenceGetterType := reflect.TypeOf(srh.ReferenceValueGetter)
+		if referenceGetterType.NumIn() != 0 || referenceGetterType.NumOut() != 1 {
+			panic("Reference value getter should have no inputs and one output")
+		}
+		referenceType := referenceGetterType.Out(0).Elem()
+		if actionInputType != referenceType {
+			panic("The ReferenceValueGetter must produce the type needed by Action")
+		}
+	}
 	result := &dialogContextRunnable{
 		interactionStrategy: &interactionStrategyImpl{
 			fullDescription:    srh.FullDescription,
@@ -376,8 +392,9 @@ func (srh *StructRunnerHandler) build() runnableHandler {
 			name:               srh.Name,
 			stopWords:          map[string]bool{CANCEL: true, CONTINUE: true},
 		},
-		containerValue: containerValue,
-		action:         srh.Action,
+		action:               srh.Action,
+		actionInpuType:       actionInputType,
+		referenceValueGetter: srh.ReferenceValueGetter,
 	}
 	helpHandler := &SingleLineHandler{
 		Name:     HELP,
@@ -411,17 +428,16 @@ func (srh *StructRunnerHandler) build() runnableHandler {
 		continueHandler.build(),
 		cancelHandler.build(),
 	}
-	dialogPropertyHandlers := make([]runnableHandler, s.NumField())
-	for i := 0; i < s.NumField(); i++ {
-		f := s.Field(i)
+	dialogPropertyHandlers := make([]runnableHandler, actionInputType.NumField())
+	for i := 0; i < actionInputType.NumField(); i++ {
+		f := actionInputType.Field(i)
 		if f.Name != strings.Title(f.Name) {
 			panic("Field is not exported: " + f.Name)
 		}
 		dph := &dialogPropertyHandler{
-			name:           util.UnTitle(f.Name),
-			propertyType:   f.Type,
-			fieldNumber:    i,
-			containerValue: containerValue,
+			name:         util.UnTitle(f.Name),
+			propertyType: f.Type,
+			fieldNumber:  i,
 		}
 		dialogPropertyHandlers[i] = dph
 	}
@@ -430,10 +446,13 @@ func (srh *StructRunnerHandler) build() runnableHandler {
 }
 
 type dialogContextRunnable struct {
-	interactionStrategy interactionStrategy
-	handlers            []runnableHandler
-	containerValue      reflect.Value
-	action              interface{}
+	interactionStrategy  interactionStrategy
+	handlers             []runnableHandler
+	readValue            reflect.Value
+	referenceValue       reflect.Value
+	referenceValueGetter interface{}
+	actionInpuType       reflect.Type
+	action               interface{}
 }
 
 var _ runnableHandler = new(dialogContextRunnable)
@@ -474,23 +493,19 @@ func (dcr *dialogContextRunnable) splitCommandsAndProperties() (
 }
 
 func (dcr *dialogContextRunnable) review(outputter Outputter) {
-	table := StructToTable(dcr.containerValue.Interface())
+	table := StructToTable(dcr.readValue.Interface())
 	outputter(table.String())
 }
 
 func (dcr *dialogContextRunnable) clear(outputter Outputter) {
-	numFields := dcr.containerValue.Elem().NumField()
-	for i := 0; i < numFields; i++ {
-		field := dcr.containerValue.Elem().Field(i)
-		field.Set(reflect.Zero(field.Type()))
-	}
+	dcr.initReadValue()
 }
 
 func (dcr *dialogContextRunnable) doContinue(outputter Outputter) {
 	actionValue := reflect.ValueOf(dcr.action)
 	actionValue.Call([]reflect.Value{
 		reflect.ValueOf(outputter),
-		dcr.containerValue,
+		dcr.readValue,
 	})
 }
 
@@ -506,9 +521,29 @@ func (dcr *dialogContextRunnable) handleLine(words []string) error {
 }
 
 func (dcr *dialogContextRunnable) run() {
+	dcr.initReferenceValue()
+	dcr.initReadValue()
 	dcr.interactionStrategy.run(func(line string) error {
 		return dcr.executeLine(line)
 	})
+}
+
+func (dcr *dialogContextRunnable) initReferenceValue() {
+	dcr.referenceValue = reflect.New(dcr.actionInpuType)
+	if dcr.referenceValueGetter != nil {
+		dcr.referenceValue = reflect.ValueOf(dcr.referenceValueGetter).Call([]reflect.Value{})[0]
+	}
+}
+
+func (dcr *dialogContextRunnable) initReadValue() {
+	dcr.readValue = reflect.New(dcr.actionInpuType)
+	dcr.readValue.Elem().Set(dcr.referenceValue.Elem())
+	for _, handler := range dcr.handlers {
+		switch specificHandler := handler.(type) {
+		case *dialogPropertyHandler:
+			specificHandler.readValue = dcr.readValue
+		}
+	}
 }
 
 func (dcr *dialogContextRunnable) executeLine(line string) error {
@@ -525,10 +560,10 @@ func (dcr *dialogContextRunnable) executeLine(line string) error {
 }
 
 type dialogPropertyHandler struct {
-	name           string
-	propertyType   reflect.Type
-	fieldNumber    int
-	containerValue reflect.Value
+	name         string
+	propertyType reflect.Type
+	fieldNumber  int
+	readValue    reflect.Value
 }
 
 var _ runnableHandler = new(dialogPropertyHandler)
@@ -546,7 +581,7 @@ func (dph *dialogPropertyHandler) handleLine(words []string) error {
 				dph.name, words[1]))
 		}
 	}
-	dph.containerValue.Elem().Field(dph.fieldNumber).Set(value)
+	dph.readValue.Elem().Field(dph.fieldNumber).Set(value)
 	return nil
 }
 
