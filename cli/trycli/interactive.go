@@ -26,8 +26,11 @@ that requires a list of name/value pairs to be set interactively.
 You can do "continue" to execute the function with the given
 values.
 
-There are two dialog tests, one without a reference value and one with
-a reference value.
+There are three dialog tests, one without a reference value and two with
+a reference value. One of the dialogs with reference values has a fixed
+reference value; this dialog does not require an argument to start.
+The other uses a dynamic reference value that depends on the input
+value supplied when entering the dialog.
 
 Note that your options are sorted alphabetically. Please enter "help" to
 start or "exit" to quit.`)
@@ -56,6 +59,14 @@ filled with the reference values.
 
 Please note that your options are not sorted alphabetically, but
 according to the field order of the Golang struct being filled.
+`)
+
+var dialogDescriptionRefArg = strings.TrimSpace(`
+Welcome to the dialog test that uses a calculated reference
+value. This dialog maintaines two reference values "one"
+and "two". To enter the dialog, you have to enter the
+number. If the number is not 1 or 2, a message is printed
+and the dialog is not entered.
 `)
 
 var makeGreen = "\033[32m"
@@ -126,6 +137,14 @@ func main() {
 				Name:                 "dialog-ref",
 				Action:               executeDialogStruct,
 				ReferenceValueGetter: createReference,
+			}),
+			cli.Handler(&cli.StructRunnerHandler{
+				FullDescription:              dialogDescriptionRefArg,
+				OneLineDescription:           "Dialog test with chosen reference",
+				Name:                         "dialog-ref-chosen",
+				Action:                       executeDialogStruct,
+				ReferenceValueGetter:         chooseReference,
+				ReferenceValueGetterArgNames: []string{"chosen number"},
 			}),
 		},
 	}
@@ -198,10 +217,31 @@ func errorReturnerExpectingTrue(testValue bool) error {
 	return nil
 }
 
-func createReference() *DialogStruct {
+func createReference(_ cli.Outputter) *DialogStruct {
 	return &DialogStruct{
 		First:  true,
 		Second: 8,
 		Fourth: "Martijn Dirkse",
 	}
+}
+
+func chooseReference(outputter cli.Outputter, number int32) *DialogStruct {
+	references := map[int32]*DialogStruct{
+		1: {
+			First:  false,
+			Second: 45,
+			Fourth: "Martijn Dirkse",
+		},
+		2: {
+			First:  true,
+			Second: 43,
+			Fourth: "Arri Dirkse",
+		},
+	}
+	reference, found := references[number]
+	if !found {
+		outputter(fmt.Sprintf("Number not found: %d\n", number))
+		return nil
+	}
+	return reference
 }
