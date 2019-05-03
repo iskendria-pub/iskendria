@@ -18,11 +18,6 @@ enum BoolUpdate {
     MAKE_TRUE = 2;
 }
 
-message BoolUpdate {
-    bool oldValue = 1;
-    bool newValue = 2;
-}
-
 enum Judgement {
     NEGATIVE = 0;
     POSITIVE = 1;

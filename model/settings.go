@@ -1,5 +1,7 @@
 package model
 
+import "strings"
+
 var TableCreateSettings = `
 	createdOn integer not null,
 	modifiedOn integer not null,
@@ -43,3 +45,7 @@ const (
 	PRICE_EDITOR_ADD_COLLEAGUE               = "priceEditorAddColleague"
 	PRICE_EDITOR_ACCEPT_DUTY                 = "priceEditorAcceptDuty"
 )
+
+func GetSettingsAddress() string {
+	return Namespace + strings.Repeat("0", 64)
+}

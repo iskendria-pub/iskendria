@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+import "person.proto";
+import "settings.proto";
+
+option go_package = "model";
+
+message Command {
+    string signer = 1;
+    int32 price = 2;
+    int64 timestamp = 3;
+    oneof body {
+        CommandBootstrap bootstrap = 4;
+        CommandSettingsUpdate commandSettingsUpdate = 5;
+        CommandPersonCreate personCreate = 6;
+        CommandPersonUpdateProperties commandPersonUpdateProperties = 7;
+        CommandPersonUpdateAuthorization commandUpdateAuthorization = 8;
+        CommandPersonUpdateBalanceIncrement commandPersonUpdateBalanceIncrement = 9;
+    }
+}

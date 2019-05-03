@@ -2,6 +2,8 @@ syntax = "proto3";
 
 import "common.proto";
 
+option go_package = "model";
+
 message StatePerson {
     string id = 1;
     int64 createdOn = 2;
@@ -23,45 +25,33 @@ message StatePerson {
 }
 
 message CommandPersonCreate {
-    string signer = 1;
-    int64 timestamp = 2;
-    int32 price = 3;
-    string newPersonId = 4;
-    string publicKey = 5;
-    string name = 6;
-    string email = 7;
+    string newPersonId = 1;
+    string publicKey = 2;
+    string name = 3;
+    string email = 4;
 }
 
 message CommandPersonUpdateProperties {
-    string signer = 1;
-    int64 timestamp = 2;
-    int32 price = 3;
-    string personId = 4;
-    StringUpdate publicKeyUpdate = 5;
-    StringUpdate nameUpdate = 6;
-    StringUpdate emailUpdate = 7;
-    StringUpdate biographyHashUpdate = 8;
-    StringUpdate organizationUpdate = 9;
-    StringUpdate telephoneUpdate = 10;
-    StringUpdate addressUpdate = 11;
-    StringUpdate postalCodeUpdate = 12;
-    StringUpdate countryUpdate = 13;
-    StringUpdate extraInfoUpdate = 14;
+    string personId = 1;
+    StringUpdate publicKeyUpdate = 2;
+    StringUpdate nameUpdate = 3;
+    StringUpdate emailUpdate = 4;
+    StringUpdate biographyHashUpdate = 5;
+    StringUpdate organizationUpdate = 6;
+    StringUpdate telephoneUpdate = 7;
+    StringUpdate addressUpdate = 8;
+    StringUpdate postalCodeUpdate = 9;
+    StringUpdate countryUpdate = 10;
+    StringUpdate extraInfoUpdate = 11;
 }
 
 message CommandPersonUpdateAuthorization {
-    string signer = 1;
-    int64 timestamp = 2;
-    int32 price = 3;
-    string personId = 4;
-    BoolUpdate makeMajor = 5;
-    BoolUpdate makeSigned = 6;
+    string personId = 1;
+    BoolUpdate makeMajor = 2;
+    BoolUpdate makeSigned = 3;
 }
 
 message CommandPersonUpdateBalanceIncrement {
-    string signer = 1;
-    int64 timestamp = 2;
-    int32 price = 3;
-    string personId = 4;
-    int32 balanceIncrement = 5;
+    string personId = 1;
+    int32 balanceIncrement = 2;
 }

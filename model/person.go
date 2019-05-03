@@ -1,5 +1,7 @@
 package model
 
+import "github.com/google/uuid"
+
 var TableCreatePerson = `
 create table Person (
 	id string primary key not null,
@@ -37,3 +39,15 @@ const (
 	PERSON_COUNTRY          = "country"
 	PERSON_EXTRA_INFO       = "extraInfo"
 )
+
+const personAddressPrefix = "01"
+
+func CreatePersonAddress() string {
+	var uuid uuid.UUID = uuid.New()
+	uuidDigest := hexdigestOfUuid(uuid)
+	return Namespace + personAddressPrefix + uuidDigest[:62]
+}
+
+func IsPersonAddress(address string) bool {
+	return getAddressPrefixFromAddress(address) == personAddressPrefix
+}

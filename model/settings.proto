@@ -3,6 +3,8 @@ syntax = "proto3";
 import "common.proto";
 import "person.proto";
 
+option go_package = "model";
+
 message StateSettings {
     int64 createdOnOn = 1;
     int64 modifiedOn = 2;
@@ -36,25 +38,22 @@ message CommandBootstrap {
 }
 
 message CommandSettingsUpdate {
-    string signer = 1;
-    int64 timestamp = 2;
-    int32 price = 3;
-    IntUpdate priceMajorEditSettingsUpdate = 4;
-    IntUpdate priceMajorCreatePersonUpdate = 5;
-    IntUpdate priceMajorChangePersonAuthorizationUpdate = 6;
-    IntUpdate priceMajorChangeJournalAuthorizationUpdate = 7;
-    IntUpdate pricePersonEditUpdate = 8;
-    IntUpdate priceAuthorSubmitNewManuscriptUpdate = 9;
-    IntUpdate priceAuthorSubmitNewVersionUpdate = 10;
-    IntUpdate priceAuthorAcceptAuthorshipUpdate = 11;
-    IntUpdate priceReviewerSubmitUpdate = 12;
-    IntUpdate priceEditorAllowManuscriptReviewUpdate = 13;
-    IntUpdate priceEditorRejectManuscriptUpdate = 14;
-    IntUpdate priceEditorPublishManuscriptUpdate = 15;
-    IntUpdate priceEditorAssignManuscriptUpdate = 16;
-    IntUpdate priceEditorCreateJournalUpdate = 17;
-    IntUpdate priceEditorCreateVolumeUpdate = 18;
-    IntUpdate priceEditorEditJournalUpdate = 19;
-    IntUpdate priceEditorAddColleagueUpdate = 20;
-    IntUpdate priceEditorAcceptDutyUpdate = 21;
+    IntUpdate priceMajorEditSettingsUpdate = 1;
+    IntUpdate priceMajorCreatePersonUpdate = 2;
+    IntUpdate priceMajorChangePersonAuthorizationUpdate = 3;
+    IntUpdate priceMajorChangeJournalAuthorizationUpdate = 4;
+    IntUpdate pricePersonEditUpdate = 5;
+    IntUpdate priceAuthorSubmitNewManuscriptUpdate = 6;
+    IntUpdate priceAuthorSubmitNewVersionUpdate = 7;
+    IntUpdate priceAuthorAcceptAuthorshipUpdate = 8;
+    IntUpdate priceReviewerSubmitUpdate = 9;
+    IntUpdate priceEditorAllowManuscriptReviewUpdate = 10;
+    IntUpdate priceEditorRejectManuscriptUpdate = 11;
+    IntUpdate priceEditorPublishManuscriptUpdate = 12;
+    IntUpdate priceEditorAssignManuscriptUpdate = 13;
+    IntUpdate priceEditorCreateJournalUpdate = 14;
+    IntUpdate priceEditorCreateVolumeUpdate = 15;
+    IntUpdate priceEditorEditJournalUpdate = 16;
+    IntUpdate priceEditorAddColleagueUpdate = 17;
+    IntUpdate priceEditorAcceptDutyUpdate = 18;
 }
