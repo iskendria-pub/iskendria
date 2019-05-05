@@ -1,4 +1,8 @@
 .idea
 cli/trycli/trycli
 generate/command/command
-
+client/client
+major/major
+generate/dao
+generate/ref.db
+temp
