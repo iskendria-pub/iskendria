@@ -3,26 +3,28 @@ package model
 import "strings"
 
 var TableCreateSettings = `
-	createdOn integer not null,
-	modifiedOn integer not null,
-	priceMajorEditSettings integer not null,
-	priceMajorCreatePerson integer not null,
-	priceMajorChangePersonAuthorization integer not null,
-	priceMajorChangeJournalAuthorization integer not null,
-	pricePersonEdit integer not null,
-	priceAuthorSubmitNewManuscript integer not null,
-	priceAuthorSubmitNewVersion integer not null,
-	priceAuthorAcceptAuthorship integer not null,
-	priceReviewerSubmit integer not null,
-	priceEditorAllowManuscriptReview integer not null,
-	priceEditorRejectManuscript integer not null,
-	priceEditorPublishManuscript integer not null,
-	priceEditorAssignManuscript integer not null,
-	priceEditorCreateJournal integer not null,
-	priceEditorCreateVolume integer not null,
-	priceEditorEditJournal integer not null,
-	priceEditorAddColleague integer not null,
-	priceEditorAcceptDuty integer not null
+	CREATE TABLE settings (
+    id integer primary key not null,
+	createdon integer not null,
+	modifiedon integer not null,
+	pricemajoreditsettings integer not null,
+	pricemajorcreateperson integer not null,
+	pricemajorchangepersonauthorization integer not null,
+	pricemajorchangejournalauthorization integer not null,
+	pricepersonedit integer not null,
+	priceauthorsubmitnewmanuscript integer not null,
+	priceauthorsubmitnewversion integer not null,
+	priceauthoracceptauthorship integer not null,
+	pricereviewersubmit integer not null,
+	priceeditorallowmanuscriptreview integer not null,
+	priceeditorrejectmanuscript integer not null,
+	priceeditorpublishmanuscript integer not null,
+	priceeditorassignmanuscript integer not null,
+	priceeditorcreatejournal integer not null,
+	priceeditorcreatevolume integer not null,
+	priceeditoreditjournal integer not null,
+	priceeditoraddcolleague integer not null,
+	priceeditoracceptduty integer not null)
 `
 
 const (

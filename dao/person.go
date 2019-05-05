@@ -1,33 +1,52 @@
 package dao
 
+import (
+	"database/sql"
+)
+
 type Person struct {
 	Id              string
-	CreatedOn       int64
-	ModifiedOn      int64
-	PublicKey       string
+	CreatedOn       int64  `db:"createdon"`
+	ModifiedOn      int64  `db:"modifiedon"`
+	PublicKey       string `db:"publickey"`
 	Name            string
 	Email           string
-	IsMajor         bool
-	IsSigned        bool
+	IsMajor         bool `db:"ismajor"`
+	IsSigned        bool `db:"issigned"`
 	Balance         int32
-	BiographyHash   string
-	BiographyFormat string
+	BiographyHash   string `db:"biographyhash"`
+	BiographyFormat string `db:"biographyformat"`
 	Organization    string
 	Telephone       string
 	Address         string
-	PostalCode      string
+	PostalCode      string `db:"postalcode"`
 	Country         string
-	ExtraInfo       string
+	ExtraInfo       string `db:"extrainfo"`
 }
 
 func SearchPersonByKey(key string) ([]*Person, error) {
-	// TODO: Implement
-	return nil, nil
+	persons := []Person{}
+	err := db.Select(&persons, "SELECT * FROM person WHERE publickey = ?", key)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*Person, len(persons))
+	for i := 0; i < len(persons); i++ {
+		result[i] = &persons[i]
+	}
+	return result, nil
 }
 
 func GetPersonById(id string) (*Person, error) {
-	// TODO: Implement
-	return nil, nil
+	var person = new(Person)
+	err := db.QueryRowx("SELECT * FROM person WHERE id = ?", id).StructScan(person)
+	if err == nil {
+		return person, nil
+	}
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return nil, err
 }
 
 type PersonUpdate struct {

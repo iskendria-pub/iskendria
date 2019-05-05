@@ -3,24 +3,24 @@ package model
 import "github.com/google/uuid"
 
 var TableCreatePerson = `
-create table Person (
-	id string primary key not null,
-	createdOn integer not null,
-	modifiedOn integer not null,
-	publicKey string not null,
-	name string not null,
-	email string not null,
-	isMajor bool not null,
-	isSigned bool not null,
+CREATE TABLE person (
+	id varchar primary key not null,
+	createdon integer not null,
+	modifiedon integer not null,
+	publickey varchar not null,
+	name varchar not null,
+	email varchar not null,
+	ismajor bool not null,
+	issigned bool not null,
 	balance integer not null,
-	biographyHash string not null,
-	biographyFormat string not null,
-	organization string not null,
-	telephone string not null,
-	address string not null,
-	postalCode string not null,
-	country string not null,
-	extraInfo string not null,
+	biographyhash varchar not null,
+	biographyformat varchar not null,
+	organization varchar not null,
+	telephone varchar not null,
+	address varchar not null,
+	postalcode varchar not null,
+	country varchar not null,
+	extrainfo varchar not null
 )`
 
 const (

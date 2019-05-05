@@ -1,8 +1,10 @@
 package util
 
 import (
-	"database/sql"
+	"fmt"
+	"github.com/jmoiron/sqlx"
 	"log"
+	"os"
 	"strings"
 )
 
@@ -13,9 +15,29 @@ func UnTitle(s string) string {
 	return strings.ToLower(string(s[0])) + s[1:]
 }
 
-func CloseDb(db *sql.DB, logger *log.Logger) {
+func CloseDb(db *sqlx.DB, logger *log.Logger) {
 	err := db.Close()
 	if err != nil {
 		logger.Println("Could not close Sqlite 3 database: " + err.Error())
+	}
+}
+
+func RemoveFileIfExists(fname string, logger *log.Logger) {
+	_, err := os.Stat(fname)
+	if err == nil {
+		RemoveExistingFile(fname, logger)
+		return
+	}
+	if !os.IsNotExist(err) {
+		logger.Fatal(fmt.Sprintf("Something is wrong with database file: %s, error: %s",
+			fname, err.Error()))
+	}
+}
+
+func RemoveExistingFile(fname string, logger *log.Logger) {
+	err := os.Remove(fname)
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("Could not remove existing database file: %s, error: %s",
+			fname, err.Error()))
 	}
 }

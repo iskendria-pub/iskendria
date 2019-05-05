@@ -89,17 +89,17 @@ func noPersonFoundForKey(key string) string {
 
 func CheckBootstrappedAndLoggedIn(outputter cli.Outputter) bool {
 	var err error
-	if !dao.IsBootstrapped() {
+	Settings, err = dao.GetSettings()
+	if err != nil {
+		outputter(err.Error() + "\n")
+		return false
+	}
+	if Settings == nil {
 		outputter("The Blockchain has not been bootstrapped yet, please do that first\n")
 		return false
 	}
 	if !IsLoggedIn() {
 		outputter("Pleas login first\n")
-		return false
-	}
-	Settings, err = dao.GetSettings()
-	if err != nil {
-		outputter(err.Error() + "\n")
 		return false
 	}
 	return true
