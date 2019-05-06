@@ -2,6 +2,8 @@ package dao
 
 import (
 	"database/sql"
+	"fmt"
+	"github.com/jmoiron/sqlx"
 )
 
 type Person struct {
@@ -75,4 +77,23 @@ func PersonToPersonUpdate(p *Person) *PersonUpdate {
 		Country:       p.Country,
 		ExtraInfo:     p.ExtraInfo,
 	}
+}
+
+type dataManipulationPersonCreate struct {
+	timestamp       int64
+	id              string
+	publicKey       string
+	name            string
+	email           string
+}
+
+var _ dataManipulation = new(dataManipulationPersonCreate)
+
+func (dmpc *dataManipulationPersonCreate) apply(tx *sqlx.Tx) error {
+	_, err := db.Exec(fmt.Sprintf("INSERT INTO person VALUES (%s)", GetPlaceHolders(17)),
+		dmpc.id, dmpc.timestamp, dmpc.timestamp, dmpc.publicKey, dmpc.name,
+		dmpc.email, false, false, int32(0), "",
+		"", "", "", "", "",
+		"", "")
+	return err
 }

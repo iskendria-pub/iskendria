@@ -1,7 +1,6 @@
 package dao
 
 import (
-	"fmt"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"log"
 	"os"
@@ -30,24 +29,22 @@ func TestGetPerson(t *testing.T) {
 	if len(expectedLenZero) != 0 {
 		t.Error("When person table empty, got persons from key")
 	}
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO person VALUES (%s)", GetPlaceHolders(17)),
-		firstId, 10000, 1100000000000, firstKey, "Martijn",
-		"xxx@gmail.com", false, true, 100, "abcdef01",
-		"PDF", "Free University", "020", "Boelelaan", "1000 AA",
-		"Netherlands", "Some extra info")
-	if err != nil {
-		t.Error("Could not insert first person")
-		return
+	firstPersonCreate := &dataManipulationPersonCreate {
+		id: firstId,
+		timestamp: 1100000000000,
+		publicKey: firstKey,
+		name: "Martijn",
+		email: "xxx@gmail.com",
 	}
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO person VALUES (%s)", GetPlaceHolders(17)),
-		secondId, 12000, 13000, secondKey, "Maurice",
-		"yyy.gmail.com", true, false, 200, "01234567",
-		"PDF", "Sorbonne", "0033", "75005 Parijs", "75005",
-		"France", "Other extra info")
-	if err != nil {
-		t.Error("Could not insert second person")
-		return
+	applyPersonCreate(firstPersonCreate, t)
+	secondPersonCreate := &dataManipulationPersonCreate{
+		id: secondId,
+		timestamp: 12000,
+		publicKey: secondKey,
+		name: "Maurice",
+		email: "yyy.gmail.com",
 	}
+	applyPersonCreate(secondPersonCreate, t)
 	firstPerson, err := GetPersonById(firstId)
 	if err != nil {
 		t.Error("With filled database, GetPersonById failed: " + err.Error())
@@ -56,7 +53,7 @@ func TestGetPerson(t *testing.T) {
 	if firstPerson.Id != firstId {
 		t.Error("For first person, checking id failed")
 	}
-	if firstPerson.CreatedOn != int64(10000) {
+	if firstPerson.CreatedOn != int64(1100000000000) {
 		t.Error("For first person, checking createdOn failed")
 	}
 	if firstPerson.ModifiedOn != int64(1100000000000) {
@@ -74,34 +71,34 @@ func TestGetPerson(t *testing.T) {
 	if firstPerson.IsMajor != false {
 		t.Error("For first person, checking majorship failed")
 	}
-	if firstPerson.IsSigned != true {
+	if firstPerson.IsSigned != false {
 		t.Error(" For first person, checking signed failed")
 	}
-	if firstPerson.Balance != int32(100) {
+	if firstPerson.Balance != int32(0) {
 		t.Error("For first person, checking balance failed")
 	}
-	if firstPerson.BiographyHash != "abcdef01" {
+	if firstPerson.BiographyHash != "" {
 		t.Error("For first person, checking bibliography hash failed")
 	}
-	if firstPerson.BiographyFormat != "PDF" {
+	if firstPerson.BiographyFormat != "" {
 		t.Error("For first person, checking bibliography format failed")
 	}
-	if firstPerson.Organization != "Free University" {
+	if firstPerson.Organization != "" {
 		t.Error("For first person, checking organization failed")
 	}
-	if firstPerson.Telephone != "020" {
+	if firstPerson.Telephone != "" {
 		t.Error("For first person, checking telephone failed")
 	}
-	if firstPerson.Address != "Boelelaan" {
+	if firstPerson.Address != "" {
 		t.Error("For first person, checking address failed")
 	}
-	if firstPerson.PostalCode != "1000 AA" {
+	if firstPerson.PostalCode != "" {
 		t.Error("For first person, checking postal code failed")
 	}
-	if firstPerson.Country != "Netherlands" {
+	if firstPerson.Country != "" {
 		t.Error("For first person, checking country failed")
 	}
-	if firstPerson.ExtraInfo != "Some extra info" {
+	if firstPerson.ExtraInfo != "" {
 		t.Error("For first person, checking extraInfo failed")
 	}
 	persons, err := SearchPersonByKey(secondKey)
@@ -120,7 +117,22 @@ func TestGetPerson(t *testing.T) {
 	if secondPerson.PublicKey != secondKey {
 		t.Error("For second person, checking key failed")
 	}
-	if secondPerson.ExtraInfo != "Other extra info" {
+	if secondPerson.ExtraInfo != "" {
 		t.Error("For second person, checking extraInfo failed")
+	}
+}
+
+func applyPersonCreate(pc *dataManipulationPersonCreate, t *testing.T) {
+	tx, err := db.Beginx()
+	if err != nil {
+		t.Error("Error when starting transaction: " + err.Error())
+	}
+	err = pc.apply(tx)
+	if err != nil {
+		t.Error("Error applying data manipulation person create: " + err.Error())
+	}
+	err = tx.Commit()
+	if err != nil {
+		t.Error("Error committing transaction: " + err.Error())
 	}
 }

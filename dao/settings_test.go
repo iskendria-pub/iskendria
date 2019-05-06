@@ -89,6 +89,28 @@ type expectation struct {
 
 type settingsGetter func(*Settings) int32
 
+var settingsCreate = &dataManipulationSettingsCreate{
+	timestamp: 10000,
+	priceMajorEditSettings: 100,
+	priceMajorCreatePerson: 200,
+	priceMajorChangePersonAuthorization: 300,
+	priceMajorChangeJournalAuthorization: 400,
+	pricePersonEdit: 500,
+	priceAuthorSubmitNewManuscript: 600,
+	priceAuthorSubmitNewVersion: 700,
+	priceAuthorAcceptAuthorship: 800,
+	priceReviewerSubmit: 900,
+	priceEditorAllowManuscriptReview: 1000,
+	priceEditorRejectManuscript: 1100,
+	priceEditorPublishManuscript: 1200,
+	priceEditorAssignManuscript: 1300,
+	priceEditorCreateJournal: 1400,
+	priceEditorCreateVolume: 1500,
+	priceEditorEditJournal: 1600,
+	priceEditorAddColleague: 1700,
+	priceEditorAcceptDuty: 1800,
+}
+
 func TestGetSettings(t *testing.T) {
 	logger := log.New(os.Stdout, "testGetSettings", log.Flags())
 	Init("testGetSettings.db", logger)
@@ -100,14 +122,19 @@ func TestGetSettings(t *testing.T) {
 	if settings != nil {
 		t.Error("With empty settings table, GetSettings() gave a non-nil value")
 	}
-	_, err = db.Exec(fmt.Sprintf("INSERT INTO settings VALUES (%s)", GetPlaceHolders(21)),
-		// id, createdOn, modifiedOn
-		1, 10000, 11000,
-		// prices
-		100, 200, 300, 400, 500, 600, 700, 800, 900,
-		1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800)
+	tx, err := db.Beginx()
 	if err != nil {
-		t.Error(err)
+		t.Error("Could not start transaction: " + err.Error())
+		return
+	}
+	err = settingsCreate.apply(tx)
+	if err != nil {
+		t.Error("Applying settings create gave an error: " + err.Error())
+		return
+	}
+	err = tx.Commit()
+	if err != nil {
+		t.Error("Could not commit transaction: " + err.Error())
 		return
 	}
 	settings, err = GetSettings()
@@ -121,7 +148,7 @@ func TestGetSettings(t *testing.T) {
 	if settings.CreatedOn != int64(10000) {
 		t.Error("With filled settings table, createdOn error")
 	}
-	if settings.ModifiedOn != int64(11000) {
+	if settings.ModifiedOn != int64(10000) {
 		t.Error("With filled settings table, modifiedOn error")
 	}
 	for i, e := range theExpectations {
