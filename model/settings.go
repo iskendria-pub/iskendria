@@ -1,6 +1,8 @@
 package model
 
-import "strings"
+import (
+	"strings"
+)
 
 var TableCreateSettings = `
 	CREATE TABLE settings (
@@ -26,6 +28,10 @@ var TableCreateSettings = `
 	priceeditoraddcolleague integer not null,
 	priceeditoracceptduty integer not null)
 `
+
+const (
+	EV_SETTINGS_CREATE = "evSettingsCreate"
+)
 
 const (
 	PRICE_MAJOR_EDIT_SETTINGS                = "priceMajorEditSettings"

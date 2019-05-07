@@ -3,7 +3,10 @@ package dao
 import (
 	"database/sql"
 	"fmt"
+	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
 	"github.com/jmoiron/sqlx"
+	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"strconv"
 )
 
 type Person struct {
@@ -27,7 +30,7 @@ type Person struct {
 }
 
 func SearchPersonByKey(key string) ([]*Person, error) {
-	persons := []Person{}
+	persons := make([]Person, 0)
 	err := db.Select(&persons, "SELECT * FROM person WHERE publickey = ?", key)
 	if err != nil {
 		return nil, err
@@ -79,18 +82,54 @@ func PersonToPersonUpdate(p *Person) *PersonUpdate {
 	}
 }
 
+func createPersonCreateEvent(event *events_pb2.Event) (event, error) {
+	var err error
+	var i64 int64
+	transactionId := ""
+	eventSeq := int32(0)
+	dataManipulation := &dataManipulationPersonCreate{}
+	for _, attribute := range event.Attributes {
+		switch attribute.Key {
+		case model.TRANSACTION_ID:
+			transactionId = attribute.Value
+		case model.TIMESTAMP:
+			i64, err = strconv.ParseInt(attribute.Value, 10, 64)
+			dataManipulation.timestamp = i64
+		case model.EVENT_SEQ:
+			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
+			eventSeq = int32(i64)
+		case model.ID:
+			dataManipulation.id = attribute.Value
+		case model.PERSON_PUBLIC_KEY:
+			dataManipulation.publicKey = attribute.Value
+		case model.PERSON_NAME:
+			dataManipulation.name = attribute.Value
+		case model.PERSON_EMAIL:
+			dataManipulation.email = attribute.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &dataManipulationEvent{
+		transactionId:    transactionId,
+		eventSeq:         eventSeq,
+		dataManipulation: dataManipulation,
+	}, nil
+}
+
 type dataManipulationPersonCreate struct {
-	timestamp       int64
-	id              string
-	publicKey       string
-	name            string
-	email           string
+	timestamp int64
+	id        string
+	publicKey string
+	name      string
+	email     string
 }
 
 var _ dataManipulation = new(dataManipulationPersonCreate)
 
 func (dmpc *dataManipulationPersonCreate) apply(tx *sqlx.Tx) error {
-	_, err := db.Exec(fmt.Sprintf("INSERT INTO person VALUES (%s)", GetPlaceHolders(17)),
+	_, err := tx.Exec(fmt.Sprintf("INSERT INTO person VALUES (%s)", GetPlaceHolders(17)),
 		dmpc.id, dmpc.timestamp, dmpc.timestamp, dmpc.publicKey, dmpc.name,
 		dmpc.email, false, false, int32(0), "",
 		"", "", "", "", "",

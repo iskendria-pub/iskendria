@@ -1,13 +1,15 @@
 package dao
 
 import (
+	"errors"
 	"fmt"
+	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"gitlab.bbinfra.net/3estack/alexandria/util"
 	"log"
-	"os"
+	"strings"
 )
 
 var DbFileName string
@@ -25,6 +27,7 @@ func Init(fname string, logger *log.Logger) {
 		logger.Fatal("Could not ping database: " + err.Error())
 	}
 	createTables(logger)
+	createContext()
 }
 
 func Shutdown(logger *log.Logger) {
@@ -33,10 +36,8 @@ func Shutdown(logger *log.Logger) {
 
 func ShutdownAndDelete(logger *log.Logger) {
 	util.CloseDb(db, logger)
-	err := os.Remove(DbFileName)
-	if err != nil {
-		logger.Fatal("Could not remove database file: " + err.Error())
-	}
+	util.RemoveExistingFile(DbFileName, logger)
+	util.RemoveFileIfExists(DbFileName+"-journal", logger)
 }
 
 func createTables(logger *log.Logger) {
@@ -51,4 +52,35 @@ func createTables(logger *log.Logger) {
 				stmt, err))
 		}
 	}
+}
+
+func HandleEvent(input *events_pb2.Event) error {
+	ev, err := parseEvent(input)
+	if err != nil {
+		return err
+	}
+	return ev.accept(theContext)
+}
+
+func parseEvent(input *events_pb2.Event) (event, error) {
+	switch simplifyEventType(input.EventType) {
+	case model.EV_SAWTOOTH_BLOCK_COMMIT:
+		return createSawtoothBlockCommitEvent(input)
+	case model.EV_TRANSACTION_CONTROL:
+		return createTransactionControlEvent(input)
+	case model.EV_SETTINGS_CREATE:
+		return createSettingsCreateEvent(input)
+	case model.EV_PERSON_CREATE:
+		return createPersonCreateEvent(input)
+	default:
+		return nil, errors.New(input.EventType + "Unknown event type: ")
+	}
+}
+
+func simplifyEventType(orig string) string {
+	components := strings.Split(orig, "/")
+	if components[0] == model.FamilyName {
+		return components[1]
+	}
+	return orig
 }

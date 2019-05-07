@@ -24,6 +24,10 @@ CREATE TABLE person (
 )`
 
 const (
+	EV_PERSON_CREATE = "evPersonCreate"
+)
+
+const (
 	PERSON_PUBLIC_KEY       = "publicKey"
 	PERSON_NAME             = "name"
 	PERSON_EMAIL            = "email"

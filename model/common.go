@@ -8,11 +8,22 @@ import (
 	"time"
 )
 
-const CREATED_ON = "createdOn"
-const MODIFIED_ON = "modifiedOn"
-const SIGNER = "signer"
 const ID = "id"
 const UTF8 = "UTF8"
+
+const (
+	TRANSACTION_ID             = "transactionId"
+	TIMESTAMP                  = "timestamp"
+	EVENT_SEQ                  = "eventSeq"
+	NUM_EVENTS                 = "numEvents"
+	SAWTOOTH_CURRENT_BLOCK_ID  = "block_id"
+	SAWTOOTH_PREVIOUS_BLOCK_ID = "previous_block_id"
+)
+
+const (
+	EV_SAWTOOTH_BLOCK_COMMIT = "sawtooth/block-commit"
+	EV_TRANSACTION_CONTROL   = "evTransactionControl"
+)
 
 const FamilyName = "alexandria"
 const FamilyVersion = "1.0"

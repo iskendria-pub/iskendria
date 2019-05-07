@@ -41,3 +41,25 @@ func RemoveExistingFile(fname string, logger *log.Logger) {
 			fname, err.Error()))
 	}
 }
+
+func CheckPanicked(panicer func()) (didPanic bool) {
+	didPanic = false
+	defer func() {
+		if recover() != nil {
+			didPanic = true
+		}
+	}()
+	panicer()
+	return
+}
+
+// Does not work for -1 << 63
+func Abs(i int64) int64 {
+	if i >= 0 {
+		return i
+	}
+	if i == (-1 << 63) {
+		panic(fmt.Sprintf("Inverse is out of range: %d", i))
+	}
+	return -i
+}
