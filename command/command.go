@@ -7,3 +7,7 @@ type Command struct {
 	outputAddresses []string
 	command         *model.Command
 }
+
+func ApplyModelCommand(command *model.Command, signerKey string, ba BlockchainAccess) {
+
+}
