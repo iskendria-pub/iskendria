@@ -38,8 +38,6 @@ func (dme *dataManipulationEvent) accept(c context) error {
 	return c.visitDataManipulation(dme.transactionId, dme.eventSeq, dme.dataManipulation)
 }
 
-type eventCreator func() (event, error)
-
 func createSawtoothBlockCommitEvent(ev *events_pb2.Event) (event, error) {
 	result := &sawtoothBlockCommitEvent{}
 	for _, attribute := range ev.Attributes {
@@ -200,6 +198,16 @@ func (c *contextImpl) check(transactionId string, eventSeq int32) error {
 	return nil
 }
 
+func (c *contextImpl) allSeen() bool {
+	for seq := int32(0); seq < c.expectedNumEvents; seq++ {
+		_, seen := c.seenEvents[seq]
+		if !seen {
+			return false
+		}
+	}
+	return true
+}
+
 type contextStateNoBlock struct {
 	parent *contextImpl
 }
@@ -258,6 +266,9 @@ func (csit *contextStateInTransaction) visitTransactionControl(transactionId str
 	}
 	csit.parent.seenEvents[eventSeq] = true
 	csit.parent.changeStateKnownNumEvents(numEvents)
+	if csit.parent.allSeen() {
+		csit.parent.changeStateNoTransaction()
+	}
 	return nil
 }
 
@@ -287,20 +298,10 @@ func (cskne *contextStateKnownNumEvents) visitDataManipulation(
 	if err := cskne.parent.checkAndApply(transactionId, eventSeq, dm); err != nil {
 		return err
 	}
-	if cskne.allSeen() {
+	if cskne.parent.allSeen() {
 		cskne.parent.changeStateNoTransaction()
 	}
 	return nil
-}
-
-func (cskne *contextStateKnownNumEvents) allSeen() bool {
-	for seq := int32(0); seq < cskne.parent.expectedNumEvents; seq++ {
-		_, seen := cskne.parent.seenEvents[seq]
-		if !seen {
-			return false
-		}
-	}
-	return true
 }
 
 var theContext context = new(contextImpl)

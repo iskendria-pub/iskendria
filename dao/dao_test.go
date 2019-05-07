@@ -22,19 +22,48 @@ const (
 	theTransactionId = "transactionId"
 )
 
-func TestBootstrap(t *testing.T) {
+func TestBootstrapHappy(t *testing.T) {
+	personId := model.CreatePersonAddress()
+	scenarios := [][]*events_pb2.Event{
+		{
+			getBlockCommitEvent(firstBlock, ""),
+			getTransactionControlEvent(theTransactionId, 0, 3),
+			getCreateSettingsEvent(theTransactionId, 1),
+			getCreatePersonEvent(theTransactionId, 2, personId),
+		},
+		{
+			getBlockCommitEvent(firstBlock, ""),
+			getTransactionControlEvent(theTransactionId, 0, 3),
+			getCreateSettingsEvent(theTransactionId, 1),
+			getCreatePersonEvent(theTransactionId, 2, personId),
+			getBlockCommitEvent(secondBlock, firstBlock),
+			getBlockCommitEvent(thirdBlock, secondBlock),
+		},
+		{
+			getBlockCommitEvent(firstBlock, ""),
+			getCreateSettingsEvent(theTransactionId, 0),
+			getTransactionControlEvent(theTransactionId, 1, 3),
+			getCreatePersonEvent(theTransactionId, 2, personId),
+		},
+		{
+			getBlockCommitEvent(firstBlock, ""),
+			getCreateSettingsEvent(theTransactionId, 0),
+			getCreatePersonEvent(theTransactionId, 1, personId),
+			getTransactionControlEvent(theTransactionId, 2, 3),
+		},
+	}
+	for i, events := range scenarios {
+		fmt.Printf("TestBootstrapHappy scenario %d\n", i)
+		applyEventsHappy(events, personId, t)
+	}
+}
+
+func applyEventsHappy(events []*events_pb2.Event, personId string, t *testing.T) {
 	logger := log.New(os.Stdout, "testBootstrap", log.Flags())
 	dbFile := "testBootstrap.db"
 	util.RemoveFileIfExists(dbFile, logger)
 	Init(dbFile, logger)
 	defer ShutdownAndDelete(logger)
-	personId := model.CreatePersonAddress()
-	events := []*events_pb2.Event{
-		getBlockCommitEvent(firstBlock, ""),
-		getTransactionControlEvent(theTransactionId, 0, 3),
-		getCreateSettingsEvent(theTransactionId, 1),
-		getCreatePersonEvent(theTransactionId, 2, personId),
-	}
 	for _, ev := range events {
 		if err := HandleEvent(ev); err != nil {
 			t.Error(fmt.Sprintf("Error handling event: error %s, event %v", err, ev))
@@ -55,7 +84,7 @@ func TestBootstrap(t *testing.T) {
 		return
 	}
 	if actualPerson == nil {
-		t.Error(fmt.Sprintf("Person was not present in db: %s" + personId))
+		t.Error(fmt.Sprintf("Person was not present in db: %s", personId))
 		return
 	}
 	if util.Abs(actualSettings.CreatedOn-model.GetCurrentTime()) >= MAX_TIME_DIFF_SEC {
