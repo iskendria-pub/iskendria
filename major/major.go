@@ -103,6 +103,7 @@ func settingsUpdate(outputter cli.Outputter, updated *dao.Settings) {
 		cliAlexandria.Settings,
 		updated,
 		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
 		cliAlexandria.Settings.PriceMajorEditSettings)
 	if err := blockchain.SendCommand(theCommand); err != nil {
 		outputter(cliAlexandria.ToIoError(err))
@@ -115,6 +116,7 @@ func createPerson(outputter cli.Outputter, personInput *command.PersonCreate) {
 		return command.GetPersonCreateCommand(
 			personInput,
 			cliAlexandria.LoggedInPerson.Id,
+			cliAlexandria.LoggedIn(),
 			cliAlexandria.Settings.PriceMajorCreatePerson)
 	})
 }
@@ -122,33 +124,50 @@ func createPerson(outputter cli.Outputter, personInput *command.PersonCreate) {
 func setMajor(outputter cli.Outputter, personId string) {
 	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetPersonSetMajorCommand(
-			personId, cliAlexandria.LoggedInPerson.Id, cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
+			personId,
+			cliAlexandria.LoggedInPerson.Id,
+			cliAlexandria.LoggedIn(),
+			cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
 	})
 }
 
 func unsetMajor(outputter cli.Outputter, personId string) {
 	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetPersonUnsetMajorCommand(
-			personId, cliAlexandria.LoggedInPerson.Id, cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
+			personId,
+			cliAlexandria.LoggedInPerson.Id,
+			cliAlexandria.LoggedIn(),
+			cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
 	})
 }
 
 func setSigned(outputter cli.Outputter, personId string) {
 	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetPersonSetSignedCommand(
-			personId, cliAlexandria.LoggedInPerson.Id, cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
+			personId,
+			cliAlexandria.LoggedInPerson.Id,
+			cliAlexandria.LoggedIn(),
+			cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
 	})
 }
 
 func unsetSigned(outputter cli.Outputter, personId string) {
 	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetPersonUnsetSignedCommand(
-			personId, cliAlexandria.LoggedInPerson.Id, cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
+			personId,
+			cliAlexandria.LoggedInPerson.Id,
+			cliAlexandria.LoggedIn(),
+			cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
 	})
 }
 
 func incBalance(outputter cli.Outputter, personId string, amount int32) {
 	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
-		return command.GetPersonIncBalanceCommand(personId, amount, cliAlexandria.LoggedInPerson.Id, int32(0))
+		return command.GetPersonIncBalanceCommand(
+			personId,
+			amount,
+			cliAlexandria.LoggedInPerson.Id,
+			cliAlexandria.LoggedIn(),
+			int32(0))
 	})
 }

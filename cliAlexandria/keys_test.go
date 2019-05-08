@@ -21,14 +21,14 @@ func TestKeys(t *testing.T) {
 	if err != nil {
 		t.Error("Could not log in with created keypair")
 	}
-	if LoggedInPublicKeyStr == "" || LoggedInPublicKeyStr != strings.TrimSpace(LoggedInPublicKeyStr) {
+	if loggedIn.PublicKeyStr == "" || loggedIn.PublicKeyStr != strings.TrimSpace(loggedIn.PublicKeyStr) {
 		t.Error("Invalid public key string stored on login")
 	}
 	err = logout()
 	if err != nil {
 		t.Error("Could not logout")
 	}
-	if LoggedInPublicKeyStr != "" {
+	if loggedIn.PublicKeyStr != "" {
 		t.Error("Public key string not cleared on logout")
 	}
 }

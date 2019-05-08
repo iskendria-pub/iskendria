@@ -52,6 +52,7 @@ func personUpdate(outputter cli.Outputter, newPerson *dao.PersonUpdate) {
 		originalPerson,
 		newPerson,
 		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
 		cliAlexandria.Settings.PricePersonEdit)
 	if err := blockchain.SendCommand(theCommand); err != nil {
 		outputter(cliAlexandria.ToIoError(err))

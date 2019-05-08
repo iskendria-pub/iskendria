@@ -11,13 +11,18 @@ type PersonCreate struct {
 	Email     string
 }
 
-func GetPersonCreateCommand(pc *PersonCreate, signer string, price int32) *Command {
+func GetPersonCreateCommand(
+	pc *PersonCreate,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
 	personId := model.CreatePersonAddress()
 	return &Command{
-		inputAddresses:  []string{personId, signer},
-		outputAddresses: []string{personId},
-		command: &model.Command{
-			Signer:    signer,
+		InputAddresses:  []string{personId, signerId},
+		OutputAddresses: []string{personId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
 			Price:     price,
 			Timestamp: model.GetCurrentTime(),
 			Body: &model.Command_PersonCreate{
@@ -32,12 +37,19 @@ func GetPersonCreateCommand(pc *PersonCreate, signer string, price int32) *Comma
 	}
 }
 
-func GetPersonUpdateCommand(personId string, orig, updated *dao.PersonUpdate, signer string, price int32) *Command {
+func GetPersonUpdateCommand(
+	personId string,
+	orig,
+	updated *dao.PersonUpdate,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
 	return &Command{
-		inputAddresses:  []string{model.GetSettingsAddress(), personId, signer},
-		outputAddresses: []string{personId},
-		command: &model.Command{
-			Signer:    signer,
+		InputAddresses:  []string{model.GetSettingsAddress(), personId, signerId},
+		OutputAddresses: []string{personId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
 			Price:     price,
 			Timestamp: model.GetCurrentTime(),
 			Body: &model.Command_CommandPersonUpdateProperties{
@@ -47,44 +59,66 @@ func GetPersonUpdateCommand(personId string, orig, updated *dao.PersonUpdate, si
 	}
 }
 
-func GetPersonSetMajorCommand(personId, signer string, price int32) *Command {
+func GetPersonSetMajorCommand(
+	personId,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
 	update := &authorizationUpdate{
 		majorUpdate:  model.BoolUpdate_MAKE_TRUE,
 		signedUpdate: model.BoolUpdate_UNMODIFIED,
 	}
-	return getGenericPersonAuthorizationUpdateCommand(personId, signer, price, update)
+	return getGenericPersonAuthorizationUpdateCommand(personId, signerId, cryptoIdentity, price, update)
 }
 
-func GetPersonUnsetMajorCommand(personId, signer string, price int32) *Command {
+func GetPersonUnsetMajorCommand(
+	personId,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
 	update := &authorizationUpdate{
 		majorUpdate:  model.BoolUpdate_MAKE_FALSE,
 		signedUpdate: model.BoolUpdate_UNMODIFIED,
 	}
-	return getGenericPersonAuthorizationUpdateCommand(personId, signer, price, update)
+	return getGenericPersonAuthorizationUpdateCommand(personId, signerId, cryptoIdentity, price, update)
 }
 
-func GetPersonSetSignedCommand(personId, signer string, price int32) *Command {
+func GetPersonSetSignedCommand(
+	personId,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
 	update := &authorizationUpdate{
 		majorUpdate:  model.BoolUpdate_UNMODIFIED,
 		signedUpdate: model.BoolUpdate_MAKE_TRUE,
 	}
-	return getGenericPersonAuthorizationUpdateCommand(personId, signer, price, update)
+	return getGenericPersonAuthorizationUpdateCommand(personId, signerId, cryptoIdentity, price, update)
 }
 
-func GetPersonUnsetSignedCommand(personId, signer string, price int32) *Command {
+func GetPersonUnsetSignedCommand(
+	personId,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
 	update := &authorizationUpdate{
 		majorUpdate:  model.BoolUpdate_UNMODIFIED,
 		signedUpdate: model.BoolUpdate_MAKE_FALSE,
 	}
-	return getGenericPersonAuthorizationUpdateCommand(personId, signer, price, update)
+	return getGenericPersonAuthorizationUpdateCommand(personId, signerId, cryptoIdentity, price, update)
 }
 
-func getGenericPersonAuthorizationUpdateCommand(personId, signer string, price int32, update *authorizationUpdate) *Command {
+func getGenericPersonAuthorizationUpdateCommand(
+	personId,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32,
+	update *authorizationUpdate) *Command {
 	return &Command{
-		inputAddresses:  []string{model.GetSettingsAddress(), signer, personId},
-		outputAddresses: []string{personId},
-		command: &model.Command{
-			Signer:    signer,
+		InputAddresses:  []string{model.GetSettingsAddress(), signerId, personId},
+		OutputAddresses: []string{personId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
 			Price:     price,
 			Timestamp: model.GetCurrentTime(),
 			Body: &model.Command_CommandUpdateAuthorization{
@@ -103,12 +137,18 @@ type authorizationUpdate struct {
 	signedUpdate model.BoolUpdate
 }
 
-func GetPersonIncBalanceCommand(personId string, amount int32, signer string, price int32) *Command {
+func GetPersonIncBalanceCommand(
+	personId string,
+	amount int32,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
 	return &Command{
-		inputAddresses:  []string{model.GetSettingsAddress(), signer, personId},
-		outputAddresses: []string{personId},
-		command: &model.Command{
-			Signer:    signer,
+		InputAddresses:  []string{model.GetSettingsAddress(), signerId, personId},
+		OutputAddresses: []string{personId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
 			Price:     price,
 			Timestamp: model.GetCurrentTime(),
 			Body: &model.Command_CommandPersonUpdateBalanceIncrement{

@@ -28,12 +28,13 @@ type Bootstrap struct {
 	Email                                string
 }
 
-func GetBootstrapCommand(bootstrap *Bootstrap, signerKey string) *Command {
+func GetBootstrapCommand(bootstrap *Bootstrap, cryptoIdentity *CryptoIdentity) *Command {
 	personId := model.CreatePersonAddress()
 	return &Command{
-		inputAddresses:  []string{model.GetSettingsAddress(), personId},
-		outputAddresses: []string{model.GetSettingsAddress(), personId},
-		command: &model.Command{
+		InputAddresses:  []string{model.GetSettingsAddress(), personId},
+		OutputAddresses: []string{model.GetSettingsAddress(), personId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
 			Price:     int32(0),
 			Signer:    personId,
 			Timestamp: model.GetCurrentTime(),
@@ -61,7 +62,7 @@ func GetBootstrapCommand(bootstrap *Bootstrap, signerKey string) *Command {
 					},
 					FirstMajor: &model.CommandPersonCreate{
 						NewPersonId: personId,
-						PublicKey:   signerKey,
+						PublicKey:   cryptoIdentity.PublicKeyStr,
 						Name:        bootstrap.Name,
 						Email:       bootstrap.Email,
 					},
@@ -71,13 +72,19 @@ func GetBootstrapCommand(bootstrap *Bootstrap, signerKey string) *Command {
 	}
 }
 
-func GetSettingsUpdateCommand(orig, updated *dao.Settings, signer string, price int32) *Command {
+func GetSettingsUpdateCommand(
+	orig,
+	updated *dao.Settings,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
 	return &Command{
-		inputAddresses:  []string{model.GetSettingsAddress()},
-		outputAddresses: []string{model.GetSettingsAddress()},
-		command: &model.Command{
+		InputAddresses:  []string{model.GetSettingsAddress()},
+		OutputAddresses: []string{model.GetSettingsAddress()},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
 			Price:     price,
-			Signer:    signer,
+			Signer:    signerId,
 			Timestamp: model.GetCurrentTime(),
 			Body: &model.Command_CommandSettingsUpdate{
 				CommandSettingsUpdate: createModelCommandSettingsUpdate(orig, updated),

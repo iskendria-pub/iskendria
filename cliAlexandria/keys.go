@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"github.com/hyperledger/sawtooth-sdk-go/signing"
+	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -27,12 +28,18 @@ func createKeyPair(publicKeyFile, privateKeyFile string) error {
 	return nil
 }
 
-var LoggedInPublicKeyStr string
-var LoggedInPublicKey signing.PublicKey
-var LoggedInPrivateKey signing.PrivateKey
+var loggedIn command.CryptoIdentity
+
+func LoggedIn() *command.CryptoIdentity {
+	return &command.CryptoIdentity{
+		PublicKeyStr: loggedIn.PublicKeyStr,
+		PublicKey:    loggedIn.PublicKey,
+		PrivateKey:   loggedIn.PrivateKey,
+	}
+}
 
 func IsLoggedIn() bool {
-	return LoggedInPublicKeyStr != ""
+	return loggedIn.PublicKeyStr != ""
 }
 
 func login(publicKeyFile, privateKeyFile string) error {
@@ -48,9 +55,9 @@ func login(publicKeyFile, privateKeyFile string) error {
 	if err != nil {
 		return err
 	}
-	LoggedInPublicKeyStr = publicKeyAsString
-	LoggedInPublicKey = publicKey
-	LoggedInPrivateKey = privateKey
+	loggedIn.PublicKeyStr = publicKeyAsString
+	loggedIn.PublicKey = publicKey
+	loggedIn.PrivateKey = privateKey
 	return nil
 }
 
@@ -80,7 +87,7 @@ func readAndDecode(hexEncodedFile string) (string, []byte, error) {
 func decodeKey(encoded []byte) ([]byte, error) {
 	trimmed := []byte(strings.TrimSpace(string(encoded)))
 	if len(trimmed)%2 != 0 {
-		return nil, errors.New("Keys should have an even number of bytes")
+		return nil, errors.New("keys should have an even number of bytes")
 	}
 	result := make([]byte, len(trimmed)/2)
 	_, err := hex.Decode(result, trimmed)
@@ -110,8 +117,8 @@ func signAndVerifyChallengeString(publicKey signing.PublicKey, privateKey signin
 }
 
 func logout() error {
-	LoggedInPublicKeyStr = ""
-	LoggedInPublicKey = nil
-	LoggedInPrivateKey = nil
+	loggedIn.PublicKeyStr = ""
+	loggedIn.PublicKey = nil
+	loggedIn.PrivateKey = nil
 	return nil
 }

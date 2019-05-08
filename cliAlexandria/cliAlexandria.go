@@ -53,7 +53,7 @@ func CheckBootstrappedAndKnownPerson(outputter cli.Outputter) bool {
 	if !CheckBootstrappedAndLoggedIn(outputter) {
 		return false
 	}
-	isDuplicate, err := updateLoggedInPerson(LoggedInPublicKeyStr)
+	isDuplicate, err := updateLoggedInPerson(loggedIn.PublicKeyStr)
 	if err != nil {
 		outputter("ERROR: The key you logged in with has no associated person\n")
 		return false
