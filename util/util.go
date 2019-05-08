@@ -63,3 +63,41 @@ func Abs(i int64) int64 {
 	}
 	return -i
 }
+
+func StringSliceToSet(ss []string) map[string]bool {
+	result := make(map[string]bool)
+	if ss == nil {
+		return result
+	}
+	for _, s := range ss {
+		result[s] = true
+	}
+	return result
+}
+
+func StringSetToSlice(sm map[string][]byte) []string {
+	result := make([]string, 0)
+	if sm == nil {
+		return result
+	}
+	for s := range sm {
+		result = append(result, s)
+	}
+	return result
+}
+
+func StringSetHasAll(sm map[string]bool, ss []string) bool {
+	if sm == nil || ss == nil {
+		panic("No nil supported")
+	}
+	if len(ss) == 0 {
+		return true
+	}
+	for _, s := range ss {
+		_, found := sm[s]
+		if !found {
+			return false
+		}
+	}
+	return true
+}
