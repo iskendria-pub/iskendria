@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
+	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/util"
 )
 
@@ -111,3 +112,7 @@ func (bs *blockchainStub) AddEvent(eventType string, attributes []processor.Attr
 		Data:       eventData,
 	})
 }
+
+type EventHandler func(*events_pb2.Event) error
+
+var _ EventHandler = dao.HandleEvent

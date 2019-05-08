@@ -1,6 +1,8 @@
 package command
 
 import (
+	"fmt"
+	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 )
@@ -91,4 +93,133 @@ func GetSettingsUpdateCommand(
 			},
 		},
 	}
+}
+
+/*
+ */
+type singleUpdateCreateSettings struct {
+	timestamp int64
+	priceList *model.PriceList
+}
+
+var _ singleUpdate = new(singleUpdateCreateSettings)
+
+func (u *singleUpdateCreateSettings) updateState(state *unmarshalledState) (writtenAddress string) {
+	state.settings = &model.StateSettings{
+		CreatedOnOn: u.timestamp,
+		ModifiedOn:  u.timestamp,
+		PriceList: &model.PriceList{
+			PriceMajorEditSettings:               u.priceList.PriceMajorEditSettings,
+			PriceMajorCreatePerson:               u.priceList.PriceMajorCreatePerson,
+			PriceMajorChangePersonAuthorization:  u.priceList.PriceMajorChangePersonAuthorization,
+			PriceMajorChangeJournalAuthorization: u.priceList.PriceMajorChangeJournalAuthorization,
+			PricePersonEdit:                      u.priceList.PricePersonEdit,
+			PriceAuthorSubmitNewManuscript:       u.priceList.PriceAuthorSubmitNewManuscript,
+			PriceAuthorSubmitNewVersion:          u.priceList.PriceAuthorSubmitNewVersion,
+			PriceAuthorAcceptAuthorship:          u.priceList.PriceAuthorAcceptAuthorship,
+			PriceReviewerSubmit:                  u.priceList.PriceReviewerSubmit,
+			PriceEditorAllowManuscriptReview:     u.priceList.PriceEditorAllowManuscriptReview,
+			PriceEditorRejectManuscript:          u.priceList.PriceEditorRejectManuscript,
+			PriceEditorPublishManuscript:         u.priceList.PriceEditorPublishManuscript,
+			PriceEditorAssignManuscript:          u.priceList.PriceEditorAssignManuscript,
+			PriceEditorCreateJournal:             u.priceList.PriceEditorCreateJournal,
+			PriceEditorCreateVolume:              u.priceList.PriceEditorCreateVolume,
+			PriceEditorEditJournal:               u.priceList.PriceEditorEditJournal,
+			PriceEditorAddColleague:              u.priceList.PriceEditorAddColleague,
+			PriceEditorAcceptDuty:                u.priceList.PriceEditorAcceptDuty,
+		},
+	}
+	return model.GetSettingsAddress()
+}
+
+func (u *singleUpdateCreateSettings) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.EV_SETTINGS_CREATE,
+		[]processor.Attribute{
+			{
+				Key:   model.TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.PRICE_MAJOR_EDIT_SETTINGS,
+				Value: fmt.Sprintf("%d", u.priceList.PriceMajorEditSettings),
+			},
+			{
+				Key:   model.PRICE_MAJOR_CREATE_PERSON,
+				Value: fmt.Sprintf("%d", u.priceList.PriceMajorCreatePerson),
+			},
+			{
+				Key:   model.PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION,
+				Value: fmt.Sprintf("%d", u.priceList.PriceMajorChangePersonAuthorization),
+			},
+			{
+				Key:   model.PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION,
+				Value: fmt.Sprintf("%d", u.priceList.PriceMajorChangeJournalAuthorization),
+			},
+			{
+				Key:   model.PRICE_PERSON_EDIT,
+				Value: fmt.Sprintf("%d", u.priceList.PricePersonEdit),
+			},
+			{
+				Key:   model.PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT,
+				Value: fmt.Sprintf("%d", u.priceList.PriceAuthorSubmitNewManuscript),
+			},
+			{
+				Key:   model.PRICE_AUTHOR_SUBMIT_NEW_VERSION,
+				Value: fmt.Sprintf("%d", u.priceList.PriceAuthorSubmitNewVersion),
+			},
+			{
+				Key:   model.PRICE_AUTHOR_ACCEPT_AUTHORSHIP,
+				Value: fmt.Sprintf("%d", u.priceList.PriceAuthorAcceptAuthorship),
+			},
+			{
+				Key:   model.PRICE_REVIEWER_SUBMIT,
+				Value: fmt.Sprintf("%d", u.priceList.PriceReviewerSubmit),
+			},
+			{
+				Key:   model.PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW,
+				Value: fmt.Sprintf("%d", u.priceList.PriceEditorAllowManuscriptReview),
+			},
+			{
+				Key:   model.PRICE_EDITOR_REJECT_MANUSCRIPT,
+				Value: fmt.Sprintf("%d", u.priceList.PriceEditorRejectManuscript),
+			},
+			{
+				Key:   model.PRICE_EDITOR_PUBLISH_MANUSCRIPT,
+				Value: fmt.Sprintf("%d", u.priceList.PriceEditorPublishManuscript),
+			},
+			{
+				Key:   model.PRICE_EDITOR_ASSIGN_MANUSCRIPT,
+				Value: fmt.Sprintf("%d", u.priceList.PriceEditorAssignManuscript),
+			},
+			{
+				Key:   model.PRICE_EDITOR_CREATE_JOURNAL,
+				Value: fmt.Sprintf("%d", u.priceList.PriceEditorCreateJournal),
+			},
+			{
+				Key:   model.PRICE_EDITOR_CREATE_VOLUME,
+				Value: fmt.Sprintf("%d", u.priceList.PriceEditorCreateVolume),
+			},
+			{
+				Key:   model.PRICE_EDITOR_EDIT_JOURNAL,
+				Value: fmt.Sprintf("%d", u.priceList.PriceEditorEditJournal),
+			},
+			{
+				Key:   model.PRICE_EDITOR_ADD_COLLEAGUE,
+				Value: fmt.Sprintf("%d", u.priceList.PriceEditorAddColleague),
+			},
+			{
+				Key:   model.PRICE_EDITOR_ACCEPT_DUTY,
+				Value: fmt.Sprintf("%d", u.priceList.PriceEditorAcceptDuty),
+			},
+		},
+		[]byte{})
 }

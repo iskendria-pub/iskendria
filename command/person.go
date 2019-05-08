@@ -1,6 +1,8 @@
 package command
 
 import (
+	"fmt"
+	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 )
@@ -159,4 +161,61 @@ func GetPersonIncBalanceCommand(
 			},
 		},
 	}
+}
+
+type singleUpdatePersonCreate struct {
+	timestamp    int64
+	personCreate *model.CommandPersonCreate
+}
+
+var _ singleUpdate = new(singleUpdatePersonCreate)
+
+func (u *singleUpdatePersonCreate) updateState(state *unmarshalledState) (writtenAddress string) {
+	personId := u.personCreate.NewPersonId
+	person := &model.StatePerson{
+		Id:         personId,
+		CreatedOn:  u.timestamp,
+		ModifiedOn: u.timestamp,
+		PublicKey:  u.personCreate.PublicKey,
+		Name:       u.personCreate.Name,
+		Email:      u.personCreate.Email,
+	}
+	state.persons[personId] = person
+	return personId
+}
+
+func (u *singleUpdatePersonCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.EV_PERSON_CREATE,
+		[]processor.Attribute{
+			{
+				Key:   model.TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.ID,
+				Value: u.personCreate.NewPersonId,
+			},
+			{
+				Key:   model.PERSON_NAME,
+				Value: u.personCreate.Name,
+			},
+			{
+				Key:   model.PERSON_PUBLIC_KEY,
+				Value: u.personCreate.PublicKey,
+			},
+			{
+				Key:   model.PERSON_EMAIL,
+				Value: "xxx@gmail.com",
+			},
+		},
+		[]byte{})
 }
