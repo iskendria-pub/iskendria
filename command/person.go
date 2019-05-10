@@ -21,7 +21,7 @@ func GetPersonCreateCommand(
 	price int32) *Command {
 	personId := model.CreatePersonAddress()
 	return &Command{
-		InputAddresses:  []string{personId, signerId},
+		InputAddresses:  []string{personId, signerId, model.GetSettingsAddress()},
 		OutputAddresses: []string{personId},
 		CryptoIdentity:  cryptoIdentity,
 		Command: &model.Command{

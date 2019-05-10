@@ -113,11 +113,15 @@ func (us *unmarshalledState) getAddressState(address string) addressState {
 
 func (us *unmarshalledState) add(readData map[string][]byte, requestedAddresses []string) error {
 	for _, ra := range requestedAddresses {
+		var err error
 		contents, isAvailable := readData[ra]
 		if isAvailable {
-			return us.addAvailable(ra, contents)
+			err = us.addAvailable(ra, contents)
 		} else {
 			us.emptyAddresses[ra] = true
+		}
+		if err != nil {
+			return err
 		}
 	}
 	return nil

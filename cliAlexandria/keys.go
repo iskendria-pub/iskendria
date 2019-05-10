@@ -45,7 +45,7 @@ func IsLoggedIn() bool {
 }
 
 func Login(publicKeyFile, privateKeyFile string) error {
-	publicKey, publicKeyAsString, err := readPublicKeyFile(publicKeyFile)
+	publicKey, publicKeyAsString, err := ReadPublicKeyFile(publicKeyFile)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func Login(publicKeyFile, privateKeyFile string) error {
 	return nil
 }
 
-func readPublicKeyFile(publicKeyFile string) (signing.PublicKey, string, error) {
+func ReadPublicKeyFile(publicKeyFile string) (signing.PublicKey, string, error) {
 	publicKeyAsString, publicKeyBytes, err := readAndDecode(publicKeyFile)
 	if err != nil {
 		return nil, "", err

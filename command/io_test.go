@@ -91,3 +91,57 @@ func TestEmpty(t *testing.T) {
 		t.Error("unmarshalledState did not detect empty person address")
 	}
 }
+
+func TestMultiplePersons(t *testing.T) {
+	timestamp := model.GetCurrentTime()
+	firstPersonId := model.CreatePersonAddress()
+	firstPerson := &model.StatePerson{
+		Id:         firstPersonId,
+		CreatedOn:  timestamp,
+		ModifiedOn: timestamp,
+		Name:       "Martijn",
+	}
+	secondPersonId := model.CreatePersonAddress()
+	secondPerson := &model.StatePerson{
+		Id:         secondPersonId,
+		CreatedOn:  timestamp,
+		ModifiedOn: timestamp,
+		Name:       "Arri",
+	}
+	firstPersonBytes, err := proto.Marshal(firstPerson)
+	if err != nil {
+		t.Error("Could not marshal example person: " + err.Error())
+	}
+	secondPersonBytes, err := proto.Marshal(secondPerson)
+	if err != nil {
+		t.Error("Could not marshal example person: " + err.Error())
+	}
+	us := newUnmarshalledState()
+	err = us.add(map[string][]byte{
+		firstPersonId:  firstPersonBytes,
+		secondPersonId: secondPersonBytes}, []string{firstPersonId, secondPersonId})
+	if err != nil {
+		t.Error("Could not add person to unmarshaledState: " + err.Error())
+	}
+	regenerated, err := us.read([]string{firstPersonId, secondPersonId})
+	if err != nil {
+		t.Error("Could not read person from unmarshaledState")
+	}
+	if len(regenerated) != 2 {
+		t.Error(fmt.Sprintf("Expected to read two addresses, but got %d", len(regenerated)))
+	}
+	firstRegeneratedBytes := regenerated[firstPersonId]
+	if !bytes.Equal(firstRegeneratedBytes, firstPersonBytes) {
+		t.Error("Read person bytes differ from original bytes")
+	}
+	secondRegeneratedBytes := regenerated[secondPersonId]
+	if !bytes.Equal(secondRegeneratedBytes, secondPersonBytes) {
+		t.Error("Read person bytes differ from original bytes")
+	}
+	if us.getAddressState(firstPersonId) != ADDRESS_FILLED {
+		t.Error("Person address was expected to be filled: " + firstPersonId)
+	}
+	if us.getAddressState(secondPersonId) != ADDRESS_FILLED {
+		t.Error("Person address was expected to be filled: " + secondPersonId)
+	}
+}

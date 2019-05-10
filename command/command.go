@@ -143,6 +143,9 @@ func checkSanityPersonCreate(personCreate *model.CommandPersonCreate) error {
 	if personCreate.NewPersonId == "" {
 		return errors.New("personCreate.NewPersonId should be filled")
 	}
+	if !model.IsPersonAddress(personCreate.NewPersonId) {
+		return errors.New("personCreate.NewPersonId should be a person address")
+	}
 	if personCreate.PublicKey == "" {
 		return errors.New("personCreate.PublicKey should be filled")
 	}
@@ -156,7 +159,34 @@ func checkSanityPersonCreate(personCreate *model.CommandPersonCreate) error {
 }
 
 func (ce *commandExecution) checkNonBootstrap() (*updater, error) {
-	return nil, nil
+	u := newUnmarshalledState()
+	addressesToRead := []string{model.GetSettingsAddress(), ce.command.Signer}
+	addressData, err := ce.blockchainAccess.GetState(addressesToRead)
+	if err != nil {
+		return nil, err
+	}
+	err = u.add(addressData, addressesToRead)
+	if err != nil {
+		return nil, err
+	}
+	if u.getAddressState(model.GetSettingsAddress()) != ADDRESS_FILLED {
+		return nil, errors.New("Blockchain has not been bootstrapped")
+	}
+	if u.getAddressState(ce.command.Signer) != ADDRESS_FILLED {
+		return nil, errors.New("Signer does not exist: " + ce.command.Signer)
+	}
+	if u.persons[ce.command.Signer].PublicKey != ce.signerKey {
+		return nil, errors.New(fmt.Sprintf("Signer id does not match signing key, id = %s, key = %s",
+			ce.command.Signer, ce.signerKey))
+	}
+	nbce := &nonBootstrapCommandExecution{
+		verifiedSignerId:  ce.command.Signer,
+		price:             ce.command.Price,
+		timestamp:         ce.command.Timestamp,
+		blockchainAccess:  ce.blockchainAccess,
+		unmarshalledState: u,
+	}
+	return nbce.check(ce.command)
 }
 
 func (ce *commandExecution) runUpdater(u *updater) error {
@@ -223,4 +253,49 @@ func (ce *commandExecution) writeTransactionControlEvent(numNonControlEvents int
 		},
 		[]byte{})
 	return err
+}
+
+type nonBootstrapCommandExecution struct {
+	verifiedSignerId  string
+	price             int32
+	timestamp         int64
+	blockchainAccess  BlockchainAccess
+	unmarshalledState *unmarshalledState
+}
+
+func (nbce *nonBootstrapCommandExecution) check(c *model.Command) (*updater, error) {
+	switch c.Body.(type) {
+	case *model.Command_PersonCreate:
+		return nbce.checkPersonCreate(c.GetPersonCreate())
+	default:
+		return nil, errors.New("Non-bootstrap command type not supported")
+	}
+}
+
+func (nbce *nonBootstrapCommandExecution) checkPersonCreate(c *model.CommandPersonCreate) (*updater, error) {
+	if err := checkSanityPersonCreate(c); err != nil {
+		return nil, err
+	}
+	readData, err := nbce.blockchainAccess.GetState([]string{c.NewPersonId})
+	if err != nil {
+		return nil, err
+	}
+	err = nbce.unmarshalledState.add(readData, []string{c.NewPersonId})
+	if err != nil {
+		return nil, err
+	}
+	if nbce.unmarshalledState.getAddressState(c.NewPersonId) != ADDRESS_EMPTY {
+		return nil, errors.New("Address collision when creating person: " + c.NewPersonId)
+	}
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates: []singleUpdate{
+			&singleUpdatePersonCreate{
+				timestamp:    nbce.timestamp,
+				personCreate: c,
+				isSigned:     false,
+				isMajor:      false,
+			},
+		},
+	}, nil
 }
