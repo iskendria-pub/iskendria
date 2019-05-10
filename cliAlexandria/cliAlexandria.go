@@ -15,17 +15,17 @@ var Settings *dao.Settings
 var CommonHandlers = []cli.Handler{
 	&cli.SingleLineHandler{
 		Name:     "login",
-		Handler:  login,
+		Handler:  Login,
 		ArgNames: []string{"public key file", "private key file"},
 	},
 	&cli.SingleLineHandler{
 		Name:     "logout",
-		Handler:  logout,
+		Handler:  Logout,
 		ArgNames: []string{},
 	},
 	&cli.SingleLineHandler{
 		Name:     "createKeys",
-		Handler:  createKeyPair,
+		Handler:  CreateKeyPair,
 		ArgNames: []string{"public key file", "private key file"},
 	},
 	&cli.SingleLineHandler{
@@ -99,7 +99,7 @@ func CheckBootstrappedAndLoggedIn(outputter cli.Outputter) bool {
 		return false
 	}
 	if !IsLoggedIn() {
-		outputter("Pleas login first\n")
+		outputter("Pleas Login first\n")
 		return false
 	}
 	return true

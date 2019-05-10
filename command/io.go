@@ -3,7 +3,9 @@ package command
 import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
+	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/processor_pb2"
+	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 )
 
@@ -24,6 +26,57 @@ const (
 	ADDRESS_EMPTY   = addressState(1)
 	ADDRESS_FILLED  = addressState(2)
 )
+
+type blockchainStub struct {
+	data         map[string][]byte
+	eventHandler EventHandler
+}
+
+func NewBlockchainStub(eventHandler EventHandler) BlockchainAccess {
+	return &blockchainStub{
+		data:         make(map[string][]byte),
+		eventHandler: eventHandler,
+	}
+}
+
+func (bs *blockchainStub) GetState(addresses []string) (map[string][]byte, error) {
+	result := make(map[string][]byte)
+	for _, a := range addresses {
+		contents, found := bs.data[a]
+		if found {
+			result[a] = contents
+		}
+	}
+	return result, nil
+}
+
+func (bs *blockchainStub) SetState(pairs map[string][]byte) ([]string, error) {
+	result := make([]string, 0)
+	for address, contents := range pairs {
+		bs.data[address] = contents
+		result = append(result, address)
+	}
+	return result, nil
+}
+
+func (bs *blockchainStub) AddEvent(eventType string, attributes []processor.Attribute, eventData []byte) error {
+	eventAddtributes := make([]*events_pb2.Event_Attribute, 0)
+	for _, a := range attributes {
+		eventAddtributes = append(eventAddtributes, &events_pb2.Event_Attribute{
+			Key:   a.Key,
+			Value: a.Value,
+		})
+	}
+	return bs.eventHandler(&events_pb2.Event{
+		EventType:  eventType,
+		Attributes: eventAddtributes,
+		Data:       eventData,
+	})
+}
+
+type EventHandler func(*events_pb2.Event) error
+
+var _ EventHandler = dao.HandleEvent
 
 type unmarshalledState struct {
 	emptyAddresses map[string]bool

@@ -5,12 +5,14 @@ import (
 	"errors"
 	"github.com/hyperledger/sawtooth-sdk-go/signing"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
+	"gitlab.bbinfra.net/3estack/alexandria/util"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 )
 
-func createKeyPair(publicKeyFile, privateKeyFile string) error {
+func CreateKeyPair(publicKeyFile, privateKeyFile string) error {
 	context := signing.NewSecp256k1Context()
 	privateKey := context.NewRandomPrivateKey()
 	publicKey := context.GetPublicKey(privateKey)
@@ -42,7 +44,7 @@ func IsLoggedIn() bool {
 	return loggedIn.PublicKeyStr != ""
 }
 
-func login(publicKeyFile, privateKeyFile string) error {
+func Login(publicKeyFile, privateKeyFile string) error {
 	publicKey, publicKeyAsString, err := readPublicKeyFile(publicKeyFile)
 	if err != nil {
 		return err
@@ -116,9 +118,14 @@ func signAndVerifyChallengeString(publicKey signing.PublicKey, privateKey signin
 	return nil
 }
 
-func logout() error {
+func Logout() error {
 	loggedIn.PublicKeyStr = ""
 	loggedIn.PublicKey = nil
 	loggedIn.PrivateKey = nil
 	return nil
+}
+
+func RemoveKeyFiles(f1, f2 string, logger *log.Logger) {
+	util.RemoveExistingFile(f1, logger)
+	util.RemoveExistingFile(f2, logger)
 }

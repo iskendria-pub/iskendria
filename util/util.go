@@ -75,17 +75,6 @@ func StringSliceToSet(ss []string) map[string]bool {
 	return result
 }
 
-func StringSetToSlice(sm map[string][]byte) []string {
-	result := make([]string, 0)
-	if sm == nil {
-		return result
-	}
-	for s := range sm {
-		result = append(result, s)
-	}
-	return result
-}
-
 func StringSetHasAll(sm map[string]bool, ss []string) bool {
 	if sm == nil || ss == nil {
 		panic("No nil supported")

@@ -66,16 +66,16 @@ func TestStringToSliceSet(t *testing.T) {
 	}
 }
 
-func TestStringSetToSlice(t *testing.T) {
-	resultNil := StringSetToSlice(nil)
+func TestMapStringByteArrayToSlice(t *testing.T) {
+	resultNil := MapStringByteArrayToSlice(nil)
 	if resultNil == nil || len(resultNil) >= 1 {
 		t.Error("For string set nil, expected slice of length zero")
 	}
-	resultEmpty := StringSetToSlice(map[string][]byte{})
+	resultEmpty := MapStringByteArrayToSlice(map[string][]byte{})
 	if resultEmpty == nil || len(resultEmpty) >= 1 {
 		t.Error("For empty string set, expected slice of length zero")
 	}
-	resultOne := StringSetToSlice(map[string][]byte{"one": {byte(1)}})
+	resultOne := MapStringByteArrayToSlice(map[string][]byte{"one": {byte(1)}})
 	if len(resultOne) != 1 {
 		t.Error("For set of length one, expected slice of length one")
 	}

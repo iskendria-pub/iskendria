@@ -5,6 +5,7 @@ import (
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"strconv"
 )
 
 type PersonCreate struct {
@@ -166,6 +167,8 @@ func GetPersonIncBalanceCommand(
 type singleUpdatePersonCreate struct {
 	timestamp    int64
 	personCreate *model.CommandPersonCreate
+	isMajor      bool
+	isSigned     bool
 }
 
 var _ singleUpdate = new(singleUpdatePersonCreate)
@@ -179,6 +182,8 @@ func (u *singleUpdatePersonCreate) updateState(state *unmarshalledState) (writte
 		PublicKey:  u.personCreate.PublicKey,
 		Name:       u.personCreate.Name,
 		Email:      u.personCreate.Email,
+		IsMajor:    u.isMajor,
+		IsSigned:   u.isSigned,
 	}
 	state.persons[personId] = person
 	return personId
@@ -214,7 +219,15 @@ func (u *singleUpdatePersonCreate) issueEvent(eventSeq int32, transactionId stri
 			},
 			{
 				Key:   model.PERSON_EMAIL,
-				Value: "xxx@gmail.com",
+				Value: u.personCreate.Email,
+			},
+			{
+				Key:   model.PERSON_IS_MAJOR,
+				Value: strconv.FormatBool(u.isMajor),
+			},
+			{
+				Key:   model.PERSON_IS_SIGNED,
+				Value: strconv.FormatBool(u.isSigned),
 			},
 		},
 		[]byte{})

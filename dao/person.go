@@ -85,6 +85,7 @@ func PersonToPersonUpdate(p *Person) *PersonUpdate {
 func createPersonCreateEvent(event *events_pb2.Event) (event, error) {
 	var err error
 	var i64 int64
+	var b bool
 	transactionId := ""
 	eventSeq := int32(0)
 	dataManipulation := &dataManipulationPersonCreate{}
@@ -106,6 +107,12 @@ func createPersonCreateEvent(event *events_pb2.Event) (event, error) {
 			dataManipulation.name = attribute.Value
 		case model.PERSON_EMAIL:
 			dataManipulation.email = attribute.Value
+		case model.PERSON_IS_MAJOR:
+			b, err = strconv.ParseBool(attribute.Value)
+			dataManipulation.isMajor = b
+		case model.PERSON_IS_SIGNED:
+			b, err = strconv.ParseBool(attribute.Value)
+			dataManipulation.isSigned = b
 		}
 		if err != nil {
 			return nil, err
@@ -124,6 +131,8 @@ type dataManipulationPersonCreate struct {
 	publicKey string
 	name      string
 	email     string
+	isMajor   bool
+	isSigned  bool
 }
 
 var _ dataManipulation = new(dataManipulationPersonCreate)
@@ -131,7 +140,7 @@ var _ dataManipulation = new(dataManipulationPersonCreate)
 func (dmpc *dataManipulationPersonCreate) apply(tx *sqlx.Tx) error {
 	_, err := tx.Exec(fmt.Sprintf("INSERT INTO person VALUES (%s)", GetPlaceHolders(17)),
 		dmpc.id, dmpc.timestamp, dmpc.timestamp, dmpc.publicKey, dmpc.name,
-		dmpc.email, false, false, int32(0), "",
+		dmpc.email, dmpc.isMajor, dmpc.isSigned, int32(0), "",
 		"", "", "", "", "",
 		"", "")
 	return err
