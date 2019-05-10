@@ -185,34 +185,17 @@ func checkPerson(person *dao.Person, t *testing.T) {
 func TestPersonCreate(t *testing.T) {
 	logger := log.New(os.Stdout, "integration.TestBootstrap", log.Flags())
 	blockchainAccess := command.NewBlockchainStub(dao.HandleEvent)
+	doTestPersonCreate := func(personCreate *command.PersonCreate, _ *log.Logger, t *testing.T) {
+		doTestPersonCreate(personCreate, blockchainAccess, t)
+	}
+	withNewPersonCreate := func(blockchainAccess command.BlockchainAccess, logger *log.Logger, t *testing.T) {
+		doTestBootstrap(blockchainAccess, logger, t)
+		withNewPersonCreate(doTestPersonCreate, logger, t)
+	}
 	withLogin := func(logger *log.Logger, t *testing.T) {
-		withLoggedInWithNewKey(doTestPersonCreate, blockchainAccess, logger, t)
+		withLoggedInWithNewKey(withNewPersonCreate, blockchainAccess, logger, t)
 	}
 	withInitializedDao(withLogin, logger, t)
-}
-
-func doTestPersonCreate(blockchainAccess command.BlockchainAccess, logger *log.Logger, t *testing.T) {
-	doTestBootstrap(blockchainAccess, logger, t)
-	withNewPersonCreate(func(personCreate *command.PersonCreate, logger *log.Logger, t *testing.T) {
-		newPersonKey := personCreate.PublicKey
-		personCreateCommand := command.GetPersonCreateCommand(
-			personCreate,
-			getSigner(t).Id,
-			cliAlexandria.LoggedIn(),
-			int32(102))
-		err := command.RunCommandForTest(personCreateCommand, "secondTransaction", blockchainAccess)
-		if err != nil {
-			t.Error("Running person create command failed: " + err.Error())
-		}
-		createdPersons, err := dao.SearchPersonByKey(newPersonKey)
-		if err != nil {
-			t.Error("Could not read newly created person")
-		}
-		if len(createdPersons) != 1 {
-			t.Error("Expected exactly one newly created person")
-		}
-		checkCreatedPerson(createdPersons[0], newPersonKey, t)
-	}, logger, t)
 }
 
 func withNewPersonCreate(
@@ -236,6 +219,30 @@ func withNewPersonCreate(
 		Email:     "rens@xxx.nl",
 	}
 	testFunc(personCreate, logger, t)
+}
+
+func doTestPersonCreate(
+	personCreate *command.PersonCreate,
+	blockchainAccess command.BlockchainAccess,
+	t *testing.T) {
+	newPersonKey := personCreate.PublicKey
+	personCreateCommand := command.GetPersonCreateCommand(
+		personCreate,
+		getSigner(t).Id,
+		cliAlexandria.LoggedIn(),
+		int32(102))
+	err := command.RunCommandForTest(personCreateCommand, "secondTransaction", blockchainAccess)
+	if err != nil {
+		t.Error("Running person create command failed: " + err.Error())
+	}
+	createdPersons, err := dao.SearchPersonByKey(newPersonKey)
+	if err != nil {
+		t.Error("Could not read newly created person")
+	}
+	if len(createdPersons) != 1 {
+		t.Error("Expected exactly one newly created person")
+	}
+	checkCreatedPerson(createdPersons[0], newPersonKey, t)
 }
 
 func getSigner(t *testing.T) *dao.Person {
