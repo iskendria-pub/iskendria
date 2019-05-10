@@ -9,7 +9,7 @@ import (
 )
 
 const ID = "id"
-const UTF8 = "UTF8"
+const PDF = "PDF"
 
 const (
 	TRANSACTION_ID             = "transactionId"
