@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
@@ -16,29 +15,18 @@ const TIME_DIFF_THRESHOLD_SECONDS = 10
 
 func TestBootstrap(t *testing.T) {
 	logger := log.New(os.Stdout, "integration.TestBootstrap", log.Flags())
-	dao.Init("testBootstrap.db", logger)
-	defer dao.ShutdownAndDelete(logger)
-	err := startFakeBlock("blockId", "")
-	if err != nil {
-		t.Error("Error starting fake block: " + err.Error())
-	}
 	blockchainAccess := command.NewBlockchainStub(dao.HandleEvent)
-	publicKeyFile := "testBootstrap.pub"
-	privateKeyFile := "testBootstrap.priv"
-	err = cliAlexandria.CreateKeyPair(publicKeyFile, privateKeyFile)
-	if err != nil {
-		t.Error("Could not create keypair: " + err.Error())
+	withLogin := func(logger *log.Logger, t *testing.T) {
+		withLoggedInWithNewKey(doTestBootstrap, blockchainAccess, logger, t)
 	}
-	defer cliAlexandria.RemoveKeyFiles(publicKeyFile, privateKeyFile, logger)
-	err = cliAlexandria.Login(publicKeyFile, privateKeyFile)
-	if err != nil {
-		t.Error("Could not login: " + err.Error())
-	}
-	defer func() { _ = cliAlexandria.Logout() }()
+	withInitializedDao(withLogin, logger, t)
+}
+
+func doTestBootstrap(blockchainAccess command.BlockchainAccess, _ *log.Logger, t *testing.T) {
 	bootstrap := getBootstrap()
 	transactionId := "transactionId"
 	commandBootstrap := command.GetBootstrapCommand(bootstrap, cliAlexandria.LoggedIn())
-	err = command.RunCommandForTest(commandBootstrap, transactionId, blockchainAccess)
+	err := command.RunCommandForTest(commandBootstrap, transactionId, blockchainAccess)
 	if err != nil {
 		t.Error("Error executing command: " + err.Error())
 	}
@@ -56,22 +44,6 @@ func TestBootstrap(t *testing.T) {
 	person := persons[0]
 	checkSettings(readSettings, t)
 	checkPerson(person, t)
-}
-
-func startFakeBlock(currentBlockId, previousBlockId string) error {
-	return dao.HandleEvent(&events_pb2.Event{
-		EventType: model.EV_SAWTOOTH_BLOCK_COMMIT,
-		Attributes: []*events_pb2.Event_Attribute{
-			{
-				Key:   model.SAWTOOTH_PREVIOUS_BLOCK_ID,
-				Value: previousBlockId,
-			},
-			{
-				Key:   model.SAWTOOTH_CURRENT_BLOCK_ID,
-				Value: currentBlockId,
-			},
-		},
-	})
 }
 
 func getBootstrap() *command.Bootstrap {

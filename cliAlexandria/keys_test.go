@@ -1,7 +1,6 @@
 package cliAlexandria
 
 import (
-	"gitlab.bbinfra.net/3estack/alexandria/util"
 	"log"
 	"os"
 	"strings"
