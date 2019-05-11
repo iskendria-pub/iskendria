@@ -41,7 +41,7 @@ func GetPersonCreateCommand(
 	}
 }
 
-func GetPersonUpdateCommand(
+func GetPersonUpdatePropertiesCommand(
 	personId string,
 	orig,
 	updated *dao.PersonUpdate,
@@ -57,13 +57,13 @@ func GetPersonUpdateCommand(
 			Price:     price,
 			Timestamp: model.GetCurrentTime(),
 			Body: &model.Command_CommandPersonUpdateProperties{
-				CommandPersonUpdateProperties: createModelCommandPersonUpdate(personId, orig, updated),
+				CommandPersonUpdateProperties: createModelCommandPersonUpdateProperties(personId, orig, updated),
 			},
 		},
 	}
 }
 
-func GetPersonSetMajorCommand(
+func GetPersonUpdateSetMajorCommand(
 	personId,
 	signerId string,
 	cryptoIdentity *CryptoIdentity,
@@ -72,10 +72,10 @@ func GetPersonSetMajorCommand(
 		majorUpdate:  model.BoolUpdate_MAKE_TRUE,
 		signedUpdate: model.BoolUpdate_UNMODIFIED,
 	}
-	return getGenericPersonAuthorizationUpdateCommand(personId, signerId, cryptoIdentity, price, update)
+	return getGenericPersonUpdateAuthorizationCommand(personId, signerId, cryptoIdentity, price, update)
 }
 
-func GetPersonUnsetMajorCommand(
+func GetPersonUpdateUnsetMajorCommand(
 	personId,
 	signerId string,
 	cryptoIdentity *CryptoIdentity,
@@ -84,10 +84,10 @@ func GetPersonUnsetMajorCommand(
 		majorUpdate:  model.BoolUpdate_MAKE_FALSE,
 		signedUpdate: model.BoolUpdate_UNMODIFIED,
 	}
-	return getGenericPersonAuthorizationUpdateCommand(personId, signerId, cryptoIdentity, price, update)
+	return getGenericPersonUpdateAuthorizationCommand(personId, signerId, cryptoIdentity, price, update)
 }
 
-func GetPersonSetSignedCommand(
+func GetPersonUpdateSetSignedCommand(
 	personId,
 	signerId string,
 	cryptoIdentity *CryptoIdentity,
@@ -96,10 +96,10 @@ func GetPersonSetSignedCommand(
 		majorUpdate:  model.BoolUpdate_UNMODIFIED,
 		signedUpdate: model.BoolUpdate_MAKE_TRUE,
 	}
-	return getGenericPersonAuthorizationUpdateCommand(personId, signerId, cryptoIdentity, price, update)
+	return getGenericPersonUpdateAuthorizationCommand(personId, signerId, cryptoIdentity, price, update)
 }
 
-func GetPersonUnsetSignedCommand(
+func GetPersonUpdateUnsetSignedCommand(
 	personId,
 	signerId string,
 	cryptoIdentity *CryptoIdentity,
@@ -108,10 +108,10 @@ func GetPersonUnsetSignedCommand(
 		majorUpdate:  model.BoolUpdate_UNMODIFIED,
 		signedUpdate: model.BoolUpdate_MAKE_FALSE,
 	}
-	return getGenericPersonAuthorizationUpdateCommand(personId, signerId, cryptoIdentity, price, update)
+	return getGenericPersonUpdateAuthorizationCommand(personId, signerId, cryptoIdentity, price, update)
 }
 
-func getGenericPersonAuthorizationUpdateCommand(
+func getGenericPersonUpdateAuthorizationCommand(
 	personId,
 	signerId string,
 	cryptoIdentity *CryptoIdentity,
@@ -141,7 +141,7 @@ type authorizationUpdate struct {
 	signedUpdate model.BoolUpdate
 }
 
-func GetPersonIncBalanceCommand(
+func GetPersonUpdateIncBalanceCommand(
 	personId string,
 	amount int32,
 	signerId string,
@@ -193,24 +193,23 @@ func (nbce *nonBootstrapCommandExecution) checkPersonCreate(c *model.CommandPers
 	}, nil
 }
 
-func (nbce *nonBootstrapCommandExecution) checkPersonUpdateProperties(c *model.CommandPersonUpdateProperties) (
-	*updater, error) {
-	if c.PersonId != nbce.verifiedSignerId {
-		return nil, errors.New("Person update properties not authorized. Properties can not be updated by someone else")
+func checkSanityPersonCreate(personCreate *model.CommandPersonCreate) error {
+	if personCreate.NewPersonId == "" {
+		return errors.New("personCreate.NewPersonId should be filled")
 	}
-	oldPerson := nbce.unmarshalledState.persons[nbce.verifiedSignerId]
-	if err := checkModelCommandPersonUpdateProperties(c, oldPerson); err != nil {
-		return nil, err
+	if !model.IsPersonAddress(personCreate.NewPersonId) {
+		return errors.New("personCreate.NewPersonId should be a person address")
 	}
-	singleUpdates := createSingleUpdatesPersonUpdateProperties(c, oldPerson, nbce.timestamp)
-	singleUpdates = append(singleUpdates, &singleUpdatePersonTimestamp{
-		timestamp: nbce.timestamp,
-		personId:  nbce.verifiedSignerId,
-	})
-	return &updater{
-		unmarshalledState: nbce.unmarshalledState,
-		updates:           singleUpdates,
-	}, nil
+	if personCreate.PublicKey == "" {
+		return errors.New("personCreate.PublicKey should be filled")
+	}
+	if personCreate.Email == "" {
+		return errors.New("personCreate.Email should be filled")
+	}
+	if personCreate.Name == "" {
+		return errors.New("personCreate.Name should be filled")
+	}
+	return nil
 }
 
 type singleUpdatePersonCreate struct {
@@ -240,46 +239,66 @@ func (u *singleUpdatePersonCreate) updateState(state *unmarshalledState) (writte
 
 func (u *singleUpdatePersonCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	return ba.AddEvent(
-		model.EV_PERSON_CREATE,
+		model.EV_TYPE_PERSON_CREATE,
 		[]processor.Attribute{
 			{
-				Key:   model.TRANSACTION_ID,
+				Key:   model.EV_KEY_TRANSACTION_ID,
 				Value: transactionId,
 			},
 			{
-				Key:   model.TIMESTAMP,
+				Key:   model.EV_KEY_TIMESTAMP,
 				Value: fmt.Sprintf("%d", u.timestamp),
 			},
 			{
-				Key:   model.EVENT_SEQ,
+				Key:   model.EV_KEY_EVENT_SEQ,
 				Value: fmt.Sprintf("%d", eventSeq),
 			},
 			{
-				Key:   model.ID,
+				Key:   model.EV_KEY_ID,
 				Value: u.personCreate.NewPersonId,
 			},
 			{
-				Key:   model.PERSON_NAME,
+				Key:   model.EV_KEY_PERSON_NAME,
 				Value: u.personCreate.Name,
 			},
 			{
-				Key:   model.PERSON_PUBLIC_KEY,
+				Key:   model.EV_KEY_PERSON_PUBLIC_KEY,
 				Value: u.personCreate.PublicKey,
 			},
 			{
-				Key:   model.PERSON_EMAIL,
+				Key:   model.EV_KEY_PERSON_EMAIL,
 				Value: u.personCreate.Email,
 			},
 			{
-				Key:   model.PERSON_IS_MAJOR,
+				Key:   model.EV_KEY_PERSON_IS_MAJOR,
 				Value: strconv.FormatBool(u.isMajor),
 			},
 			{
-				Key:   model.PERSON_IS_SIGNED,
+				Key:   model.EV_KEY_PERSON_IS_SIGNED,
 				Value: strconv.FormatBool(u.isSigned),
 			},
 		},
 		[]byte{})
+}
+
+func (nbce *nonBootstrapCommandExecution) checkPersonUpdateProperties(c *model.CommandPersonUpdateProperties) (
+	*updater, error) {
+	if c.PersonId != nbce.verifiedSignerId {
+		return nil, errors.New("Person update properties not authorized. Properties can not be updated by someone else")
+	}
+	oldPerson := nbce.unmarshalledState.persons[nbce.verifiedSignerId]
+	if err := checkModelCommandPersonUpdateProperties(c, oldPerson); err != nil {
+		return nil, err
+	}
+	singleUpdates := createSingleUpdatesPersonUpdateProperties(c, oldPerson, nbce.timestamp)
+	singleUpdates = append(singleUpdates, &singleUpdatePersonModificationTime{
+		timestamp: nbce.timestamp,
+		personId:  nbce.verifiedSignerId,
+	})
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           singleUpdates,
+	}, nil
 }
 
 type singleUpdatePersonPropertyUpdate struct {
@@ -300,22 +319,22 @@ func (su singleUpdatePersonPropertyUpdate) updateState(_ *unmarshalledState) (wr
 func (su singleUpdatePersonPropertyUpdate) issueEvent(
 	eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	return ba.AddEvent(
-		model.EV_PERSON_UPDATE,
+		model.EV_TYPE_PERSON_UPDATE,
 		[]processor.Attribute{
 			{
-				Key:   model.TRANSACTION_ID,
+				Key:   model.EV_KEY_TRANSACTION_ID,
 				Value: transactionId,
 			},
 			{
-				Key:   model.TIMESTAMP,
+				Key:   model.EV_KEY_TIMESTAMP,
 				Value: fmt.Sprintf("%d", su.timestamp),
 			},
 			{
-				Key:   model.EVENT_SEQ,
+				Key:   model.EV_KEY_EVENT_SEQ,
 				Value: fmt.Sprintf("%d", eventSeq),
 			},
 			{
-				Key:   model.ID,
+				Key:   model.EV_KEY_ID,
 				Value: su.personId,
 			},
 			{
@@ -325,36 +344,36 @@ func (su singleUpdatePersonPropertyUpdate) issueEvent(
 		}, []byte{})
 }
 
-type singleUpdatePersonTimestamp struct {
+type singleUpdatePersonModificationTime struct {
 	timestamp int64
 	personId  string
 }
 
-var _ singleUpdate = new(singleUpdatePersonTimestamp)
+var _ singleUpdate = new(singleUpdatePersonModificationTime)
 
-func (u *singleUpdatePersonTimestamp) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdatePersonModificationTime) updateState(state *unmarshalledState) (writtenAddress string) {
 	state.persons[u.personId].ModifiedOn = u.timestamp
 	return u.personId
 }
 
-func (u *singleUpdatePersonTimestamp) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+func (u *singleUpdatePersonModificationTime) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	return ba.AddEvent(
-		model.EV_PERSON_MODIFICATION_TIME,
+		model.EV_TYPE_PERSON_MODIFICATION_TIME,
 		[]processor.Attribute{
 			{
-				Key:   model.TRANSACTION_ID,
+				Key:   model.EV_KEY_TRANSACTION_ID,
 				Value: transactionId,
 			},
 			{
-				Key:   model.TIMESTAMP,
+				Key:   model.EV_KEY_TIMESTAMP,
 				Value: fmt.Sprintf("%d", u.timestamp),
 			},
 			{
-				Key:   model.EVENT_SEQ,
+				Key:   model.EV_KEY_EVENT_SEQ,
 				Value: fmt.Sprintf("%d", eventSeq),
 			},
 			{
-				Key:   model.ID,
+				Key:   model.EV_KEY_ID,
 				Value: u.personId,
 			},
 		},

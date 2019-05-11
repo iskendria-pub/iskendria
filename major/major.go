@@ -123,7 +123,7 @@ func createPerson(outputter cli.Outputter, personInput *command.PersonCreate) {
 
 func setMajor(outputter cli.Outputter, personId string) {
 	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
-		return command.GetPersonSetMajorCommand(
+		return command.GetPersonUpdateSetMajorCommand(
 			personId,
 			cliAlexandria.LoggedInPerson.Id,
 			cliAlexandria.LoggedIn(),
@@ -133,7 +133,7 @@ func setMajor(outputter cli.Outputter, personId string) {
 
 func unsetMajor(outputter cli.Outputter, personId string) {
 	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
-		return command.GetPersonUnsetMajorCommand(
+		return command.GetPersonUpdateUnsetMajorCommand(
 			personId,
 			cliAlexandria.LoggedInPerson.Id,
 			cliAlexandria.LoggedIn(),
@@ -143,7 +143,7 @@ func unsetMajor(outputter cli.Outputter, personId string) {
 
 func setSigned(outputter cli.Outputter, personId string) {
 	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
-		return command.GetPersonSetSignedCommand(
+		return command.GetPersonUpdateSetSignedCommand(
 			personId,
 			cliAlexandria.LoggedInPerson.Id,
 			cliAlexandria.LoggedIn(),
@@ -153,7 +153,7 @@ func setSigned(outputter cli.Outputter, personId string) {
 
 func unsetSigned(outputter cli.Outputter, personId string) {
 	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
-		return command.GetPersonUnsetSignedCommand(
+		return command.GetPersonUpdateUnsetSignedCommand(
 			personId,
 			cliAlexandria.LoggedInPerson.Id,
 			cliAlexandria.LoggedIn(),
@@ -163,7 +163,7 @@ func unsetSigned(outputter cli.Outputter, personId string) {
 
 func incBalance(outputter cli.Outputter, personId string, amount int32) {
 	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
-		return command.GetPersonIncBalanceCommand(
+		return command.GetPersonUpdateIncBalanceCommand(
 			personId,
 			amount,
 			cliAlexandria.LoggedInPerson.Id,

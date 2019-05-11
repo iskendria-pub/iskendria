@@ -64,17 +64,17 @@ func HandleEvent(input *events_pb2.Event) error {
 
 func parseEvent(input *events_pb2.Event) (event, error) {
 	switch simplifyEventType(input.EventType) {
-	case model.EV_SAWTOOTH_BLOCK_COMMIT:
+	case model.SAWTOOTH_BLOCK_COMMIT:
 		return createSawtoothBlockCommitEvent(input)
-	case model.EV_TRANSACTION_CONTROL:
+	case model.EV_TYPE_TRANSACTION_CONTROL:
 		return createTransactionControlEvent(input)
-	case model.EV_SETTINGS_CREATE:
+	case model.EV_TYPE_SETTINGS_CREATE:
 		return createSettingsCreateEvent(input)
-	case model.EV_PERSON_CREATE:
+	case model.EV_TYPE_PERSON_CREATE:
 		return createPersonCreateEvent(input)
-	case model.EV_PERSON_UPDATE:
+	case model.EV_TYPE_PERSON_UPDATE:
 		return createPersonUpdateEvent(input)
-	case model.EV_PERSON_MODIFICATION_TIME:
+	case model.EV_TYPE_PERSON_MODIFICATION_TIME:
 		return createPersonModificationTimeEvent(input)
 	default:
 		return nil, errors.New("Unknown event type: " + input.EventType)

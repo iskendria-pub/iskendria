@@ -7,7 +7,7 @@ import (
 
 func StartFakeBlock(currentBlockId, previousBlockId string) error {
 	return HandleEvent(&events_pb2.Event{
-		EventType: model.EV_SAWTOOTH_BLOCK_COMMIT,
+		EventType: model.SAWTOOTH_BLOCK_COMMIT,
 		Attributes: []*events_pb2.Event_Attribute{
 			{
 				Key:   model.SAWTOOTH_PREVIOUS_BLOCK_ID,

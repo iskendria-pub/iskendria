@@ -169,7 +169,7 @@ func applyEventsHappy(events []*events_pb2.Event, personId string, t *testing.T)
 
 func getBlockCommitEvent(current, previous string) *events_pb2.Event {
 	return &events_pb2.Event{
-		EventType: model.EV_SAWTOOTH_BLOCK_COMMIT,
+		EventType: model.SAWTOOTH_BLOCK_COMMIT,
 		Attributes: []*events_pb2.Event_Attribute{
 			{
 				Key:   model.SAWTOOTH_CURRENT_BLOCK_ID,
@@ -185,18 +185,18 @@ func getBlockCommitEvent(current, previous string) *events_pb2.Event {
 
 func getTransactionControlEvent(transactionId string, eventSeq, numEvents int32) *events_pb2.Event {
 	return &events_pb2.Event{
-		EventType: model.FamilyName + "/" + model.EV_TRANSACTION_CONTROL,
+		EventType: model.FamilyName + "/" + model.EV_TYPE_TRANSACTION_CONTROL,
 		Attributes: []*events_pb2.Event_Attribute{
 			{
-				Key:   model.TRANSACTION_ID,
+				Key:   model.EV_KEY_TRANSACTION_ID,
 				Value: transactionId,
 			},
 			{
-				Key:   model.EVENT_SEQ,
+				Key:   model.EV_KEY_EVENT_SEQ,
 				Value: strconv.FormatInt(int64(eventSeq), 10),
 			},
 			{
-				Key:   model.NUM_EVENTS,
+				Key:   model.EV_KEY_NUM_EVENTS,
 				Value: strconv.FormatInt(int64(numEvents), 10),
 			},
 		},
@@ -205,90 +205,90 @@ func getTransactionControlEvent(transactionId string, eventSeq, numEvents int32)
 
 func getCreateSettingsEvent(transactionId string, eventSeq int32) *events_pb2.Event {
 	return &events_pb2.Event{
-		EventType: model.EV_SETTINGS_CREATE,
+		EventType: model.EV_TYPE_SETTINGS_CREATE,
 		Attributes: []*events_pb2.Event_Attribute{
 			{
-				Key:   model.TRANSACTION_ID,
+				Key:   model.EV_KEY_TRANSACTION_ID,
 				Value: transactionId,
 			},
 			{
-				Key:   model.TIMESTAMP,
+				Key:   model.EV_KEY_TIMESTAMP,
 				Value: strconv.FormatInt(model.GetCurrentTime(), 10),
 			},
 			{
-				Key:   model.EVENT_SEQ,
+				Key:   model.EV_KEY_EVENT_SEQ,
 				Value: strconv.FormatInt(int64(eventSeq), 10),
 			},
 			{
-				Key:   model.PRICE_MAJOR_EDIT_SETTINGS,
+				Key:   model.EV_KEY_PRICE_MAJOR_EDIT_SETTINGS,
 				Value: "1",
 			},
 			{
-				Key:   model.PRICE_MAJOR_CREATE_PERSON,
+				Key:   model.EV_KEY_PRICE_MAJOR_CREATE_PERSON,
 				Value: "2",
 			},
 			{
-				Key:   model.PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION,
+				Key:   model.EV_KEY_PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION,
 				Value: "3",
 			},
 			{
-				Key:   model.PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION,
+				Key:   model.EV_KEY_PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION,
 				Value: "4",
 			},
 			{
-				Key:   model.PRICE_PERSON_EDIT,
+				Key:   model.EV_KEY_PRICE_PERSON_EDIT,
 				Value: "5",
 			},
 			{
-				Key:   model.PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT,
+				Key:   model.EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT,
 				Value: "6",
 			},
 			{
-				Key:   model.PRICE_AUTHOR_SUBMIT_NEW_VERSION,
+				Key:   model.EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_VERSION,
 				Value: "7",
 			},
 			{
-				Key:   model.PRICE_AUTHOR_ACCEPT_AUTHORSHIP,
+				Key:   model.EV_KEY_PRICE_AUTHOR_ACCEPT_AUTHORSHIP,
 				Value: "8",
 			},
 			{
-				Key:   model.PRICE_REVIEWER_SUBMIT,
+				Key:   model.EV_KEY_PRICE_REVIEWER_SUBMIT,
 				Value: "9",
 			},
 			{
-				Key:   model.PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW,
+				Key:   model.EV_KEY_PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW,
 				Value: "10",
 			},
 			{
-				Key:   model.PRICE_EDITOR_REJECT_MANUSCRIPT,
+				Key:   model.EV_KEY_PRICE_EDITOR_REJECT_MANUSCRIPT,
 				Value: "11",
 			},
 			{
-				Key:   model.PRICE_EDITOR_PUBLISH_MANUSCRIPT,
+				Key:   model.EV_KEY_PRICE_EDITOR_PUBLISH_MANUSCRIPT,
 				Value: "12",
 			},
 			{
-				Key:   model.PRICE_EDITOR_ASSIGN_MANUSCRIPT,
+				Key:   model.EV_KEY_PRICE_EDITOR_ASSIGN_MANUSCRIPT,
 				Value: "13",
 			},
 			{
-				Key:   model.PRICE_EDITOR_CREATE_JOURNAL,
+				Key:   model.EV_KEY_PRICE_EDITOR_CREATE_JOURNAL,
 				Value: "14",
 			},
 			{
-				Key:   model.PRICE_EDITOR_CREATE_VOLUME,
+				Key:   model.EV_KEY_PRICE_EDITOR_CREATE_VOLUME,
 				Value: "15",
 			},
 			{
-				Key:   model.PRICE_EDITOR_EDIT_JOURNAL,
+				Key:   model.EV_KEY_PRICE_EDITOR_EDIT_JOURNAL,
 				Value: "16",
 			},
 			{
-				Key:   model.PRICE_EDITOR_ADD_COLLEAGUE,
+				Key:   model.EV_KEY_PRICE_EDITOR_ADD_COLLEAGUE,
 				Value: "17",
 			},
 			{
-				Key:   model.PRICE_EDITOR_ACCEPT_DUTY,
+				Key:   model.EV_KEY_PRICE_EDITOR_ACCEPT_DUTY,
 				Value: "18",
 			},
 		},
@@ -297,34 +297,34 @@ func getCreateSettingsEvent(transactionId string, eventSeq int32) *events_pb2.Ev
 
 func getCreatePersonEvent(transactionId string, eventSeq int32, personId string) *events_pb2.Event {
 	return &events_pb2.Event{
-		EventType: model.EV_PERSON_CREATE,
+		EventType: model.EV_TYPE_PERSON_CREATE,
 		Attributes: []*events_pb2.Event_Attribute{
 			{
-				Key:   model.TRANSACTION_ID,
+				Key:   model.EV_KEY_TRANSACTION_ID,
 				Value: transactionId,
 			},
 			{
-				Key:   model.TIMESTAMP,
+				Key:   model.EV_KEY_TIMESTAMP,
 				Value: strconv.FormatInt(model.GetCurrentTime(), 10),
 			},
 			{
-				Key:   model.EVENT_SEQ,
+				Key:   model.EV_KEY_EVENT_SEQ,
 				Value: strconv.FormatInt(int64(eventSeq), 10),
 			},
 			{
-				Key:   model.ID,
+				Key:   model.EV_KEY_ID,
 				Value: personId,
 			},
 			{
-				Key:   model.PERSON_NAME,
+				Key:   model.EV_KEY_PERSON_NAME,
 				Value: "Martijn",
 			},
 			{
-				Key:   model.PERSON_PUBLIC_KEY,
+				Key:   model.EV_KEY_PERSON_PUBLIC_KEY,
 				Value: "Key Martijn",
 			},
 			{
-				Key:   model.PERSON_EMAIL,
+				Key:   model.EV_KEY_PERSON_EMAIL,
 				Value: "xxx@gmail.com",
 			},
 		},

@@ -72,12 +72,12 @@ func createTransactionControlEvent(ev *events_pb2.Event) (event, error) {
 	var i64 int64
 	for _, attribute := range ev.Attributes {
 		switch attribute.Key {
-		case model.TRANSACTION_ID:
+		case model.EV_KEY_TRANSACTION_ID:
 			result.transactionId = attribute.Value
-		case model.EVENT_SEQ:
+		case model.EV_KEY_EVENT_SEQ:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			result.eventSeq = int32(i64)
-		case model.NUM_EVENTS:
+		case model.EV_KEY_NUM_EVENTS:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			result.numEvents = int32(i64)
 		}

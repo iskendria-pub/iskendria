@@ -56,7 +56,7 @@ func getPersonUpdateCommand(
 	if err != nil {
 		t.Error(err)
 	}
-	cmd := command.GetPersonUpdateCommand(
+	cmd := command.GetPersonUpdatePropertiesCommand(
 		originalPerson.Id,
 		originalPersonUpdate,
 		newPersonUpdate,

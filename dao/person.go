@@ -92,26 +92,26 @@ func createPersonCreateEvent(event *events_pb2.Event) (event, error) {
 	dataManipulation := &dataManipulationPersonCreate{}
 	for _, attribute := range event.Attributes {
 		switch attribute.Key {
-		case model.TRANSACTION_ID:
+		case model.EV_KEY_TRANSACTION_ID:
 			transactionId = attribute.Value
-		case model.TIMESTAMP:
+		case model.EV_KEY_TIMESTAMP:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 64)
 			dataManipulation.timestamp = i64
-		case model.EVENT_SEQ:
+		case model.EV_KEY_EVENT_SEQ:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			eventSeq = int32(i64)
-		case model.ID:
+		case model.EV_KEY_ID:
 			dataManipulation.id = attribute.Value
-		case model.PERSON_PUBLIC_KEY:
+		case model.EV_KEY_PERSON_PUBLIC_KEY:
 			dataManipulation.publicKey = attribute.Value
-		case model.PERSON_NAME:
+		case model.EV_KEY_PERSON_NAME:
 			dataManipulation.name = attribute.Value
-		case model.PERSON_EMAIL:
+		case model.EV_KEY_PERSON_EMAIL:
 			dataManipulation.email = attribute.Value
-		case model.PERSON_IS_MAJOR:
+		case model.EV_KEY_PERSON_IS_MAJOR:
 			b, err = strconv.ParseBool(attribute.Value)
 			dataManipulation.isMajor = b
-		case model.PERSON_IS_SIGNED:
+		case model.EV_KEY_PERSON_IS_SIGNED:
 			b, err = strconv.ParseBool(attribute.Value)
 			dataManipulation.isSigned = b
 		}
@@ -156,19 +156,19 @@ func createPersonUpdateEvent(ev *events_pb2.Event) (event, error) {
 		var err error
 		var i64 int64
 		switch a.Key {
-		case model.TRANSACTION_ID:
+		case model.EV_KEY_TRANSACTION_ID:
 			result.transactionId = a.Value
-		case model.EVENT_SEQ:
+		case model.EV_KEY_EVENT_SEQ:
 			i64, err = strconv.ParseInt(a.Value, 10, 32)
 			result.eventSeq = int32(i64)
-		case model.TIMESTAMP:
+		case model.EV_KEY_TIMESTAMP:
 			// Nothing to do.
-		case model.ID:
+		case model.EV_KEY_ID:
 			dm.id = a.Value
-		case model.PERSON_PUBLIC_KEY, model.PERSON_NAME, model.PERSON_EMAIL,
-			model.PERSON_BIOGRAPHY_HASH, model.PERSON_ORGANIZATION, model.PERSON_TELEPHONE,
-			model.PERSON_ADDRESS, model.PERSON_POSTAL_CODE, model.PERSON_COUNTRY,
-			model.PERSON_EXTRA_INFO:
+		case model.EV_KEY_PERSON_PUBLIC_KEY, model.EV_KEY_PERSON_NAME, model.EV_KEY_PERSON_EMAIL,
+			model.EV_KEY_PERSON_BIOGRAPHY_HASH, model.EV_KEY_PERSON_ORGANIZATION, model.EV_KEY_PERSON_TELEPHONE,
+			model.EV_KEY_PERSON_ADDRESS, model.EV_KEY_PERSON_POSTAL_CODE, model.EV_KEY_PERSON_COUNTRY,
+			model.EV_KEY_PERSON_EXTRA_INFO:
 			dm.field = strings.ToLower(a.Key)
 			dm.newValue = a.Value
 		default:
@@ -205,15 +205,15 @@ func createPersonModificationTimeEvent(ev *events_pb2.Event) (event, error) {
 	var i64 int64
 	for _, a := range ev.Attributes {
 		switch a.Key {
-		case model.TRANSACTION_ID:
+		case model.EV_KEY_TRANSACTION_ID:
 			result.transactionId = a.Value
-		case model.EVENT_SEQ:
+		case model.EV_KEY_EVENT_SEQ:
 			i64, err = strconv.ParseInt(a.Value, 10, 32)
 			result.eventSeq = int32(i64)
-		case model.TIMESTAMP:
+		case model.EV_KEY_TIMESTAMP:
 			i64, err = strconv.ParseInt(a.Value, 10, 64)
 			dm.timestamp = i64
-		case model.ID:
+		case model.EV_KEY_ID:
 			dm.id = a.Value
 		}
 		if err != nil {

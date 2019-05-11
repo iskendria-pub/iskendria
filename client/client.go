@@ -47,7 +47,7 @@ func personUpdateReference(outputter cli.Outputter) *dao.PersonUpdate {
 var originalPerson *dao.PersonUpdate
 
 func personUpdate(outputter cli.Outputter, newPerson *dao.PersonUpdate) {
-	theCommand := command.GetPersonUpdateCommand(
+	theCommand := command.GetPersonUpdatePropertiesCommand(
 		cliAlexandria.LoggedInPerson.Id,
 		originalPerson,
 		newPerson,

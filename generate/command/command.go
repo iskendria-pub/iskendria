@@ -38,7 +38,7 @@ func createModelCommandSettingsUpdate(orig, updated *dao.Settings) *model.Comman
     return result
 }
 
-func createModelCommandPersonUpdate(
+func createModelCommandPersonUpdateProperties(
 personId string,
 orig, updated *dao.PersonUpdate) *model.CommandPersonUpdateProperties {
     result := &model.CommandPersonUpdateProperties{}
@@ -171,43 +171,43 @@ func getCommandPersonUpdatePropertiesFields() []*modelCommandCheck {
 	return []*modelCommandCheck{
 		{
 			CommandField: "PublicKey",
-			EventKey:     "PERSON_PUBLIC_KEY",
+			EventKey:     "EV_KEY_PERSON_PUBLIC_KEY",
 		},
 		{
 			CommandField: "Name",
-			EventKey:     "PERSON_NAME",
+			EventKey:     "EV_KEY_PERSON_NAME",
 		},
 		{
 			CommandField: "Email",
-			EventKey:     "PERSON_EMAIL",
+			EventKey:     "EV_KEY_PERSON_EMAIL",
 		},
 		{
 			CommandField: "BiographyHash",
-			EventKey:     "PERSON_BIOGRAPHY_HASH",
+			EventKey:     "EV_KEY_PERSON_BIOGRAPHY_HASH",
 		},
 		{
 			CommandField: "Organization",
-			EventKey:     "PERSON_ORGANIZATION",
+			EventKey:     "EV_KEY_PERSON_ORGANIZATION",
 		},
 		{
 			CommandField: "Telephone",
-			EventKey:     "PERSON_TELEPHONE",
+			EventKey:     "EV_KEY_PERSON_TELEPHONE",
 		},
 		{
 			CommandField: "Address",
-			EventKey:     "PERSON_ADDRESS",
+			EventKey:     "EV_KEY_PERSON_ADDRESS",
 		},
 		{
 			CommandField: "PostalCode",
-			EventKey:     "PERSON_POSTAL_CODE",
+			EventKey:     "EV_KEY_PERSON_POSTAL_CODE",
 		},
 		{
 			CommandField: "Country",
-			EventKey:     "PERSON_COUNTRY",
+			EventKey:     "EV_KEY_PERSON_COUNTRY",
 		},
 		{
 			CommandField: "ExtraInfo",
-			EventKey:     "PERSON_EXTRA_INFO",
+			EventKey:     "EV_KEY_PERSON_EXTRA_INFO",
 		},
 	}
 }

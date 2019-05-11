@@ -4,6 +4,9 @@ import (
 	"strings"
 )
 
+// The field names are derived from the event keys.
+// When an event key is taken to lower case, the
+// corresponding field name is obtained.
 var TableCreateSettings = `
 	CREATE TABLE settings (
     id integer primary key not null,
@@ -30,28 +33,28 @@ var TableCreateSettings = `
 `
 
 const (
-	EV_SETTINGS_CREATE = "evSettingsCreate"
+	EV_TYPE_SETTINGS_CREATE = "evSettingsCreate"
 )
 
 const (
-	PRICE_MAJOR_EDIT_SETTINGS                = "priceMajorEditSettings"
-	PRICE_MAJOR_CREATE_PERSON                = "priceMajorCreatePerson"
-	PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION  = "priceMajorChangePersonAuthorization"
-	PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION = "priceMajorChangeJournalAuthorization"
-	PRICE_PERSON_EDIT                        = "pricePersonEdit"
-	PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT       = "priceAuthorSubmitNewManuscript"
-	PRICE_AUTHOR_SUBMIT_NEW_VERSION          = "priceAuthorSubmitNewVersion"
-	PRICE_AUTHOR_ACCEPT_AUTHORSHIP           = "priceAuthorAcceptAuthorship"
-	PRICE_REVIEWER_SUBMIT                    = "priceReviewerSubmit"
-	PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW     = "priceEditorAllowManuscriptReview"
-	PRICE_EDITOR_REJECT_MANUSCRIPT           = "priceEditorRejectManuscript"
-	PRICE_EDITOR_PUBLISH_MANUSCRIPT          = "priceEditorPublishManuscript"
-	PRICE_EDITOR_ASSIGN_MANUSCRIPT           = "priceEditorAssignManuscript"
-	PRICE_EDITOR_CREATE_JOURNAL              = "priceEditorCreateJournal"
-	PRICE_EDITOR_CREATE_VOLUME               = "priceEditorCreateVolume"
-	PRICE_EDITOR_EDIT_JOURNAL                = "priceEditorEditJournal"
-	PRICE_EDITOR_ADD_COLLEAGUE               = "priceEditorAddColleague"
-	PRICE_EDITOR_ACCEPT_DUTY                 = "priceEditorAcceptDuty"
+	EV_KEY_PRICE_MAJOR_EDIT_SETTINGS                = "priceMajorEditSettings"
+	EV_KEY_PRICE_MAJOR_CREATE_PERSON                = "priceMajorCreatePerson"
+	EV_KEY_PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION  = "priceMajorChangePersonAuthorization"
+	EV_KEY_PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION = "priceMajorChangeJournalAuthorization"
+	EV_KEY_PRICE_PERSON_EDIT                        = "pricePersonEdit"
+	EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT       = "priceAuthorSubmitNewManuscript"
+	EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_VERSION          = "priceAuthorSubmitNewVersion"
+	EV_KEY_PRICE_AUTHOR_ACCEPT_AUTHORSHIP           = "priceAuthorAcceptAuthorship"
+	EV_KEY_PRICE_REVIEWER_SUBMIT                    = "priceReviewerSubmit"
+	EV_KEY_PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW     = "priceEditorAllowManuscriptReview"
+	EV_KEY_PRICE_EDITOR_REJECT_MANUSCRIPT           = "priceEditorRejectManuscript"
+	EV_KEY_PRICE_EDITOR_PUBLISH_MANUSCRIPT          = "priceEditorPublishManuscript"
+	EV_KEY_PRICE_EDITOR_ASSIGN_MANUSCRIPT           = "priceEditorAssignManuscript"
+	EV_KEY_PRICE_EDITOR_CREATE_JOURNAL              = "priceEditorCreateJournal"
+	EV_KEY_PRICE_EDITOR_CREATE_VOLUME               = "priceEditorCreateVolume"
+	EV_KEY_PRICE_EDITOR_EDIT_JOURNAL                = "priceEditorEditJournal"
+	EV_KEY_PRICE_EDITOR_ADD_COLLEAGUE               = "priceEditorAddColleague"
+	EV_KEY_PRICE_EDITOR_ACCEPT_DUTY                 = "priceEditorAcceptDuty"
 )
 
 func GetSettingsAddress() string {

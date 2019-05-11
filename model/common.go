@@ -8,21 +8,19 @@ import (
 	"time"
 )
 
-const ID = "id"
-const PDF = "PDF"
-
 const (
-	TRANSACTION_ID             = "transactionId"
-	TIMESTAMP                  = "timestamp"
-	EVENT_SEQ                  = "eventSeq"
-	NUM_EVENTS                 = "numEvents"
+	EV_KEY_ID                  = "id"
+	EV_KEY_TRANSACTION_ID      = "transactionId"
+	EV_KEY_TIMESTAMP           = "timestamp"
+	EV_KEY_EVENT_SEQ           = "eventSeq"
+	EV_KEY_NUM_EVENTS          = "numEvents"
 	SAWTOOTH_CURRENT_BLOCK_ID  = "block_id"
 	SAWTOOTH_PREVIOUS_BLOCK_ID = "previous_block_id"
 )
 
 const (
-	EV_SAWTOOTH_BLOCK_COMMIT = "sawtooth/block-commit"
-	EV_TRANSACTION_CONTROL   = "evTransactionControl"
+	SAWTOOTH_BLOCK_COMMIT       = "sawtooth/block-commit"
+	EV_TYPE_TRANSACTION_CONTROL = "evTransactionControl"
 )
 
 const FamilyName = "alexandria"
@@ -44,7 +42,7 @@ func hexdigestOfUuid(uuid uuid.UUID) string {
 	return strings.ToLower(hex.EncodeToString(hashBytes))
 }
 
-var expectedAddressLength = 6 + 64
+const expectedAddressLength = 6 + 64
 
 func getAddressPrefixFromAddress(address string) string {
 	if len(address) != expectedAddressLength {

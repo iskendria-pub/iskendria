@@ -53,66 +53,66 @@ func createSettingsCreateEvent(event *events_pb2.Event) (event, error) {
 	dataManipulation := &dataManipulationSettingsCreate{}
 	for _, attribute := range event.Attributes {
 		switch attribute.Key {
-		case model.TRANSACTION_ID:
+		case model.EV_KEY_TRANSACTION_ID:
 			transactionId = attribute.Value
-		case model.TIMESTAMP:
+		case model.EV_KEY_TIMESTAMP:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 64)
 			dataManipulation.timestamp = i64
-		case model.EVENT_SEQ:
+		case model.EV_KEY_EVENT_SEQ:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			eventSeq = int32(i64)
-		case model.PRICE_MAJOR_EDIT_SETTINGS:
+		case model.EV_KEY_PRICE_MAJOR_EDIT_SETTINGS:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceMajorEditSettings = int32(i64)
-		case model.PRICE_MAJOR_CREATE_PERSON:
+		case model.EV_KEY_PRICE_MAJOR_CREATE_PERSON:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceMajorCreatePerson = int32(i64)
-		case model.PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION:
+		case model.EV_KEY_PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceMajorChangePersonAuthorization = int32(i64)
-		case model.PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION:
+		case model.EV_KEY_PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceMajorChangeJournalAuthorization = int32(i64)
-		case model.PRICE_PERSON_EDIT:
+		case model.EV_KEY_PRICE_PERSON_EDIT:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.pricePersonEdit = int32(i64)
-		case model.PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT:
+		case model.EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceAuthorSubmitNewManuscript = int32(i64)
-		case model.PRICE_AUTHOR_SUBMIT_NEW_VERSION:
+		case model.EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_VERSION:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceAuthorSubmitNewVersion = int32(i64)
-		case model.PRICE_AUTHOR_ACCEPT_AUTHORSHIP:
+		case model.EV_KEY_PRICE_AUTHOR_ACCEPT_AUTHORSHIP:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceAuthorAcceptAuthorship = int32(i64)
-		case model.PRICE_REVIEWER_SUBMIT:
+		case model.EV_KEY_PRICE_REVIEWER_SUBMIT:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceReviewerSubmit = int32(i64)
-		case model.PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW:
+		case model.EV_KEY_PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceEditorAllowManuscriptReview = int32(i64)
-		case model.PRICE_EDITOR_REJECT_MANUSCRIPT:
+		case model.EV_KEY_PRICE_EDITOR_REJECT_MANUSCRIPT:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceEditorRejectManuscript = int32(i64)
-		case model.PRICE_EDITOR_PUBLISH_MANUSCRIPT:
+		case model.EV_KEY_PRICE_EDITOR_PUBLISH_MANUSCRIPT:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceEditorPublishManuscript = int32(i64)
-		case model.PRICE_EDITOR_ASSIGN_MANUSCRIPT:
+		case model.EV_KEY_PRICE_EDITOR_ASSIGN_MANUSCRIPT:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceEditorAssignManuscript = int32(i64)
-		case model.PRICE_EDITOR_CREATE_JOURNAL:
+		case model.EV_KEY_PRICE_EDITOR_CREATE_JOURNAL:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceEditorCreateJournal = int32(i64)
-		case model.PRICE_EDITOR_CREATE_VOLUME:
+		case model.EV_KEY_PRICE_EDITOR_CREATE_VOLUME:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceEditorCreateVolume = int32(i64)
-		case model.PRICE_EDITOR_EDIT_JOURNAL:
+		case model.EV_KEY_PRICE_EDITOR_EDIT_JOURNAL:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceEditorEditJournal = int32(i64)
-		case model.PRICE_EDITOR_ADD_COLLEAGUE:
+		case model.EV_KEY_PRICE_EDITOR_ADD_COLLEAGUE:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceEditorAddColleague = int32(i64)
-		case model.PRICE_EDITOR_ACCEPT_DUTY:
+		case model.EV_KEY_PRICE_EDITOR_ACCEPT_DUTY:
 			i64, err = strconv.ParseInt(attribute.Value, 10, 32)
 			dataManipulation.priceEditorAcceptDuty = int32(i64)
 		}

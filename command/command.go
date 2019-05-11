@@ -125,7 +125,7 @@ func (ce *commandExecution) checkBootstrap(bootstrap *model.CommandBootstrap) (*
 	return &updater{
 		unmarshalledState: us,
 		updates: []singleUpdate{
-			&singleUpdateCreateSettings{
+			&singleUpdateSettingsCreate{
 				timestamp: ce.command.Timestamp,
 				priceList: bootstrap.PriceList,
 			},
@@ -137,25 +137,6 @@ func (ce *commandExecution) checkBootstrap(bootstrap *model.CommandBootstrap) (*
 			},
 		},
 	}, nil
-}
-
-func checkSanityPersonCreate(personCreate *model.CommandPersonCreate) error {
-	if personCreate.NewPersonId == "" {
-		return errors.New("personCreate.NewPersonId should be filled")
-	}
-	if !model.IsPersonAddress(personCreate.NewPersonId) {
-		return errors.New("personCreate.NewPersonId should be a person address")
-	}
-	if personCreate.PublicKey == "" {
-		return errors.New("personCreate.PublicKey should be filled")
-	}
-	if personCreate.Email == "" {
-		return errors.New("personCreate.Email should be filled")
-	}
-	if personCreate.Name == "" {
-		return errors.New("personCreate.Name should be filled")
-	}
-	return nil
 }
 
 func (ce *commandExecution) checkNonBootstrap() (*updater, error) {
@@ -232,22 +213,22 @@ func (ce *commandExecution) writeTransactionControlEvent(numNonControlEvents int
 	numEventsString := fmt.Sprintf("%d", numNonControlEvents+1)
 	timestampString := fmt.Sprintf("%d", ce.command.Timestamp)
 	err := ce.blockchainAccess.AddEvent(
-		model.EV_TRANSACTION_CONTROL,
+		model.EV_TYPE_TRANSACTION_CONTROL,
 		[]processor.Attribute{
 			{
-				Key:   model.TRANSACTION_ID,
+				Key:   model.EV_KEY_TRANSACTION_ID,
 				Value: ce.transactionId,
 			},
 			{
-				Key:   model.EVENT_SEQ,
+				Key:   model.EV_KEY_EVENT_SEQ,
 				Value: eventSeqString,
 			},
 			{
-				Key:   model.TIMESTAMP,
+				Key:   model.EV_KEY_TIMESTAMP,
 				Value: timestampString,
 			},
 			{
-				Key:   model.NUM_EVENTS,
+				Key:   model.EV_KEY_NUM_EVENTS,
 				Value: numEventsString,
 			},
 		},

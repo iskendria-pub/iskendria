@@ -193,7 +193,7 @@ func createModelCommandSettingsUpdate(orig, updated *dao.Settings) *model.Comman
 	return result
 }
 
-func createModelCommandPersonUpdate(
+func createModelCommandPersonUpdateProperties(
 	personId string,
 	orig, updated *dao.PersonUpdate) *model.CommandPersonUpdateProperties {
 	result := &model.CommandPersonUpdateProperties{}
@@ -366,7 +366,7 @@ func createSingleUpdatesPersonUpdateProperties(
 		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
 			newValue:   c.PublicKeyUpdate.NewValue,
 			stateField: &oldPerson.PublicKey,
-			eventKey:   model.PERSON_PUBLIC_KEY,
+			eventKey:   model.EV_KEY_PERSON_PUBLIC_KEY,
 			personId:   c.PersonId,
 			timestamp:  timestamp,
 		}
@@ -377,7 +377,7 @@ func createSingleUpdatesPersonUpdateProperties(
 		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
 			newValue:   c.NameUpdate.NewValue,
 			stateField: &oldPerson.Name,
-			eventKey:   model.PERSON_NAME,
+			eventKey:   model.EV_KEY_PERSON_NAME,
 			personId:   c.PersonId,
 			timestamp:  timestamp,
 		}
@@ -388,7 +388,7 @@ func createSingleUpdatesPersonUpdateProperties(
 		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
 			newValue:   c.EmailUpdate.NewValue,
 			stateField: &oldPerson.Email,
-			eventKey:   model.PERSON_EMAIL,
+			eventKey:   model.EV_KEY_PERSON_EMAIL,
 			personId:   c.PersonId,
 			timestamp:  timestamp,
 		}
@@ -399,7 +399,7 @@ func createSingleUpdatesPersonUpdateProperties(
 		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
 			newValue:   c.BiographyHashUpdate.NewValue,
 			stateField: &oldPerson.BiographyHash,
-			eventKey:   model.PERSON_BIOGRAPHY_HASH,
+			eventKey:   model.EV_KEY_PERSON_BIOGRAPHY_HASH,
 			personId:   c.PersonId,
 			timestamp:  timestamp,
 		}
@@ -410,7 +410,7 @@ func createSingleUpdatesPersonUpdateProperties(
 		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
 			newValue:   c.OrganizationUpdate.NewValue,
 			stateField: &oldPerson.Organization,
-			eventKey:   model.PERSON_ORGANIZATION,
+			eventKey:   model.EV_KEY_PERSON_ORGANIZATION,
 			personId:   c.PersonId,
 			timestamp:  timestamp,
 		}
@@ -421,7 +421,7 @@ func createSingleUpdatesPersonUpdateProperties(
 		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
 			newValue:   c.TelephoneUpdate.NewValue,
 			stateField: &oldPerson.Telephone,
-			eventKey:   model.PERSON_TELEPHONE,
+			eventKey:   model.EV_KEY_PERSON_TELEPHONE,
 			personId:   c.PersonId,
 			timestamp:  timestamp,
 		}
@@ -432,7 +432,7 @@ func createSingleUpdatesPersonUpdateProperties(
 		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
 			newValue:   c.AddressUpdate.NewValue,
 			stateField: &oldPerson.Address,
-			eventKey:   model.PERSON_ADDRESS,
+			eventKey:   model.EV_KEY_PERSON_ADDRESS,
 			personId:   c.PersonId,
 			timestamp:  timestamp,
 		}
@@ -443,7 +443,7 @@ func createSingleUpdatesPersonUpdateProperties(
 		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
 			newValue:   c.PostalCodeUpdate.NewValue,
 			stateField: &oldPerson.PostalCode,
-			eventKey:   model.PERSON_POSTAL_CODE,
+			eventKey:   model.EV_KEY_PERSON_POSTAL_CODE,
 			personId:   c.PersonId,
 			timestamp:  timestamp,
 		}
@@ -454,7 +454,7 @@ func createSingleUpdatesPersonUpdateProperties(
 		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
 			newValue:   c.CountryUpdate.NewValue,
 			stateField: &oldPerson.Country,
-			eventKey:   model.PERSON_COUNTRY,
+			eventKey:   model.EV_KEY_PERSON_COUNTRY,
 			personId:   c.PersonId,
 			timestamp:  timestamp,
 		}
@@ -465,7 +465,7 @@ func createSingleUpdatesPersonUpdateProperties(
 		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
 			newValue:   c.ExtraInfoUpdate.NewValue,
 			stateField: &oldPerson.ExtraInfo,
-			eventKey:   model.PERSON_EXTRA_INFO,
+			eventKey:   model.EV_KEY_PERSON_EXTRA_INFO,
 			personId:   c.PersonId,
 			timestamp:  timestamp,
 		}

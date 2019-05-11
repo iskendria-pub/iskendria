@@ -2,6 +2,9 @@ package model
 
 import "github.com/google/uuid"
 
+// The field names are derived from the event keys.
+// When an event key is taken to lower case, the
+// corresponding field name is obtained.
 var TableCreatePerson = `
 CREATE TABLE person (
 	id varchar primary key not null,
@@ -23,25 +26,25 @@ CREATE TABLE person (
 )`
 
 const (
-	EV_PERSON_CREATE            = "evPersonCreate"
-	EV_PERSON_UPDATE            = "evPersonUpdate"
-	EV_PERSON_MODIFICATION_TIME = "evPersonModificationTime"
+	EV_TYPE_PERSON_CREATE            = "evPersonCreate"
+	EV_TYPE_PERSON_UPDATE            = "evPersonUpdate"
+	EV_TYPE_PERSON_MODIFICATION_TIME = "evPersonModificationTime"
 )
 
 const (
-	PERSON_PUBLIC_KEY     = "publicKey"
-	PERSON_NAME           = "name"
-	PERSON_EMAIL          = "email"
-	PERSON_IS_MAJOR       = "isMajor"
-	PERSON_IS_SIGNED      = "isSigned"
-	PERSON_BALANCE        = "balance"
-	PERSON_BIOGRAPHY_HASH = "biographyHash"
-	PERSON_ORGANIZATION   = "organization"
-	PERSON_TELEPHONE      = "telephone"
-	PERSON_ADDRESS        = "address"
-	PERSON_POSTAL_CODE    = "postalCode"
-	PERSON_COUNTRY        = "country"
-	PERSON_EXTRA_INFO     = "extraInfo"
+	EV_KEY_PERSON_PUBLIC_KEY     = "publicKey"
+	EV_KEY_PERSON_NAME           = "name"
+	EV_KEY_PERSON_EMAIL          = "email"
+	EV_KEY_PERSON_IS_MAJOR       = "isMajor"
+	EV_KEY_PERSON_IS_SIGNED      = "isSigned"
+	EV_KEY_PERSON_BALANCE        = "balance"
+	EV_KEY_PERSON_BIOGRAPHY_HASH = "biographyHash"
+	EV_KEY_PERSON_ORGANIZATION   = "organization"
+	EV_KEY_PERSON_TELEPHONE      = "telephone"
+	EV_KEY_PERSON_ADDRESS        = "address"
+	EV_KEY_PERSON_POSTAL_CODE    = "postalCode"
+	EV_KEY_PERSON_COUNTRY        = "country"
+	EV_KEY_PERSON_EXTRA_INFO     = "extraInfo"
 )
 
 const personAddressPrefix = "01"

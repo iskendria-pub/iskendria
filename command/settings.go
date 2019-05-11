@@ -95,16 +95,14 @@ func GetSettingsUpdateCommand(
 	}
 }
 
-/*
- */
-type singleUpdateCreateSettings struct {
+type singleUpdateSettingsCreate struct {
 	timestamp int64
 	priceList *model.PriceList
 }
 
-var _ singleUpdate = new(singleUpdateCreateSettings)
+var _ singleUpdate = new(singleUpdateSettingsCreate)
 
-func (u *singleUpdateCreateSettings) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdateSettingsCreate) updateState(state *unmarshalledState) (writtenAddress string) {
 	state.settings = &model.StateSettings{
 		CreatedOnOn: u.timestamp,
 		ModifiedOn:  u.timestamp,
@@ -132,92 +130,92 @@ func (u *singleUpdateCreateSettings) updateState(state *unmarshalledState) (writ
 	return model.GetSettingsAddress()
 }
 
-func (u *singleUpdateCreateSettings) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+func (u *singleUpdateSettingsCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	return ba.AddEvent(
-		model.EV_SETTINGS_CREATE,
+		model.EV_TYPE_SETTINGS_CREATE,
 		[]processor.Attribute{
 			{
-				Key:   model.TRANSACTION_ID,
+				Key:   model.EV_KEY_TRANSACTION_ID,
 				Value: transactionId,
 			},
 			{
-				Key:   model.EVENT_SEQ,
+				Key:   model.EV_KEY_EVENT_SEQ,
 				Value: fmt.Sprintf("%d", eventSeq),
 			},
 			{
-				Key:   model.TIMESTAMP,
+				Key:   model.EV_KEY_TIMESTAMP,
 				Value: fmt.Sprintf("%d", u.timestamp),
 			},
 			{
-				Key:   model.PRICE_MAJOR_EDIT_SETTINGS,
+				Key:   model.EV_KEY_PRICE_MAJOR_EDIT_SETTINGS,
 				Value: fmt.Sprintf("%d", u.priceList.PriceMajorEditSettings),
 			},
 			{
-				Key:   model.PRICE_MAJOR_CREATE_PERSON,
+				Key:   model.EV_KEY_PRICE_MAJOR_CREATE_PERSON,
 				Value: fmt.Sprintf("%d", u.priceList.PriceMajorCreatePerson),
 			},
 			{
-				Key:   model.PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION,
+				Key:   model.EV_KEY_PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION,
 				Value: fmt.Sprintf("%d", u.priceList.PriceMajorChangePersonAuthorization),
 			},
 			{
-				Key:   model.PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION,
+				Key:   model.EV_KEY_PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION,
 				Value: fmt.Sprintf("%d", u.priceList.PriceMajorChangeJournalAuthorization),
 			},
 			{
-				Key:   model.PRICE_PERSON_EDIT,
+				Key:   model.EV_KEY_PRICE_PERSON_EDIT,
 				Value: fmt.Sprintf("%d", u.priceList.PricePersonEdit),
 			},
 			{
-				Key:   model.PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT,
+				Key:   model.EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT,
 				Value: fmt.Sprintf("%d", u.priceList.PriceAuthorSubmitNewManuscript),
 			},
 			{
-				Key:   model.PRICE_AUTHOR_SUBMIT_NEW_VERSION,
+				Key:   model.EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_VERSION,
 				Value: fmt.Sprintf("%d", u.priceList.PriceAuthorSubmitNewVersion),
 			},
 			{
-				Key:   model.PRICE_AUTHOR_ACCEPT_AUTHORSHIP,
+				Key:   model.EV_KEY_PRICE_AUTHOR_ACCEPT_AUTHORSHIP,
 				Value: fmt.Sprintf("%d", u.priceList.PriceAuthorAcceptAuthorship),
 			},
 			{
-				Key:   model.PRICE_REVIEWER_SUBMIT,
+				Key:   model.EV_KEY_PRICE_REVIEWER_SUBMIT,
 				Value: fmt.Sprintf("%d", u.priceList.PriceReviewerSubmit),
 			},
 			{
-				Key:   model.PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW,
+				Key:   model.EV_KEY_PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW,
 				Value: fmt.Sprintf("%d", u.priceList.PriceEditorAllowManuscriptReview),
 			},
 			{
-				Key:   model.PRICE_EDITOR_REJECT_MANUSCRIPT,
+				Key:   model.EV_KEY_PRICE_EDITOR_REJECT_MANUSCRIPT,
 				Value: fmt.Sprintf("%d", u.priceList.PriceEditorRejectManuscript),
 			},
 			{
-				Key:   model.PRICE_EDITOR_PUBLISH_MANUSCRIPT,
+				Key:   model.EV_KEY_PRICE_EDITOR_PUBLISH_MANUSCRIPT,
 				Value: fmt.Sprintf("%d", u.priceList.PriceEditorPublishManuscript),
 			},
 			{
-				Key:   model.PRICE_EDITOR_ASSIGN_MANUSCRIPT,
+				Key:   model.EV_KEY_PRICE_EDITOR_ASSIGN_MANUSCRIPT,
 				Value: fmt.Sprintf("%d", u.priceList.PriceEditorAssignManuscript),
 			},
 			{
-				Key:   model.PRICE_EDITOR_CREATE_JOURNAL,
+				Key:   model.EV_KEY_PRICE_EDITOR_CREATE_JOURNAL,
 				Value: fmt.Sprintf("%d", u.priceList.PriceEditorCreateJournal),
 			},
 			{
-				Key:   model.PRICE_EDITOR_CREATE_VOLUME,
+				Key:   model.EV_KEY_PRICE_EDITOR_CREATE_VOLUME,
 				Value: fmt.Sprintf("%d", u.priceList.PriceEditorCreateVolume),
 			},
 			{
-				Key:   model.PRICE_EDITOR_EDIT_JOURNAL,
+				Key:   model.EV_KEY_PRICE_EDITOR_EDIT_JOURNAL,
 				Value: fmt.Sprintf("%d", u.priceList.PriceEditorEditJournal),
 			},
 			{
-				Key:   model.PRICE_EDITOR_ADD_COLLEAGUE,
+				Key:   model.EV_KEY_PRICE_EDITOR_ADD_COLLEAGUE,
 				Value: fmt.Sprintf("%d", u.priceList.PriceEditorAddColleague),
 			},
 			{
-				Key:   model.PRICE_EDITOR_ACCEPT_DUTY,
+				Key:   model.EV_KEY_PRICE_EDITOR_ACCEPT_DUTY,
 				Value: fmt.Sprintf("%d", u.priceList.PriceEditorAcceptDuty),
 			},
 		},
