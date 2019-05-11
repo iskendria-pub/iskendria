@@ -10,29 +10,25 @@ import (
 )
 
 func TestBootstrap(t *testing.T) {
-	logger := log.New(os.Stdout, "integration.TestBootstrap", log.Flags())
-	blockchainAccess := command.NewBlockchainStub(dao.HandleEvent)
-	withLoggedInWithNewKey(doTestBootstrap, blockchainAccess, logger, t)
+	logger = log.New(os.Stdout, "integration.TestBootstrap", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	withLoggedInWithNewKey(doTestBootstrap, t)
 }
 
 func TestPersonCreate(t *testing.T) {
-	logger := log.New(os.Stdout, "integration.TestBootstrap", log.Flags())
-	blockchainAccess := command.NewBlockchainStub(dao.HandleEvent)
-	withNewPersonCreate(doTestPersonCreate, blockchainAccess, logger, t)
+	logger = log.New(os.Stdout, "integration.TestPersonCreate", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	withNewPersonCreate(doTestPersonCreate, t)
 }
 
-func TestPersonUpdate(t *testing.T) {
-	logger := log.New(os.Stdout, "integration.TestBootstrap", log.Flags())
-	blockchainAccess := command.NewBlockchainStub(dao.HandleEvent)
-	withNewPersonCreate(doTestPersonUpdate, blockchainAccess, logger, t)
+func TestPersonUpdateProperties(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestPersonUpdateProperties", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	withNewPersonCreate(doTestPersonUpdate, t)
 }
 
-func doTestPersonUpdate(
-	originalPersonCreate *command.PersonCreate,
-	blockchainAccess command.BlockchainAccess,
-	logger *log.Logger,
-	t *testing.T) {
-	doTestPersonCreate(originalPersonCreate, blockchainAccess, logger, t)
+func doTestPersonUpdate(originalPersonCreate *command.PersonCreate, t *testing.T) {
+	doTestPersonCreate(originalPersonCreate, t)
 	if err := cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile); err != nil {
 		t.Error("Could not login as newly created person")
 	}
@@ -45,10 +41,8 @@ func doTestPersonUpdate(
 	checkModifiedPerson(getPersonByKey(newPublicKey, t), originalPersonId, newPublicKey, t)
 }
 
-func getPersonUpdateCommand(
-	originalPersonCreate *command.PersonCreate,
-	newPublicKey string,
-	t *testing.T) (*command.Command, string) {
+func getPersonUpdateCommand(originalPersonCreate *command.PersonCreate, newPublicKey string, t *testing.T) (
+	*command.Command, string) {
 	originalPerson := getPersonByKey(originalPersonCreate.PublicKey, t)
 	originalPersonUpdate := dao.PersonToPersonUpdate(originalPerson)
 	newPersonUpdate := getNewPersonUpdate(newPublicKey)

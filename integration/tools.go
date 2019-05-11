@@ -15,22 +15,21 @@ const TIME_DIFF_THRESHOLD_SECONDS = 10
 const personPublicKeyFile = "person.pub"
 const personPrivateKeyFile = "person.priv"
 
-func withInitializedDao(testFunc func(logger *log.Logger, t *testing.T), logger *log.Logger, t *testing.T) {
+var logger *log.Logger
+var blockchainAccess command.BlockchainAccess
+
+func withInitializedDao(testFunc func(t *testing.T), t *testing.T) {
 	dao.Init("testBootstrap.db", logger)
 	defer dao.ShutdownAndDelete(logger)
 	err := dao.StartFakeBlock("blockId", "")
 	if err != nil {
 		t.Error("Error starting fake block: " + err.Error())
 	}
-	testFunc(logger, t)
+	testFunc(t)
 }
 
-func withLoggedInWithNewKey(
-	testFunc func(blockchainAccess command.BlockchainAccess, _ *log.Logger, t *testing.T),
-	blockchainAccess command.BlockchainAccess,
-	logger *log.Logger,
-	t *testing.T) {
-	withLogin := func(logger *log.Logger, t *testing.T) {
+func withLoggedInWithNewKey(testFunc func(t *testing.T), t *testing.T) {
+	withLogin := func(t *testing.T) {
 		publicKeyFile := "testBootstrap.pub"
 		privateKeyFile := "testBootstrap.priv"
 		err := cliAlexandria.CreateKeyPair(publicKeyFile, privateKeyFile)
@@ -43,18 +42,14 @@ func withLoggedInWithNewKey(
 			t.Error("Could not login: " + err.Error())
 		}
 		defer func() { _ = cliAlexandria.Logout() }()
-		testFunc(blockchainAccess, logger, t)
+		testFunc(t)
 	}
-	withInitializedDao(withLogin, logger, t)
+	withInitializedDao(withLogin, t)
 }
 
-func withNewPersonCreate(
-	testFunc func(personCreate *command.PersonCreate, _ command.BlockchainAccess, _ *log.Logger, t *testing.T),
-	blockchainAccess command.BlockchainAccess,
-	logger *log.Logger,
-	t *testing.T) {
-	withNewPersonCreate := func(blockchainAccess command.BlockchainAccess, logger *log.Logger, t *testing.T) {
-		doTestBootstrap(blockchainAccess, logger, t)
+func withNewPersonCreate(testFunc func(personCreate *command.PersonCreate, t *testing.T), t *testing.T) {
+	withNewPersonCreate := func(t *testing.T) {
+		doTestBootstrap(t)
 		err := cliAlexandria.CreateKeyPair(personPublicKeyFile, personPrivateKeyFile)
 		if err != nil {
 			t.Error("Could not create key pair for new person")
@@ -69,12 +64,12 @@ func withNewPersonCreate(
 			Name:      "Rens",
 			Email:     "rens@xxx.nl",
 		}
-		testFunc(personCreate, blockchainAccess, logger, t)
+		testFunc(personCreate, t)
 	}
-	withLoggedInWithNewKey(withNewPersonCreate, blockchainAccess, logger, t)
+	withLoggedInWithNewKey(withNewPersonCreate, t)
 }
 
-func doTestBootstrap(blockchainAccess command.BlockchainAccess, _ *log.Logger, t *testing.T) {
+func doTestBootstrap(t *testing.T) {
 	bootstrap := getBootstrap()
 	transactionId := "transactionId"
 	commandBootstrap := command.GetBootstrapCommand(bootstrap, cliAlexandria.LoggedIn())
@@ -231,11 +226,7 @@ func checkPerson(person *dao.Person, t *testing.T) {
 	}
 }
 
-func doTestPersonCreate(
-	personCreate *command.PersonCreate,
-	blockchainAccess command.BlockchainAccess,
-	_ *log.Logger,
-	t *testing.T) {
+func doTestPersonCreate(personCreate *command.PersonCreate, t *testing.T) {
 	newPersonKey := personCreate.PublicKey
 	personCreateCommand := command.GetPersonCreateCommand(
 		personCreate,
