@@ -311,3 +311,11 @@ func checkCreatedPerson(person *dao.Person, expectedPublicKey string, t *testing
 		t.Error("ExtraInfo mismatch")
 	}
 }
+
+func getSettings(t *testing.T) *dao.Settings {
+	settings, err := dao.GetSettings()
+	if err != nil {
+		t.Error(err)
+	}
+	return settings
+}

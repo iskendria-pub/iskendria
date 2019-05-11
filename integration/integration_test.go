@@ -120,3 +120,111 @@ func checkModifiedPerson(person *dao.Person, expectedId, expectedPublicKey strin
 		t.Error("ExtraInfo mismatch")
 	}
 }
+
+func TestPersonUpdateSetMajor(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestPersonUpdateSetMajor", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	withNewPersonCreate(doTestPersonUpdateSetMajor, t)
+}
+
+func doTestPersonUpdateSetMajor(originalPersonCreate *command.PersonCreate, t *testing.T) {
+	doTestPersonCreate(originalPersonCreate, t)
+	cmd := command.GetPersonUpdateSetMajorCommand(
+		getPersonByKey(originalPersonCreate.PublicKey, t).Id,
+		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+		cliAlexandria.LoggedIn(),
+		getSettings(t).PriceMajorChangePersonAuthorization)
+	err := command.RunCommandForTest(cmd, "transactionSetMajor", blockchainAccess)
+	if err != nil {
+		t.Error("Could not run person update set major command: " + err.Error())
+	}
+	updatedPerson := getPersonByKey(originalPersonCreate.PublicKey, t)
+	if updatedPerson.IsMajor != true {
+		t.Error("Person was not updated")
+	}
+	if updatedPerson.IsSigned != false {
+		t.Error("Person should not have been signed")
+	}
+}
+
+func TestPersonUpdateSetSigned(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestPersonUpdateSetSigned", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	withNewPersonCreate(doTestPersonUpdateSetSigned, t)
+}
+
+func doTestPersonUpdateSetSigned(originalPersonCreate *command.PersonCreate, t *testing.T) {
+	doTestPersonCreate(originalPersonCreate, t)
+	cmd := command.GetPersonUpdateSetSignedCommand(
+		getPersonByKey(originalPersonCreate.PublicKey, t).Id,
+		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+		cliAlexandria.LoggedIn(),
+		getSettings(t).PriceMajorChangePersonAuthorization)
+	err := command.RunCommandForTest(cmd, "transactionSetSigned", blockchainAccess)
+	if err != nil {
+		t.Error("Could not run person update set signed command: " + err.Error())
+	}
+	updatedPerson := getPersonByKey(originalPersonCreate.PublicKey, t)
+	if updatedPerson.IsMajor != false {
+		t.Error("Person should not have become major")
+	}
+	if updatedPerson.IsSigned != true {
+		t.Error("Person was not signed")
+	}
+}
+
+func TestPersonUpdateUnsetMajor(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestPersonUpdateUnsetMajor", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	withLoggedInWithNewKey(doTestPersonUpdateUnsetMajor, t)
+}
+
+func doTestPersonUpdateUnsetMajor(t *testing.T) {
+	doTestBootstrap(t)
+	settings := getSettings(t)
+	originalPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	cmd := command.GetPersonUpdateUnsetMajorCommand(
+		originalPerson.Id,
+		originalPerson.Id,
+		cliAlexandria.LoggedIn(),
+		settings.PriceMajorChangePersonAuthorization)
+	err := command.RunCommandForTest(cmd, "transactionIdUnsetMajor", blockchainAccess)
+	if err != nil {
+		t.Error("Could not run person unset major command: " + err.Error())
+	}
+	updated := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	if updated.IsMajor != false {
+		t.Error("Majorship was not unset")
+	}
+	if updated.IsSigned != true {
+		t.Error("Signed should not have been changed")
+	}
+}
+
+func TestPersonUpdateUnsetSigned(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestPersonUpdateUnsetSigned", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	withLoggedInWithNewKey(doTestPersonUpdateUnsetSigned, t)
+}
+
+func doTestPersonUpdateUnsetSigned(t *testing.T) {
+	doTestBootstrap(t)
+	settings := getSettings(t)
+	originalPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	cmd := command.GetPersonUpdateUnsetSignedCommand(
+		originalPerson.Id,
+		originalPerson.Id,
+		cliAlexandria.LoggedIn(),
+		settings.PriceMajorChangePersonAuthorization)
+	err := command.RunCommandForTest(cmd, "transactionIdUnsetMajor", blockchainAccess)
+	if err != nil {
+		t.Error("Could not run person unset signed command: " + err.Error())
+	}
+	updated := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	if updated.IsMajor != true {
+		t.Error("Majorship should not have been changed")
+	}
+	if updated.IsSigned != false {
+		t.Error("Signed was not unset")
+	}
+}

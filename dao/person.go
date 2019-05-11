@@ -148,13 +148,13 @@ func (dmpc *dataManipulationPersonCreate) apply(tx *sqlx.Tx) error {
 }
 
 func createPersonUpdateEvent(ev *events_pb2.Event) (event, error) {
-	dm := &dataManipulationPersonUpdate{}
-	result := &dataManipulationEvent{
-		dataManipulation: dm,
-	}
+	dmProperties := &dataManipulationPersonUpdateProperties{}
+	dmAuthorization := &dataManipulationPersonUpdateAuthorization{}
+	result := &dataManipulationEvent{}
 	for _, a := range ev.Attributes {
 		var err error
 		var i64 int64
+		var b bool
 		switch a.Key {
 		case model.EV_KEY_TRANSACTION_ID:
 			result.transactionId = a.Value
@@ -164,13 +164,20 @@ func createPersonUpdateEvent(ev *events_pb2.Event) (event, error) {
 		case model.EV_KEY_TIMESTAMP:
 			// Nothing to do.
 		case model.EV_KEY_ID:
-			dm.id = a.Value
+			dmProperties.id = a.Value
+			dmAuthorization.id = a.Value
 		case model.EV_KEY_PERSON_PUBLIC_KEY, model.EV_KEY_PERSON_NAME, model.EV_KEY_PERSON_EMAIL,
 			model.EV_KEY_PERSON_BIOGRAPHY_HASH, model.EV_KEY_PERSON_ORGANIZATION, model.EV_KEY_PERSON_TELEPHONE,
 			model.EV_KEY_PERSON_ADDRESS, model.EV_KEY_PERSON_POSTAL_CODE, model.EV_KEY_PERSON_COUNTRY,
 			model.EV_KEY_PERSON_EXTRA_INFO:
-			dm.field = strings.ToLower(a.Key)
-			dm.newValue = a.Value
+			result.dataManipulation = dmProperties
+			dmProperties.field = strings.ToLower(a.Key)
+			dmProperties.newValue = a.Value
+		case model.EV_KEY_PERSON_IS_MAJOR, model.EV_KEY_PERSON_IS_SIGNED:
+			result.dataManipulation = dmAuthorization
+			dmAuthorization.field = strings.ToLower(a.Key)
+			b, err = strconv.ParseBool(a.Value)
+			dmAuthorization.newValue = b
 		default:
 			err = errors.New("createPersonUpdateEvent: unknown attribute " + a.Key)
 		}
@@ -181,17 +188,32 @@ func createPersonUpdateEvent(ev *events_pb2.Event) (event, error) {
 	return result, nil
 }
 
-type dataManipulationPersonUpdate struct {
+type dataManipulationPersonUpdateProperties struct {
 	id       string
 	field    string
 	newValue string
 }
 
-var _ dataManipulation = new(dataManipulationPersonUpdate)
+var _ dataManipulation = new(dataManipulationPersonUpdateProperties)
 
-func (dm *dataManipulationPersonUpdate) apply(tx *sqlx.Tx) error {
+func (dm *dataManipulationPersonUpdateProperties) apply(tx *sqlx.Tx) error {
 	query := fmt.Sprintf("UPDATE person SET %s = \"%s\" WHERE id = \"%s\"",
 		dm.field, dm.newValue, dm.id)
+	_, err := tx.Exec(query)
+	return err
+}
+
+type dataManipulationPersonUpdateAuthorization struct {
+	id       string
+	field    string
+	newValue bool
+}
+
+var _ dataManipulation = new(dataManipulationPersonUpdateAuthorization)
+
+func (dm *dataManipulationPersonUpdateAuthorization) apply(tx *sqlx.Tx) error {
+	query := fmt.Sprintf("UPDATE person SET %s = %s WHERE id = \"%s\"",
+		dm.field, strconv.FormatBool(dm.newValue), dm.id)
 	_, err := tx.Exec(query)
 	return err
 }
