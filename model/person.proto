@@ -15,7 +15,6 @@ message StatePerson {
     bool isSigned = 8;
     int32 balance = 9;
     string biographyHash = 10;
-    string biographyFormat = 11;
     string organization = 12;
     string telephone = 13;
     string address = 14;

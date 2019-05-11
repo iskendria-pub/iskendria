@@ -147,9 +147,6 @@ func applyEventsHappy(events []*events_pb2.Event, personId string, t *testing.T)
 	if actualPerson.BiographyHash != "" {
 		t.Error("Should not have bibliography hash")
 	}
-	if actualPerson.BiographyFormat != "" {
-		t.Error("Should not have bibliography format")
-	}
 	if actualPerson.Organization != "" {
 		t.Error("Should not have organization")
 	}

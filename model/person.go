@@ -14,7 +14,6 @@ CREATE TABLE person (
 	issigned bool not null,
 	balance integer not null,
 	biographyhash varchar not null,
-	biographyformat varchar not null,
 	organization varchar not null,
 	telephone varchar not null,
 	address varchar not null,
@@ -24,31 +23,32 @@ CREATE TABLE person (
 )`
 
 const (
-	EV_PERSON_CREATE = "evPersonCreate"
+	EV_PERSON_CREATE            = "evPersonCreate"
+	EV_PERSON_UPDATE            = "evPersonUpdate"
+	EV_PERSON_MODIFICATION_TIME = "evPersonModificationTime"
 )
 
 const (
-	PERSON_PUBLIC_KEY       = "publicKey"
-	PERSON_NAME             = "name"
-	PERSON_EMAIL            = "email"
-	PERSON_IS_MAJOR         = "isMajor"
-	PERSON_IS_SIGNED        = "isSigned"
-	PERSON_BALANCE          = "balance"
-	PERSON_BIOGRAPHY_HASH   = "biographyHash"
-	PERSON_BIOGRAPHY_FORMAT = "biographyFormat"
-	PERSON_ORGANIZATION     = "organization"
-	PERSON_TELEPHONE        = "telephone"
-	PERSON_ADDRESS          = "address"
-	PERSON_POSTAL_CODE      = "postalCode"
-	PERSON_COUNTRY          = "country"
-	PERSON_EXTRA_INFO       = "extraInfo"
+	PERSON_PUBLIC_KEY     = "publicKey"
+	PERSON_NAME           = "name"
+	PERSON_EMAIL          = "email"
+	PERSON_IS_MAJOR       = "isMajor"
+	PERSON_IS_SIGNED      = "isSigned"
+	PERSON_BALANCE        = "balance"
+	PERSON_BIOGRAPHY_HASH = "biographyHash"
+	PERSON_ORGANIZATION   = "organization"
+	PERSON_TELEPHONE      = "telephone"
+	PERSON_ADDRESS        = "address"
+	PERSON_POSTAL_CODE    = "postalCode"
+	PERSON_COUNTRY        = "country"
+	PERSON_EXTRA_INFO     = "extraInfo"
 )
 
 const personAddressPrefix = "01"
 
 func CreatePersonAddress() string {
-	var uuid uuid.UUID = uuid.New()
-	uuidDigest := hexdigestOfUuid(uuid)
+	var theUuid uuid.UUID = uuid.New()
+	uuidDigest := hexdigestOfUuid(theUuid)
 	return Namespace + personAddressPrefix + uuidDigest[:62]
 }
 

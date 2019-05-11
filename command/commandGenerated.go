@@ -1,6 +1,8 @@
 package command
 
 import (
+	"errors"
+	"fmt"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 )
@@ -191,8 +193,11 @@ func createModelCommandSettingsUpdate(orig, updated *dao.Settings) *model.Comman
 	return result
 }
 
-func createModelCommandPersonUpdate(orig, updated *dao.PersonUpdate) *model.CommandPersonUpdateProperties {
+func createModelCommandPersonUpdate(
+	personId string,
+	orig, updated *dao.PersonUpdate) *model.CommandPersonUpdateProperties {
 	result := &model.CommandPersonUpdateProperties{}
+	result.PersonId = personId
 
 	if updated.PublicKey != orig.PublicKey {
 		oldValue := orig.PublicKey
@@ -292,6 +297,179 @@ func createModelCommandPersonUpdate(orig, updated *dao.PersonUpdate) *model.Comm
 			NewValue: newValue,
 		}
 		result.ExtraInfoUpdate = theUpdate
+	}
+
+	return result
+}
+
+func checkModelCommandPersonUpdateProperties(
+	c *model.CommandPersonUpdateProperties, oldPerson *model.StatePerson) error {
+
+	if c.PublicKeyUpdate != nil && c.PublicKeyUpdate.OldValue != oldPerson.PublicKey {
+		return errors.New(fmt.Sprintf("Person update properties value mismatch. Expected %s, got %s",
+			c.PublicKeyUpdate.OldValue, oldPerson.PublicKey))
+	}
+
+	if c.NameUpdate != nil && c.NameUpdate.OldValue != oldPerson.Name {
+		return errors.New(fmt.Sprintf("Person update properties value mismatch. Expected %s, got %s",
+			c.NameUpdate.OldValue, oldPerson.Name))
+	}
+
+	if c.EmailUpdate != nil && c.EmailUpdate.OldValue != oldPerson.Email {
+		return errors.New(fmt.Sprintf("Person update properties value mismatch. Expected %s, got %s",
+			c.EmailUpdate.OldValue, oldPerson.Email))
+	}
+
+	if c.BiographyHashUpdate != nil && c.BiographyHashUpdate.OldValue != oldPerson.BiographyHash {
+		return errors.New(fmt.Sprintf("Person update properties value mismatch. Expected %s, got %s",
+			c.BiographyHashUpdate.OldValue, oldPerson.BiographyHash))
+	}
+
+	if c.OrganizationUpdate != nil && c.OrganizationUpdate.OldValue != oldPerson.Organization {
+		return errors.New(fmt.Sprintf("Person update properties value mismatch. Expected %s, got %s",
+			c.OrganizationUpdate.OldValue, oldPerson.Organization))
+	}
+
+	if c.TelephoneUpdate != nil && c.TelephoneUpdate.OldValue != oldPerson.Telephone {
+		return errors.New(fmt.Sprintf("Person update properties value mismatch. Expected %s, got %s",
+			c.TelephoneUpdate.OldValue, oldPerson.Telephone))
+	}
+
+	if c.AddressUpdate != nil && c.AddressUpdate.OldValue != oldPerson.Address {
+		return errors.New(fmt.Sprintf("Person update properties value mismatch. Expected %s, got %s",
+			c.AddressUpdate.OldValue, oldPerson.Address))
+	}
+
+	if c.PostalCodeUpdate != nil && c.PostalCodeUpdate.OldValue != oldPerson.PostalCode {
+		return errors.New(fmt.Sprintf("Person update properties value mismatch. Expected %s, got %s",
+			c.PostalCodeUpdate.OldValue, oldPerson.PostalCode))
+	}
+
+	if c.CountryUpdate != nil && c.CountryUpdate.OldValue != oldPerson.Country {
+		return errors.New(fmt.Sprintf("Person update properties value mismatch. Expected %s, got %s",
+			c.CountryUpdate.OldValue, oldPerson.Country))
+	}
+
+	if c.ExtraInfoUpdate != nil && c.ExtraInfoUpdate.OldValue != oldPerson.ExtraInfo {
+		return errors.New(fmt.Sprintf("Person update properties value mismatch. Expected %s, got %s",
+			c.ExtraInfoUpdate.OldValue, oldPerson.ExtraInfo))
+	}
+
+	return nil
+}
+
+func createSingleUpdatesPersonUpdateProperties(
+	c *model.CommandPersonUpdateProperties, oldPerson *model.StatePerson, timestamp int64) []singleUpdate {
+	result := []singleUpdate{}
+
+	if c.PublicKeyUpdate != nil {
+		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
+			newValue:   c.PublicKeyUpdate.NewValue,
+			stateField: &oldPerson.PublicKey,
+			eventKey:   model.PERSON_PUBLIC_KEY,
+			personId:   c.PersonId,
+			timestamp:  timestamp,
+		}
+		result = append(result, toAppend)
+	}
+
+	if c.NameUpdate != nil {
+		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
+			newValue:   c.NameUpdate.NewValue,
+			stateField: &oldPerson.Name,
+			eventKey:   model.PERSON_NAME,
+			personId:   c.PersonId,
+			timestamp:  timestamp,
+		}
+		result = append(result, toAppend)
+	}
+
+	if c.EmailUpdate != nil {
+		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
+			newValue:   c.EmailUpdate.NewValue,
+			stateField: &oldPerson.Email,
+			eventKey:   model.PERSON_EMAIL,
+			personId:   c.PersonId,
+			timestamp:  timestamp,
+		}
+		result = append(result, toAppend)
+	}
+
+	if c.BiographyHashUpdate != nil {
+		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
+			newValue:   c.BiographyHashUpdate.NewValue,
+			stateField: &oldPerson.BiographyHash,
+			eventKey:   model.PERSON_BIOGRAPHY_HASH,
+			personId:   c.PersonId,
+			timestamp:  timestamp,
+		}
+		result = append(result, toAppend)
+	}
+
+	if c.OrganizationUpdate != nil {
+		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
+			newValue:   c.OrganizationUpdate.NewValue,
+			stateField: &oldPerson.Organization,
+			eventKey:   model.PERSON_ORGANIZATION,
+			personId:   c.PersonId,
+			timestamp:  timestamp,
+		}
+		result = append(result, toAppend)
+	}
+
+	if c.TelephoneUpdate != nil {
+		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
+			newValue:   c.TelephoneUpdate.NewValue,
+			stateField: &oldPerson.Telephone,
+			eventKey:   model.PERSON_TELEPHONE,
+			personId:   c.PersonId,
+			timestamp:  timestamp,
+		}
+		result = append(result, toAppend)
+	}
+
+	if c.AddressUpdate != nil {
+		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
+			newValue:   c.AddressUpdate.NewValue,
+			stateField: &oldPerson.Address,
+			eventKey:   model.PERSON_ADDRESS,
+			personId:   c.PersonId,
+			timestamp:  timestamp,
+		}
+		result = append(result, toAppend)
+	}
+
+	if c.PostalCodeUpdate != nil {
+		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
+			newValue:   c.PostalCodeUpdate.NewValue,
+			stateField: &oldPerson.PostalCode,
+			eventKey:   model.PERSON_POSTAL_CODE,
+			personId:   c.PersonId,
+			timestamp:  timestamp,
+		}
+		result = append(result, toAppend)
+	}
+
+	if c.CountryUpdate != nil {
+		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
+			newValue:   c.CountryUpdate.NewValue,
+			stateField: &oldPerson.Country,
+			eventKey:   model.PERSON_COUNTRY,
+			personId:   c.PersonId,
+			timestamp:  timestamp,
+		}
+		result = append(result, toAppend)
+	}
+
+	if c.ExtraInfoUpdate != nil {
+		var toAppend singleUpdate = &singleUpdatePersonPropertyUpdate{
+			newValue:   c.ExtraInfoUpdate.NewValue,
+			stateField: &oldPerson.ExtraInfo,
+			eventKey:   model.PERSON_EXTRA_INFO,
+			personId:   c.PersonId,
+			timestamp:  timestamp,
+		}
+		result = append(result, toAppend)
 	}
 
 	return result

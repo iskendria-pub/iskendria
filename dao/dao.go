@@ -72,8 +72,12 @@ func parseEvent(input *events_pb2.Event) (event, error) {
 		return createSettingsCreateEvent(input)
 	case model.EV_PERSON_CREATE:
 		return createPersonCreateEvent(input)
+	case model.EV_PERSON_UPDATE:
+		return createPersonUpdateEvent(input)
+	case model.EV_PERSON_MODIFICATION_TIME:
+		return createPersonModificationTimeEvent(input)
 	default:
-		return nil, errors.New(input.EventType + "Unknown event type: ")
+		return nil, errors.New("Unknown event type: " + input.EventType)
 	}
 }
 

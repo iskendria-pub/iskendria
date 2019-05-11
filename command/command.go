@@ -267,35 +267,9 @@ func (nbce *nonBootstrapCommandExecution) check(c *model.Command) (*updater, err
 	switch c.Body.(type) {
 	case *model.Command_PersonCreate:
 		return nbce.checkPersonCreate(c.GetPersonCreate())
+	case *model.Command_CommandPersonUpdateProperties:
+		return nbce.checkPersonUpdateProperties(c.GetCommandPersonUpdateProperties())
 	default:
 		return nil, errors.New("Non-bootstrap command type not supported")
 	}
-}
-
-func (nbce *nonBootstrapCommandExecution) checkPersonCreate(c *model.CommandPersonCreate) (*updater, error) {
-	if err := checkSanityPersonCreate(c); err != nil {
-		return nil, err
-	}
-	readData, err := nbce.blockchainAccess.GetState([]string{c.NewPersonId})
-	if err != nil {
-		return nil, err
-	}
-	err = nbce.unmarshalledState.add(readData, []string{c.NewPersonId})
-	if err != nil {
-		return nil, err
-	}
-	if nbce.unmarshalledState.getAddressState(c.NewPersonId) != ADDRESS_EMPTY {
-		return nil, errors.New("Address collision when creating person: " + c.NewPersonId)
-	}
-	return &updater{
-		unmarshalledState: nbce.unmarshalledState,
-		updates: []singleUpdate{
-			&singleUpdatePersonCreate{
-				timestamp:    nbce.timestamp,
-				personCreate: c,
-				isSigned:     false,
-				isMajor:      false,
-			},
-		},
-	}, nil
 }

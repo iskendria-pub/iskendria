@@ -12,6 +12,9 @@ import (
 
 const TIME_DIFF_THRESHOLD_SECONDS = 10
 
+const personPublicKeyFile = "person.pub"
+const personPrivateKeyFile = "person.priv"
+
 func withInitializedDao(testFunc func(logger *log.Logger, t *testing.T), logger *log.Logger, t *testing.T) {
 	dao.Init("testBootstrap.db", logger)
 	defer dao.ShutdownAndDelete(logger)
@@ -52,8 +55,6 @@ func withNewPersonCreate(
 	t *testing.T) {
 	withNewPersonCreate := func(blockchainAccess command.BlockchainAccess, logger *log.Logger, t *testing.T) {
 		doTestBootstrap(blockchainAccess, logger, t)
-		personPublicKeyFile := "person.pub"
-		personPrivateKeyFile := "person.priv"
 		err := cliAlexandria.CreateKeyPair(personPublicKeyFile, personPrivateKeyFile)
 		if err != nil {
 			t.Error("Could not create key pair for new person")
@@ -210,9 +211,6 @@ func checkPerson(person *dao.Person, t *testing.T) {
 	if person.BiographyHash != "" {
 		t.Error("BiographyHash mismatch")
 	}
-	if person.BiographyFormat != "" {
-		t.Error("BiographyFormat mismatch")
-	}
 	if person.Organization != "" {
 		t.Error("Organization mismatch")
 	}
@@ -302,9 +300,6 @@ func checkCreatedPerson(person *dao.Person, expectedPublicKey string, t *testing
 	}
 	if person.BiographyHash != "" {
 		t.Error("BiographyHash mismatch")
-	}
-	if person.BiographyFormat != "" {
-		t.Error("BiographyFormat mismatch")
 	}
 	if person.Organization != "" {
 		t.Error("Organization mismatch")

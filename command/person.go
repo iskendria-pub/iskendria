@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
@@ -56,7 +57,7 @@ func GetPersonUpdateCommand(
 			Price:     price,
 			Timestamp: model.GetCurrentTime(),
 			Body: &model.Command_CommandPersonUpdateProperties{
-				CommandPersonUpdateProperties: createModelCommandPersonUpdate(orig, updated),
+				CommandPersonUpdateProperties: createModelCommandPersonUpdate(personId, orig, updated),
 			},
 		},
 	}
@@ -164,6 +165,54 @@ func GetPersonIncBalanceCommand(
 	}
 }
 
+func (nbce *nonBootstrapCommandExecution) checkPersonCreate(c *model.CommandPersonCreate) (*updater, error) {
+	if err := checkSanityPersonCreate(c); err != nil {
+		return nil, err
+	}
+	readData, err := nbce.blockchainAccess.GetState([]string{c.NewPersonId})
+	if err != nil {
+		return nil, err
+	}
+	err = nbce.unmarshalledState.add(readData, []string{c.NewPersonId})
+	if err != nil {
+		return nil, err
+	}
+	if nbce.unmarshalledState.getAddressState(c.NewPersonId) != ADDRESS_EMPTY {
+		return nil, errors.New("Address collision when creating person: " + c.NewPersonId)
+	}
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates: []singleUpdate{
+			&singleUpdatePersonCreate{
+				timestamp:    nbce.timestamp,
+				personCreate: c,
+				isSigned:     false,
+				isMajor:      false,
+			},
+		},
+	}, nil
+}
+
+func (nbce *nonBootstrapCommandExecution) checkPersonUpdateProperties(c *model.CommandPersonUpdateProperties) (
+	*updater, error) {
+	if c.PersonId != nbce.verifiedSignerId {
+		return nil, errors.New("Person update properties not authorized. Properties can not be updated by someone else")
+	}
+	oldPerson := nbce.unmarshalledState.persons[nbce.verifiedSignerId]
+	if err := checkModelCommandPersonUpdateProperties(c, oldPerson); err != nil {
+		return nil, err
+	}
+	singleUpdates := createSingleUpdatesPersonUpdateProperties(c, oldPerson, nbce.timestamp)
+	singleUpdates = append(singleUpdates, &singleUpdatePersonTimestamp{
+		timestamp: nbce.timestamp,
+		personId:  nbce.verifiedSignerId,
+	})
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           singleUpdates,
+	}, nil
+}
+
 type singleUpdatePersonCreate struct {
 	timestamp    int64
 	personCreate *model.CommandPersonCreate
@@ -228,6 +277,85 @@ func (u *singleUpdatePersonCreate) issueEvent(eventSeq int32, transactionId stri
 			{
 				Key:   model.PERSON_IS_SIGNED,
 				Value: strconv.FormatBool(u.isSigned),
+			},
+		},
+		[]byte{})
+}
+
+type singleUpdatePersonPropertyUpdate struct {
+	newValue   string
+	stateField *string
+	eventKey   string
+	personId   string
+	timestamp  int64
+}
+
+var _ singleUpdate = new(singleUpdatePersonPropertyUpdate)
+
+func (su singleUpdatePersonPropertyUpdate) updateState(_ *unmarshalledState) (writtenAddress string) {
+	*su.stateField = su.newValue
+	return su.personId
+}
+
+func (su singleUpdatePersonPropertyUpdate) issueEvent(
+	eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.EV_PERSON_UPDATE,
+		[]processor.Attribute{
+			{
+				Key:   model.TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.TIMESTAMP,
+				Value: fmt.Sprintf("%d", su.timestamp),
+			},
+			{
+				Key:   model.EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.ID,
+				Value: su.personId,
+			},
+			{
+				Key:   su.eventKey,
+				Value: su.newValue,
+			},
+		}, []byte{})
+}
+
+type singleUpdatePersonTimestamp struct {
+	timestamp int64
+	personId  string
+}
+
+var _ singleUpdate = new(singleUpdatePersonTimestamp)
+
+func (u *singleUpdatePersonTimestamp) updateState(state *unmarshalledState) (writtenAddress string) {
+	state.persons[u.personId].ModifiedOn = u.timestamp
+	return u.personId
+}
+
+func (u *singleUpdatePersonTimestamp) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.EV_PERSON_MODIFICATION_TIME,
+		[]processor.Attribute{
+			{
+				Key:   model.TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.ID,
+				Value: u.personId,
 			},
 		},
 		[]byte{})

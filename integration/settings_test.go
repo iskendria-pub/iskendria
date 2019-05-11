@@ -4,7 +4,6 @@ import (
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"log"
 	"os"
 	"testing"
@@ -34,6 +33,9 @@ func doTestPersonUpdate(
 	logger *log.Logger,
 	t *testing.T) {
 	doTestPersonCreate(originalPersonCreate, blockchainAccess, logger, t)
+	if err := cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile); err != nil {
+		t.Error("Could not login as newly created person")
+	}
 	newPublicKey := "Fake key"
 	cmd, originalPersonId := getPersonUpdateCommand(originalPersonCreate, newPublicKey, t)
 	err := command.RunCommandForTest(cmd, "transactionPersonUpdate", blockchainAccess)
@@ -104,9 +106,6 @@ func checkModifiedPerson(person *dao.Person, expectedId, expectedPublicKey strin
 	}
 	if person.BiographyHash != "01234567" {
 		t.Error("BiographyHash mismatch")
-	}
-	if person.BiographyFormat != model.PDF {
-		t.Error("BiographyFormat mismatch")
 	}
 	if person.Organization != "Peter's Toko" {
 		t.Error("Organization mismatch")

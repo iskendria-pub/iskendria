@@ -29,20 +29,20 @@ func TestGetPerson(t *testing.T) {
 	if len(expectedLenZero) != 0 {
 		t.Error("When person table empty, got persons from key")
 	}
-	firstPersonCreate := &dataManipulationPersonCreate {
-		id: firstId,
+	firstPersonCreate := &dataManipulationPersonCreate{
+		id:        firstId,
 		timestamp: 1100000000000,
 		publicKey: firstKey,
-		name: "Martijn",
-		email: "xxx@gmail.com",
+		name:      "Martijn",
+		email:     "xxx@gmail.com",
 	}
 	applyPersonCreate(firstPersonCreate, t)
 	secondPersonCreate := &dataManipulationPersonCreate{
-		id: secondId,
+		id:        secondId,
 		timestamp: 12000,
 		publicKey: secondKey,
-		name: "Maurice",
-		email: "yyy.gmail.com",
+		name:      "Maurice",
+		email:     "yyy.gmail.com",
 	}
 	applyPersonCreate(secondPersonCreate, t)
 	firstPerson, err := GetPersonById(firstId)
@@ -79,9 +79,6 @@ func TestGetPerson(t *testing.T) {
 	}
 	if firstPerson.BiographyHash != "" {
 		t.Error("For first person, checking bibliography hash failed")
-	}
-	if firstPerson.BiographyFormat != "" {
-		t.Error("For first person, checking bibliography format failed")
 	}
 	if firstPerson.Organization != "" {
 		t.Error("For first person, checking organization failed")
