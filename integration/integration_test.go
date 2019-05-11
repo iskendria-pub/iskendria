@@ -33,7 +33,7 @@ func doTestPersonUpdate(originalPersonCreate *command.PersonCreate, t *testing.T
 		t.Error("Could not login as newly created person")
 	}
 	newPublicKey := "Fake key"
-	cmd, originalPersonId := getPersonUpdateCommand(originalPersonCreate, newPublicKey, t)
+	cmd, originalPersonId := getPersonUpdatePropertiesCommand(originalPersonCreate, newPublicKey, t)
 	err := command.RunCommandForTest(cmd, "transactionPersonUpdate", blockchainAccess)
 	if err != nil {
 		t.Error("Could not run person update command: " + err.Error())
@@ -41,11 +41,11 @@ func doTestPersonUpdate(originalPersonCreate *command.PersonCreate, t *testing.T
 	checkModifiedPerson(getPersonByKey(newPublicKey, t), originalPersonId, newPublicKey, t)
 }
 
-func getPersonUpdateCommand(originalPersonCreate *command.PersonCreate, newPublicKey string, t *testing.T) (
+func getPersonUpdatePropertiesCommand(originalPersonCreate *command.PersonCreate, newPublicKey string, t *testing.T) (
 	*command.Command, string) {
 	originalPerson := getPersonByKey(originalPersonCreate.PublicKey, t)
 	originalPersonUpdate := dao.PersonToPersonUpdate(originalPerson)
-	newPersonUpdate := getNewPersonUpdate(newPublicKey)
+	newPersonUpdate := getNewDaoPersonUpdate(newPublicKey)
 	settings, err := dao.GetSettings()
 	if err != nil {
 		t.Error(err)
@@ -60,7 +60,7 @@ func getPersonUpdateCommand(originalPersonCreate *command.PersonCreate, newPubli
 	return cmd, originalPerson.Id
 }
 
-func getNewPersonUpdate(newPublicKey string) *dao.PersonUpdate {
+func getNewDaoPersonUpdate(newPublicKey string) *dao.PersonUpdate {
 	result := new(dao.PersonUpdate)
 	result.PublicKey = newPublicKey
 	result.Name = "Peter"

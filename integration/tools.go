@@ -89,8 +89,8 @@ func doTestBootstrap(t *testing.T) {
 		t.Error("Expected that bootstrapping would produce exactly one person")
 	}
 	person := persons[0]
-	checkSettings(readSettings, t)
-	checkPerson(person, t)
+	checkBootstrapSettings(readSettings, t)
+	checkBootstrapPerson(person, t)
 }
 
 func getBootstrap() *command.Bootstrap {
@@ -118,7 +118,7 @@ func getBootstrap() *command.Bootstrap {
 	}
 }
 
-func checkSettings(settings *dao.Settings, t *testing.T) {
+func checkBootstrapSettings(settings *dao.Settings, t *testing.T) {
 	if settings.PriceMajorEditSettings != 101 {
 		t.Error("PriceMajorEditSettings mismatch")
 	}
@@ -175,7 +175,7 @@ func checkSettings(settings *dao.Settings, t *testing.T) {
 	}
 }
 
-func checkPerson(person *dao.Person, t *testing.T) {
+func checkBootstrapPerson(person *dao.Person, t *testing.T) {
 	if !model.IsPersonAddress(person.Id) {
 		t.Error("Id mismatch")
 	}
