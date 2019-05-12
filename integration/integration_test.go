@@ -228,3 +228,29 @@ func doTestPersonUpdateUnsetSigned(t *testing.T) {
 		t.Error("Signed was not unset")
 	}
 }
+
+func TestPersonUpdateIncBalance(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestPersonUpdateIncBalance", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	withLoggedInWithNewKey(doTestPersonUpdateIncBalance, t)
+}
+
+func doTestPersonUpdateIncBalance(t *testing.T) {
+	doTestBootstrap(t)
+	theBalanceIncrement := 50
+	originalPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	cmd := command.GetPersonUpdateIncBalanceCommand(
+		originalPerson.Id,
+		int32(theBalanceIncrement),
+		originalPerson.Id,
+		cliAlexandria.LoggedIn(),
+		int32(0))
+	err := command.RunCommandForTest(cmd, "transactionIdIncBalance", blockchainAccess)
+	if err != nil {
+		t.Error("Could not run person update inc balance command: " + err.Error())
+	}
+	updated := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	if updated.Balance != int32(theBalanceIncrement) {
+		t.Error("Balance has not been incremented")
+	}
+}

@@ -150,6 +150,7 @@ func (dmpc *dataManipulationPersonCreate) apply(tx *sqlx.Tx) error {
 func createPersonUpdateEvent(ev *events_pb2.Event) (event, error) {
 	dmProperties := &dataManipulationPersonUpdateProperties{}
 	dmAuthorization := &dataManipulationPersonUpdateAuthorization{}
+	dmBalance := &dataManipulationPersonUpdateBalance{}
 	result := &dataManipulationEvent{}
 	for _, a := range ev.Attributes {
 		var err error
@@ -166,6 +167,7 @@ func createPersonUpdateEvent(ev *events_pb2.Event) (event, error) {
 		case model.EV_KEY_ID:
 			dmProperties.id = a.Value
 			dmAuthorization.id = a.Value
+			dmBalance.id = a.Value
 		case model.EV_KEY_PERSON_PUBLIC_KEY, model.EV_KEY_PERSON_NAME, model.EV_KEY_PERSON_EMAIL,
 			model.EV_KEY_PERSON_BIOGRAPHY_HASH, model.EV_KEY_PERSON_ORGANIZATION, model.EV_KEY_PERSON_TELEPHONE,
 			model.EV_KEY_PERSON_ADDRESS, model.EV_KEY_PERSON_POSTAL_CODE, model.EV_KEY_PERSON_COUNTRY,
@@ -178,6 +180,10 @@ func createPersonUpdateEvent(ev *events_pb2.Event) (event, error) {
 			dmAuthorization.field = strings.ToLower(a.Key)
 			b, err = strconv.ParseBool(a.Value)
 			dmAuthorization.newValue = b
+		case model.EV_KEY_PERSON_BALANCE:
+			result.dataManipulation = dmBalance
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			dmBalance.newValue = int32(i64)
 		default:
 			err = errors.New("createPersonUpdateEvent: unknown attribute " + a.Key)
 		}
@@ -214,6 +220,20 @@ var _ dataManipulation = new(dataManipulationPersonUpdateAuthorization)
 func (dm *dataManipulationPersonUpdateAuthorization) apply(tx *sqlx.Tx) error {
 	query := fmt.Sprintf("UPDATE person SET %s = %s WHERE id = \"%s\"",
 		dm.field, strconv.FormatBool(dm.newValue), dm.id)
+	_, err := tx.Exec(query)
+	return err
+}
+
+type dataManipulationPersonUpdateBalance struct {
+	id       string
+	newValue int32
+}
+
+var _ dataManipulation = new(dataManipulationPersonUpdateBalance)
+
+func (dm *dataManipulationPersonUpdateBalance) apply(tx *sqlx.Tx) error {
+	query := fmt.Sprintf("UPDATE person SET %s = %d WHERE id = \"%s\"",
+		strings.ToLower(model.EV_KEY_PERSON_BALANCE), dm.newValue, dm.id)
 	_, err := tx.Exec(query)
 	return err
 }

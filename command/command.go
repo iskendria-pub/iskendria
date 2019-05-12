@@ -252,6 +252,8 @@ func (nbce *nonBootstrapCommandExecution) check(c *model.Command) (*updater, err
 		return nbce.checkPersonUpdateProperties(c.GetCommandPersonUpdateProperties())
 	case *model.Command_CommandUpdateAuthorization:
 		return nbce.checkPersonUpdateAuthorization(c.GetCommandUpdateAuthorization())
+	case *model.Command_CommandPersonUpdateBalanceIncrement:
+		return nbce.checkPersonUpdateIncBalance(c.GetCommandPersonUpdateBalanceIncrement())
 	default:
 		return nil, errors.New("Non-bootstrap command type not supported")
 	}

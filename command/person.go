@@ -520,3 +520,79 @@ func (u *singleUpdatePersonAuthorizationUpdate) issueEvent(
 			},
 		}, []byte{})
 }
+
+func (nbce *nonBootstrapCommandExecution) checkPersonUpdateIncBalance(c *model.CommandPersonUpdateBalanceIncrement) (
+	*updater, error) {
+	if nbce.price != int32(0) {
+		return nil, formatPriceError("-", int32(0))
+	}
+	if !nbce.unmarshalledState.persons[nbce.verifiedSignerId].IsMajor {
+		return nil, errors.New("Only majors can increment someone's balance")
+	}
+	data, err := nbce.blockchainAccess.GetState([]string{c.PersonId})
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf(
+			"Could not read person %s: %s", c.PersonId, err.Error()))
+	}
+	err = nbce.unmarshalledState.add(data, []string{c.PersonId})
+	if err != nil {
+		return nil, errors.New("Could not unmarshall person: " + c.PersonId)
+	}
+	if nbce.unmarshalledState.getAddressState(c.PersonId) != ADDRESS_FILLED {
+		return nil, errors.New("The person whose balance is to be updated does not exist: " + c.PersonId)
+	}
+	oldPerson := nbce.unmarshalledState.persons[c.PersonId]
+	singleUpdates := []singleUpdate{
+		&singleUpdatePersonIncBalance{
+			personId:   c.PersonId,
+			newBalance: oldPerson.Balance + c.BalanceIncrement,
+			timestamp:  nbce.timestamp,
+		},
+	}
+	singleUpdates = nbce.addSingleUpdatePersonModificationTimeIfNeeded(singleUpdates, oldPerson.Id)
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           singleUpdates,
+	}, nil
+}
+
+type singleUpdatePersonIncBalance struct {
+	personId   string
+	newBalance int32
+	timestamp  int64
+}
+
+var _ singleUpdate = new(singleUpdatePersonIncBalance)
+
+func (u *singleUpdatePersonIncBalance) updateState(state *unmarshalledState) (writtenAddress string) {
+	state.persons[u.personId].Balance = u.newBalance
+	return u.personId
+}
+
+func (u *singleUpdatePersonIncBalance) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.EV_TYPE_PERSON_UPDATE,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_ID,
+				Value: u.personId,
+			},
+			{
+				Key:   model.EV_KEY_PERSON_BALANCE,
+				Value: fmt.Sprintf("%d", u.newBalance),
+			},
+		},
+		[]byte{})
+}
