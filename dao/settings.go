@@ -2,11 +2,13 @@ package dao
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
 	"github.com/jmoiron/sqlx"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"strconv"
+	"strings"
 )
 
 type Settings struct {
@@ -174,5 +176,95 @@ func (dmsc *dataManipulationSettingsCreate) apply(tx *sqlx.Tx) error {
 		dmsc.priceEditorEditJournal,
 		dmsc.priceEditorAddColleague,
 		dmsc.priceEditorAcceptDuty)
+	return err
+}
+
+func createSettingsUpdateEvent(input *events_pb2.Event) (event, error) {
+	dm := &dataManipulationSettingsUpdate{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	for _, a := range input.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_TIMESTAMP:
+			// Nothing to do
+		case model.EV_KEY_PRICE_MAJOR_EDIT_SETTINGS, model.EV_KEY_PRICE_MAJOR_CREATE_PERSON,
+			model.EV_KEY_PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION, model.EV_KEY_PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION,
+			model.EV_KEY_PRICE_PERSON_EDIT, model.EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT,
+			model.EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_VERSION, model.EV_KEY_PRICE_AUTHOR_ACCEPT_AUTHORSHIP,
+			model.EV_KEY_PRICE_REVIEWER_SUBMIT, model.EV_KEY_PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW,
+			model.EV_KEY_PRICE_EDITOR_REJECT_MANUSCRIPT, model.EV_KEY_PRICE_EDITOR_PUBLISH_MANUSCRIPT,
+			model.EV_KEY_PRICE_EDITOR_ASSIGN_MANUSCRIPT, model.EV_KEY_PRICE_EDITOR_CREATE_JOURNAL,
+			model.EV_KEY_PRICE_EDITOR_CREATE_VOLUME, model.EV_KEY_PRICE_EDITOR_EDIT_JOURNAL,
+			model.EV_KEY_PRICE_EDITOR_ADD_COLLEAGUE, model.EV_KEY_PRICE_EDITOR_ACCEPT_DUTY:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			dm.field = strings.ToLower(a.Key)
+			dm.newValue = int32(i64)
+		default:
+			err = errors.New("createSettingsUpdateEvent: Unknown event attribute: " + a.Key)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationSettingsUpdate struct {
+	field    string
+	newValue int32
+}
+
+var _ dataManipulation = new(dataManipulationSettingsUpdate)
+
+func (dm *dataManipulationSettingsUpdate) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec(fmt.Sprintf("UPDATE settings SET %s = %d WHERE Id = %d",
+		dm.field, dm.newValue, THE_SETTINGS_ID))
+	return err
+}
+
+func createSettingsModificationTimeEvent(input *events_pb2.Event) (event, error) {
+	dm := new(dataManipulationSettingsModificationTime)
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	for _, a := range input.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_TIMESTAMP:
+			i64, err = strconv.ParseInt(a.Value, 10, 64)
+			dm.timestamp = i64
+		default:
+			err = errors.New("createSettingsModificationTimeEvent: Unknown event attribute: " + a.Key)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationSettingsModificationTime struct {
+	timestamp int64
+}
+
+var _ dataManipulation = new(dataManipulationSettingsModificationTime)
+
+func (dm *dataManipulationSettingsModificationTime) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec(fmt.Sprintf("UPDATE settings SET modifiedon = %d WHERE Id = %d",
+		dm.timestamp, THE_SETTINGS_ID))
 	return err
 }

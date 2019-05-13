@@ -70,6 +70,10 @@ func parseEvent(input *events_pb2.Event) (event, error) {
 		return createTransactionControlEvent(input)
 	case model.EV_TYPE_SETTINGS_CREATE:
 		return createSettingsCreateEvent(input)
+	case model.EV_TYPE_SETTINGS_UPDATE:
+		return createSettingsUpdateEvent(input)
+	case model.EV_TYPE_SETTINGS_MODIFICATION_TIME:
+		return createSettingsModificationTimeEvent(input)
 	case model.EV_TYPE_PERSON_CREATE:
 		return createPersonCreateEvent(input)
 	case model.EV_TYPE_PERSON_UPDATE:

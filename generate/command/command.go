@@ -38,6 +38,34 @@ func createModelCommandSettingsUpdate(orig, updated *dao.Settings) *model.Comman
     return result
 }
 
+func checkModelCommandSettingsUpdate(
+c *model.CommandSettingsUpdate, oldSettings *model.StateSettings) error {
+	{{range .CommandSettingsUpdateProperties}}
+	if c.{{.CommandField}}Update != nil && c.{{.CommandField}}Update.OldValue != oldSettings.PriceList.{{.CommandField}} {
+		return errors.New(fmt.Sprintf("{{.CommandField}} mismatch. Expected %d, got %d",
+			c.{{.CommandField}}Update.OldValue, oldSettings.PriceList.{{.CommandField}}))
+	}
+	{{end}}
+    return nil
+}
+
+func createSingleUpdatesSettingsUpdate(
+c *model.CommandSettingsUpdate, oldSettings *model.StateSettings, timestamp int64) []singleUpdate {
+	result := []singleUpdate{}
+{{range .CommandSettingsUpdateProperties}}
+	if c.{{.CommandField}}Update != nil {
+        var toAppend singleUpdate = &singleUpdateSettingsUpdate{
+			newValue: c.{{.CommandField}}Update.NewValue,
+			stateField: &oldSettings.PriceList.{{.CommandField}},
+			eventKey: model.{{.EventKey}},
+			timestamp: timestamp,
+		}
+		result = append(result, toAppend)
+	}
+{{end}}
+    return result
+}
+
 func createModelCommandPersonUpdateProperties(
 personId string,
 orig, updated *dao.PersonUpdate) *model.CommandPersonUpdateProperties {
@@ -80,9 +108,10 @@ c *model.CommandPersonUpdateProperties, oldPerson *model.StatePerson, timestamp 
 `
 
 type Config struct {
-	DaoSettingsUpdate             *Update
-	DaoPersonUpdateProperties     *Update
-	CommandPersonUpdateProperties []*modelCommandCheck
+	DaoSettingsUpdate               *Update
+	DaoPersonUpdateProperties       *Update
+	CommandSettingsUpdateProperties []*modelCommandCheck
+	CommandPersonUpdateProperties   []*modelCommandCheck
 }
 
 type Update struct {
@@ -121,7 +150,8 @@ func main() {
 			Kind:   "String",
 			Fields: getDaoPersonUpdatePropertiesFields(),
 		},
-		CommandPersonUpdateProperties: getCommandPersonUpdatePropertiesFields(),
+		CommandSettingsUpdateProperties: getCommandSettingsUpdatePropertiesFields(),
+		CommandPersonUpdateProperties:   getCommandPersonUpdatePropertiesFields(),
 	}
 	tmpl, err := template.New("templateCommand").Parse(templateCommand)
 	if err != nil {
@@ -165,6 +195,83 @@ func getDaoPersonUpdatePropertiesFields() []string {
 		result[i] = t.Field(i).Name
 	}
 	return result
+}
+
+func getCommandSettingsUpdatePropertiesFields() []*modelCommandCheck {
+	return []*modelCommandCheck{
+		{
+			CommandField: "PriceMajorEditSettings",
+			EventKey:     "EV_KEY_PRICE_MAJOR_EDIT_SETTINGS",
+		},
+		{
+			CommandField: "PriceMajorCreatePerson",
+			EventKey:     "EV_KEY_PRICE_MAJOR_CREATE_PERSON",
+		},
+		{
+			CommandField: "PriceMajorChangePersonAuthorization",
+			EventKey:     "EV_KEY_PRICE_MAJOR_CHANGE_PERSON_AUTHORIZATION",
+		},
+		{
+			CommandField: "PriceMajorChangeJournalAuthorization",
+			EventKey:     "EV_KEY_PRICE_MAJOR_CHANGE_JOURNAL_AUTHORIZATION",
+		},
+		{
+			CommandField: "PricePersonEdit",
+			EventKey:     "EV_KEY_PRICE_PERSON_EDIT",
+		},
+		{
+			CommandField: "PriceAuthorSubmitNewManuscript",
+			EventKey:     "EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_MANUSCRIPT",
+		},
+		{
+			CommandField: "PriceAuthorSubmitNewVersion",
+			EventKey:     "EV_KEY_PRICE_AUTHOR_SUBMIT_NEW_VERSION",
+		},
+		{
+			CommandField: "PriceAuthorAcceptAuthorship",
+			EventKey:     "EV_KEY_PRICE_AUTHOR_ACCEPT_AUTHORSHIP",
+		},
+		{
+			CommandField: "PriceReviewerSubmit",
+			EventKey:     "EV_KEY_PRICE_REVIEWER_SUBMIT",
+		},
+		{
+			CommandField: "PriceEditorAllowManuscriptReview",
+			EventKey:     "EV_KEY_PRICE_EDITOR_ALLOW_MANUSCRIPT_REVIEW",
+		},
+		{
+			CommandField: "PriceEditorRejectManuscript",
+			EventKey:     "EV_KEY_PRICE_EDITOR_REJECT_MANUSCRIPT",
+		},
+		{
+			CommandField: "PriceEditorPublishManuscript",
+			EventKey:     "EV_KEY_PRICE_EDITOR_PUBLISH_MANUSCRIPT",
+		},
+		{
+			CommandField: "PriceEditorAssignManuscript",
+			EventKey:     "EV_KEY_PRICE_EDITOR_ASSIGN_MANUSCRIPT",
+		},
+		{
+			CommandField: "PriceEditorCreateJournal",
+			EventKey:     "EV_KEY_PRICE_EDITOR_CREATE_JOURNAL",
+		},
+		{
+			CommandField: "PriceEditorCreateVolume",
+			EventKey:     "EV_KEY_PRICE_EDITOR_CREATE_VOLUME",
+		},
+		{
+			CommandField: "PriceEditorEditJournal",
+			EventKey:     "EV_KEY_PRICE_EDITOR_EDIT_JOURNAL",
+		},
+		{
+			CommandField: "PriceEditorAddColleague",
+			EventKey:     "EV_KEY_PRICE_EDITOR_ADD_COLLEAGUE",
+		},
+		{
+			CommandField: "PriceEditorAcceptDuty",
+			EventKey:     "EV_KEY_PRICE_EDITOR_ACCEPT_DUTY",
+		},
+	}
 }
 
 func getCommandPersonUpdatePropertiesFields() []*modelCommandCheck {

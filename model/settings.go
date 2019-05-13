@@ -33,7 +33,9 @@ var TableCreateSettings = `
 `
 
 const (
-	EV_TYPE_SETTINGS_CREATE = "evSettingsCreate"
+	EV_TYPE_SETTINGS_CREATE            = "evSettingsCreate"
+	EV_TYPE_SETTINGS_UPDATE            = "evSettingsUpdate"
+	EV_TYPE_SETTINGS_MODIFICATION_TIME = "evSettingsModificationTime"
 )
 
 const (

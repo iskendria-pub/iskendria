@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
@@ -81,7 +82,7 @@ func GetSettingsUpdateCommand(
 	cryptoIdentity *CryptoIdentity,
 	price int32) *Command {
 	return &Command{
-		InputAddresses:  []string{model.GetSettingsAddress()},
+		InputAddresses:  []string{model.GetSettingsAddress(), signerId},
 		OutputAddresses: []string{model.GetSettingsAddress()},
 		CryptoIdentity:  cryptoIdentity,
 		Command: &model.Command{
@@ -217,6 +218,104 @@ func (u *singleUpdateSettingsCreate) issueEvent(eventSeq int32, transactionId st
 			{
 				Key:   model.EV_KEY_PRICE_EDITOR_ACCEPT_DUTY,
 				Value: fmt.Sprintf("%d", u.priceList.PriceEditorAcceptDuty),
+			},
+		},
+		[]byte{})
+}
+
+func (nbce *nonBootstrapCommandExecution) checkSettingsUpdate(c *model.CommandSettingsUpdate) (*updater, error) {
+	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceMajorEditSettings
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("PriceMajorEditSettings", expectedPrice)
+	}
+	if !nbce.unmarshalledState.persons[nbce.verifiedSignerId].IsMajor {
+		return nil, errors.New("Only majors can update settings")
+	}
+	oldSettings := nbce.unmarshalledState.settings
+	if err := checkModelCommandSettingsUpdate(c, oldSettings); err != nil {
+		return nil, err
+	}
+	singleUpdates := createSingleUpdatesSettingsUpdate(c, oldSettings, nbce.timestamp)
+	singleUpdates = nbce.addSingleUpdateSettingsModificationTimeIfNeeded(singleUpdates)
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           singleUpdates,
+	}, nil
+}
+
+func (nbce *nonBootstrapCommandExecution) addSingleUpdateSettingsModificationTimeIfNeeded(
+	singleUpdates []singleUpdate) []singleUpdate {
+	if len(singleUpdates) >= 1 {
+		singleUpdates = append(singleUpdates, &singleUpdateSettingsModificationTime{
+			timestamp: nbce.timestamp,
+		})
+	}
+	return singleUpdates
+}
+
+type singleUpdateSettingsUpdate struct {
+	stateField *int32
+	newValue   int32
+	eventKey   string
+	timestamp  int64
+}
+
+var _ singleUpdate = new(singleUpdateSettingsUpdate)
+
+func (u *singleUpdateSettingsUpdate) updateState(_ *unmarshalledState) (writtenAddress string) {
+	*u.stateField = u.newValue
+	return model.GetSettingsAddress()
+}
+
+func (u *singleUpdateSettingsUpdate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(model.EV_TYPE_SETTINGS_UPDATE,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   u.eventKey,
+				Value: fmt.Sprintf("%d", u.newValue),
+			},
+		},
+		[]byte{})
+}
+
+type singleUpdateSettingsModificationTime struct {
+	timestamp int64
+}
+
+var _ singleUpdate = new(singleUpdateSettingsModificationTime)
+
+func (u *singleUpdateSettingsModificationTime) updateState(state *unmarshalledState) (writtenAddress string) {
+	state.settings.ModifiedOn = u.timestamp
+	return model.GetSettingsAddress()
+}
+
+func (u *singleUpdateSettingsModificationTime) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.EV_TYPE_SETTINGS_MODIFICATION_TIME,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
 			},
 		},
 		[]byte{})

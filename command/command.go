@@ -246,6 +246,8 @@ type nonBootstrapCommandExecution struct {
 
 func (nbce *nonBootstrapCommandExecution) check(c *model.Command) (*updater, error) {
 	switch c.Body.(type) {
+	case *model.Command_CommandSettingsUpdate:
+		return nbce.checkSettingsUpdate(c.GetCommandSettingsUpdate())
 	case *model.Command_PersonCreate:
 		return nbce.checkPersonCreate(c.GetPersonCreate())
 	case *model.Command_CommandPersonUpdateProperties:
