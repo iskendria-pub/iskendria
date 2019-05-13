@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"github.com/golang/protobuf/proto"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
@@ -89,8 +90,42 @@ func doTestBootstrap(t *testing.T) {
 		t.Error("Expected that bootstrapping would produce exactly one person")
 	}
 	person := persons[0]
-	checkBootstrapSettings(readSettings, t)
-	checkBootstrapPerson(person, t)
+	checkBootstrapStateSettings(getStateSettings(t), t)
+	checkBootstrapStatePerson(getStatePerson(person.Id, t), t)
+	checkBootstrapDaoSettings(readSettings, t)
+	checkBootstrapDaoPerson(person, t)
+}
+
+func getStateSettings(t *testing.T) *model.StateSettings {
+	settingsData, err := blockchainAccess.GetState([]string{model.GetSettingsAddress()})
+	if err != nil {
+		t.Error("integration.getStateSettings: Cannot read settings address: " + err.Error())
+	}
+	if len(settingsData) != 1 {
+		t.Error("integration.getStateSettings: No blockchain state for settings")
+	}
+	settings := &model.StateSettings{}
+	err = proto.Unmarshal(settingsData[model.GetSettingsAddress()], settings)
+	if err != nil {
+		t.Error("integration.getStateSettings: Could not unmarshall")
+	}
+	return settings
+}
+
+func getStatePerson(personId string, t *testing.T) *model.StatePerson {
+	personData, err := blockchainAccess.GetState([]string{personId})
+	if err != nil {
+		t.Error("integration.getStatePerson: Cannot read person address: " + err.Error())
+	}
+	if len(personData) != 1 {
+		t.Error("integration.getStatePerson: No blockchain state for person: " + personId)
+	}
+	person := &model.StatePerson{}
+	err = proto.Unmarshal(personData[personId], person)
+	if err != nil {
+		t.Error("integration.getStatePerson: Could not unmarshall")
+	}
+	return person
 }
 
 func getBootstrap() *command.Bootstrap {
@@ -118,7 +153,70 @@ func getBootstrap() *command.Bootstrap {
 	}
 }
 
-func checkBootstrapSettings(settings *dao.Settings, t *testing.T) {
+func checkBootstrapStateSettings(settings *model.StateSettings, t *testing.T) {
+	if util.Abs(settings.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("CreatedOn mismatch")
+	}
+	if util.Abs(settings.ModifiedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("ModifiedOn mismatch")
+	}
+	if settings.PriceList.PriceMajorEditSettings != 101 {
+		t.Error("PriceMajorEditSettings mismatch")
+	}
+	if settings.PriceList.PriceMajorCreatePerson != 102 {
+		t.Error("PriceMajorCreatePerson mismatch")
+	}
+	if settings.PriceList.PriceMajorChangePersonAuthorization != 103 {
+		t.Error("PriceMajorChangePersonAuthorization mismatch")
+	}
+	if settings.PriceList.PriceMajorChangeJournalAuthorization != 104 {
+		t.Error("PriceMajorChangeJournalAuthorization mismatch")
+	}
+	if settings.PriceList.PricePersonEdit != 105 {
+		t.Error("PricePersonEdit mismatch")
+	}
+	if settings.PriceList.PriceAuthorSubmitNewManuscript != 106 {
+		t.Error("PriceAuthorSubmitNewManuscript mismatch")
+	}
+	if settings.PriceList.PriceAuthorSubmitNewVersion != 107 {
+		t.Error("PriceAuthorSubmitNewVersion mismatch")
+	}
+	if settings.PriceList.PriceAuthorAcceptAuthorship != 108 {
+		t.Error("PriceAuthorAcceptAuthorship mismatch")
+	}
+	if settings.PriceList.PriceReviewerSubmit != 109 {
+		t.Error("PriceReviewerSubmit mismatch")
+	}
+	if settings.PriceList.PriceEditorAllowManuscriptReview != 110 {
+		t.Error("PriceEditorAllowManuscriptReview mismatch")
+	}
+	if settings.PriceList.PriceEditorRejectManuscript != 111 {
+		t.Error("PriceEditorRejectManuscript mismatch")
+	}
+	if settings.PriceList.PriceEditorPublishManuscript != 112 {
+		t.Error("PriceEditorPublishManuscript mismatch")
+	}
+	if settings.PriceList.PriceEditorAssignManuscript != 113 {
+		t.Error("PriceEditorAssignManuscript mismatch")
+	}
+	if settings.PriceList.PriceEditorCreateJournal != 114 {
+		t.Error("PriceEditorCreateJournal mismatch")
+	}
+	if settings.PriceList.PriceEditorCreateVolume != 115 {
+		t.Error("PriceEditorCreateVolume mismatch")
+	}
+	if settings.PriceList.PriceEditorEditJournal != 116 {
+		t.Error("PriceEditorEditJournal mismatch")
+	}
+	if settings.PriceList.PriceEditorAddColleague != 117 {
+		t.Error("PriceEditorAddColleague mismatch")
+	}
+	if settings.PriceList.PriceEditorAcceptDuty != 118 {
+		t.Error("PriceEditorAcceptDuty mismatch")
+	}
+}
+
+func checkBootstrapDaoSettings(settings *dao.Settings, t *testing.T) {
 	if settings.PriceMajorEditSettings != 101 {
 		t.Error("PriceMajorEditSettings mismatch")
 	}
@@ -175,7 +273,58 @@ func checkBootstrapSettings(settings *dao.Settings, t *testing.T) {
 	}
 }
 
-func checkBootstrapPerson(person *dao.Person, t *testing.T) {
+func checkBootstrapStatePerson(person *model.StatePerson, t *testing.T) {
+	if !model.IsPersonAddress(person.Id) {
+		t.Error("Id mismatch")
+	}
+	if util.Abs(person.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("CreatedOn mismatch")
+	}
+	if util.Abs(person.ModifiedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("ModifiedOn mismatch")
+	}
+	if person.PublicKey != cliAlexandria.LoggedIn().PublicKeyStr {
+		t.Error("PublicKey mismatch")
+	}
+	if person.Name != "Brita" {
+		t.Error("Name mismatch")
+	}
+	if person.Email != "brita@xxx.nl" {
+		t.Error("Email mismatch")
+	}
+	if person.IsMajor != true {
+		t.Error("IsMajor mismatch")
+	}
+	if person.IsSigned != true {
+		t.Error("IsSigned mismatch")
+	}
+	if person.Balance != int32(0) {
+		t.Error("Balance mismatch")
+	}
+	if person.BiographyHash != "" {
+		t.Error("BiographyHash mismatch")
+	}
+	if person.Organization != "" {
+		t.Error("Organization mismatch")
+	}
+	if person.Telephone != "" {
+		t.Error("Telephone mismatch")
+	}
+	if person.Address != "" {
+		t.Error("Address mismatch")
+	}
+	if person.PostalCode != "" {
+		t.Error("PostalCode mismatch")
+	}
+	if person.Country != "" {
+		t.Error("Country mismatch")
+	}
+	if person.ExtraInfo != "" {
+		t.Error("ExtraInfo mismatch")
+	}
+}
+
+func checkBootstrapDaoPerson(person *dao.Person, t *testing.T) {
 	if !model.IsPersonAddress(person.Id) {
 		t.Error("Id mismatch")
 	}
@@ -244,7 +393,8 @@ func doTestPersonCreate(personCreate *command.PersonCreate, t *testing.T) {
 	if len(createdPersons) != 1 {
 		t.Error("Expected exactly one newly created person")
 	}
-	checkCreatedPerson(createdPersons[0], newPersonKey, t)
+	checkCreatedStatePerson(getStatePerson(getPersonByKey(newPersonKey, t).Id, t), newPersonKey, t)
+	checkCreatedDaoPerson(createdPersons[0], newPersonKey, t)
 }
 
 func getPersonByKey(key string, t *testing.T) *dao.Person {
@@ -258,7 +408,61 @@ func getPersonByKey(key string, t *testing.T) *dao.Person {
 	return persons[0]
 }
 
-func checkCreatedPerson(person *dao.Person, expectedPublicKey string, t *testing.T) {
+func checkCreatedStatePerson(person *model.StatePerson, expectedPublicKey string, t *testing.T) {
+	if !model.IsPersonAddress(person.Id) {
+		t.Error("Id is not a person address")
+	}
+	if person.Id == getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+		t.Error("Id equals the id of the existing person")
+	}
+	if util.Abs(person.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("CreatedOn mismatch")
+	}
+	if util.Abs(person.ModifiedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("ModifiedOn mismatch")
+	}
+	if person.PublicKey != expectedPublicKey {
+		t.Error("PublicKey mismatch")
+	}
+	if person.Name != "Rens" {
+		t.Error("Name mismatch")
+	}
+	if person.Email != "rens@xxx.nl" {
+		t.Error("Email mismatch")
+	}
+	if person.IsMajor != false {
+		t.Error("IsMajor mismatch")
+	}
+	if person.IsSigned != false {
+		t.Error("IsSigned mismatch")
+	}
+	if person.Balance != int32(0) {
+		t.Error("Balance mismatch")
+	}
+	if person.BiographyHash != "" {
+		t.Error("BiographyHash mismatch")
+	}
+	if person.Organization != "" {
+		t.Error("Organization mismatch")
+	}
+	if person.Telephone != "" {
+		t.Error("Telephone mismatch")
+	}
+	if person.Address != "" {
+		t.Error("Address mismatch")
+	}
+	if person.PostalCode != "" {
+		t.Error("PostalCode mismatch")
+	}
+	if person.Country != "" {
+		t.Error("Country mismatch")
+	}
+	if person.ExtraInfo != "" {
+		t.Error("ExtraInfo mismatch")
+	}
+}
+
+func checkCreatedDaoPerson(person *dao.Person, expectedPublicKey string, t *testing.T) {
 	if !model.IsPersonAddress(person.Id) {
 		t.Error("Id is not a person address")
 	}

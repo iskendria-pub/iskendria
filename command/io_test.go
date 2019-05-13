@@ -11,8 +11,8 @@ import (
 func TestSettings(t *testing.T) {
 	timestamp := model.GetCurrentTime()
 	settings := &model.StateSettings{
-		CreatedOnOn: timestamp,
-		ModifiedOn:  timestamp,
+		CreatedOn:  timestamp,
+		ModifiedOn: timestamp,
 		PriceList: &model.PriceList{
 			PricePersonEdit: int32(1),
 		},

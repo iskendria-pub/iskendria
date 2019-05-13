@@ -105,8 +105,8 @@ var _ singleUpdate = new(singleUpdateSettingsCreate)
 
 func (u *singleUpdateSettingsCreate) updateState(state *unmarshalledState) (writtenAddress string) {
 	state.settings = &model.StateSettings{
-		CreatedOnOn: u.timestamp,
-		ModifiedOn:  u.timestamp,
+		CreatedOn:  u.timestamp,
+		ModifiedOn: u.timestamp,
 		PriceList: &model.PriceList{
 			PriceMajorEditSettings:               u.priceList.PriceMajorEditSettings,
 			PriceMajorCreatePerson:               u.priceList.PriceMajorCreatePerson,

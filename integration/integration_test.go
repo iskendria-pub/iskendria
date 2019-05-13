@@ -4,6 +4,8 @@ import (
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"gitlab.bbinfra.net/3estack/alexandria/util"
 	"log"
 	"os"
 	"testing"
@@ -38,7 +40,8 @@ func doTestPersonUpdate(originalPersonCreate *command.PersonCreate, t *testing.T
 	if err != nil {
 		t.Error("Could not run person update command: " + err.Error())
 	}
-	checkModifiedPerson(getPersonByKey(newPublicKey, t), originalPersonId, newPublicKey, t)
+	checkModifiedStatePerson(getStatePerson(originalPersonId, t), originalPersonId, newPublicKey, t)
+	checkModifiedDaoPerson(getPersonByKey(newPublicKey, t), originalPersonId, newPublicKey, t)
 }
 
 func getPersonUpdatePropertiesCommand(originalPersonCreate *command.PersonCreate, newPublicKey string, t *testing.T) (
@@ -75,7 +78,53 @@ func getNewDaoPersonUpdate(newPublicKey string) *dao.PersonUpdate {
 	return result
 }
 
-func checkModifiedPerson(person *dao.Person, expectedId, expectedPublicKey string, t *testing.T) {
+func checkModifiedStatePerson(person *model.StatePerson, expectedPersonId, expectedPublicKey string, t *testing.T) {
+	if person.Id != expectedPersonId {
+		t.Error("Id mismatch")
+	}
+	// Please check createdOn and modifiedOn manually, difficult to test
+	if person.PublicKey != expectedPublicKey {
+		t.Error("PublicKey mismatch")
+	}
+	if person.Name != "Peter" {
+		t.Error("Name mismatch")
+	}
+	if person.Email != "peter@gmail.com" {
+		t.Error("Email mismatch")
+	}
+	if person.IsMajor != false {
+		t.Error("IsMajor mismatch")
+	}
+	if person.IsSigned != false {
+		t.Error("IsSigned mismatch")
+	}
+	if person.Balance != int32(0) {
+		t.Error("Balance mismatch")
+	}
+	if person.BiographyHash != "01234567" {
+		t.Error("BiographyHash mismatch")
+	}
+	if person.Organization != "Peter's Toko" {
+		t.Error("Organization mismatch")
+	}
+	if person.Telephone != "088-3456789" {
+		t.Error("Telephone mismatch")
+	}
+	if person.Address != "Insulindeweg" {
+		t.Error("Address mismatch")
+	}
+	if person.PostalCode != "1234 AB" {
+		t.Error("PostalCode mismatch")
+	}
+	if person.Country != "Australia" {
+		t.Error("Country mismatch")
+	}
+	if person.ExtraInfo != "Some fake data" {
+		t.Error("ExtraInfo mismatch")
+	}
+}
+
+func checkModifiedDaoPerson(person *dao.Person, expectedId, expectedPublicKey string, t *testing.T) {
 	if person.Id != expectedId {
 		t.Error("Id mismatch")
 	}
@@ -138,11 +187,18 @@ func doTestPersonUpdateSetMajor(originalPersonCreate *command.PersonCreate, t *t
 	if err != nil {
 		t.Error("Could not run person update set major command: " + err.Error())
 	}
-	updatedPerson := getPersonByKey(originalPersonCreate.PublicKey, t)
-	if updatedPerson.IsMajor != true {
+	updatedDaoPerson := getPersonByKey(originalPersonCreate.PublicKey, t)
+	if updatedDaoPerson.IsMajor != true {
 		t.Error("Person was not updated")
 	}
-	if updatedPerson.IsSigned != false {
+	if updatedDaoPerson.IsSigned != false {
+		t.Error("Person should not have been signed")
+	}
+	updatedStatePerson := getStatePerson(updatedDaoPerson.Id, t)
+	if updatedStatePerson.IsMajor != true {
+		t.Error("Person was not updated")
+	}
+	if updatedStatePerson.IsSigned != false {
 		t.Error("Person should not have been signed")
 	}
 }
@@ -164,11 +220,18 @@ func doTestPersonUpdateSetSigned(originalPersonCreate *command.PersonCreate, t *
 	if err != nil {
 		t.Error("Could not run person update set signed command: " + err.Error())
 	}
-	updatedPerson := getPersonByKey(originalPersonCreate.PublicKey, t)
-	if updatedPerson.IsMajor != false {
+	updatedDaoPerson := getPersonByKey(originalPersonCreate.PublicKey, t)
+	if updatedDaoPerson.IsMajor != false {
 		t.Error("Person should not have become major")
 	}
-	if updatedPerson.IsSigned != true {
+	if updatedDaoPerson.IsSigned != true {
+		t.Error("Person was not signed")
+	}
+	updatedStatePerson := getStatePerson(updatedDaoPerson.Id, t)
+	if updatedStatePerson.IsMajor != false {
+		t.Error("Person should not have become major")
+	}
+	if updatedStatePerson.IsSigned != true {
 		t.Error("Person was not signed")
 	}
 }
@@ -192,11 +255,18 @@ func doTestPersonUpdateUnsetMajor(t *testing.T) {
 	if err != nil {
 		t.Error("Could not run person unset major command: " + err.Error())
 	}
-	updated := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
-	if updated.IsMajor != false {
+	updatedDaoPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	if updatedDaoPerson.IsMajor != false {
 		t.Error("Majorship was not unset")
 	}
-	if updated.IsSigned != true {
+	if updatedDaoPerson.IsSigned != true {
+		t.Error("Signed should not have been changed")
+	}
+	updatedStatePerson := getStatePerson(updatedDaoPerson.Id, t)
+	if updatedStatePerson.IsMajor != false {
+		t.Error("Majorship was not unset")
+	}
+	if updatedStatePerson.IsSigned != true {
 		t.Error("Signed should not have been changed")
 	}
 }
@@ -220,11 +290,18 @@ func doTestPersonUpdateUnsetSigned(t *testing.T) {
 	if err != nil {
 		t.Error("Could not run person unset signed command: " + err.Error())
 	}
-	updated := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
-	if updated.IsMajor != true {
+	updatedDaoPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	if updatedDaoPerson.IsMajor != true {
 		t.Error("Majorship should not have been changed")
 	}
-	if updated.IsSigned != false {
+	if updatedDaoPerson.IsSigned != false {
+		t.Error("Signed was not unset")
+	}
+	updatedStatePerson := getStatePerson(updatedDaoPerson.Id, t)
+	if updatedStatePerson.IsMajor != true {
+		t.Error("Majorship should not have been changed")
+	}
+	if updatedStatePerson.IsSigned != false {
 		t.Error("Signed was not unset")
 	}
 }
@@ -249,8 +326,12 @@ func doTestPersonUpdateIncBalance(t *testing.T) {
 	if err != nil {
 		t.Error("Could not run person update inc balance command: " + err.Error())
 	}
-	updated := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
-	if updated.Balance != int32(theBalanceIncrement) {
+	updatedDaoPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	if updatedDaoPerson.Balance != int32(theBalanceIncrement) {
+		t.Error("Balance has not been incremented")
+	}
+	updatedStatePerson := getStatePerson(updatedDaoPerson.Id, t)
+	if updatedStatePerson.Balance != int32(theBalanceIncrement) {
 		t.Error("Balance has not been incremented")
 	}
 }
@@ -277,7 +358,8 @@ func doTestSettingsUpdate(t *testing.T) {
 		t.Error("Could not run settings update command: " + err.Error())
 	}
 	updated := getSettings(t)
-	checkUpdatedSettings(updated, t)
+	checkUpdatedStateSettings(getStateSettings(t), t)
+	checkUpdatedDaoSettings(updated, t)
 }
 
 func getSettingsUpdate() *dao.Settings {
@@ -303,7 +385,70 @@ func getSettingsUpdate() *dao.Settings {
 	}
 }
 
-func checkUpdatedSettings(updated *dao.Settings, t *testing.T) {
+func checkUpdatedStateSettings(settings *model.StateSettings, t *testing.T) {
+	if util.Abs(settings.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("CreatedOn mismatch")
+	}
+	if util.Abs(settings.ModifiedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("ModifiedOn mismatch")
+	}
+	if settings.PriceList.PriceMajorEditSettings != 201 {
+		t.Error("PriceMajorEditSettings mismatch")
+	}
+	if settings.PriceList.PriceMajorCreatePerson != 202 {
+		t.Error("PriceMajorCreatePerson mismatch")
+	}
+	if settings.PriceList.PriceMajorChangePersonAuthorization != 203 {
+		t.Error("PriceMajorChangePersonAuthorization mismatch")
+	}
+	if settings.PriceList.PriceMajorChangeJournalAuthorization != 204 {
+		t.Error("PriceMajorChangeJournalAuthorization mismatch")
+	}
+	if settings.PriceList.PricePersonEdit != 205 {
+		t.Error("PricePersonEdit mismatch")
+	}
+	if settings.PriceList.PriceAuthorSubmitNewManuscript != 206 {
+		t.Error("PriceAuthorSubmitNewManuscript mismatch")
+	}
+	if settings.PriceList.PriceAuthorSubmitNewVersion != 207 {
+		t.Error("PriceAuthorSubmitNewVersion mismatch")
+	}
+	if settings.PriceList.PriceAuthorAcceptAuthorship != 208 {
+		t.Error("PriceAuthorAcceptAuthorship mismatch")
+	}
+	if settings.PriceList.PriceReviewerSubmit != 209 {
+		t.Error("PriceReviewerSubmit mismatch")
+	}
+	if settings.PriceList.PriceEditorAllowManuscriptReview != 210 {
+		t.Error("PriceEditorAllowManuscriptReview mismatch")
+	}
+	if settings.PriceList.PriceEditorRejectManuscript != 211 {
+		t.Error("PriceEditorRejectManuscript mismatch")
+	}
+	if settings.PriceList.PriceEditorPublishManuscript != 212 {
+		t.Error("PriceEditorPublishManuscript mismatch")
+	}
+	if settings.PriceList.PriceEditorAssignManuscript != 213 {
+		t.Error("PriceEditorAssignManuscript mismatch")
+	}
+	if settings.PriceList.PriceEditorCreateJournal != 214 {
+		t.Error("PriceEditorCreateJournal mismatch")
+	}
+	if settings.PriceList.PriceEditorCreateVolume != 215 {
+		t.Error("PriceEditorCreateVolume mismatch")
+	}
+	if settings.PriceList.PriceEditorEditJournal != 216 {
+		t.Error("PriceEditorEditJournal mismatch")
+	}
+	if settings.PriceList.PriceEditorAddColleague != 217 {
+		t.Error("PriceEditorAddColleague mismatch")
+	}
+	if settings.PriceList.PriceEditorAcceptDuty != 218 {
+		t.Error("PriceEditorAcceptDuty mismatch")
+	}
+
+}
+func checkUpdatedDaoSettings(updated *dao.Settings, t *testing.T) {
 	if updated.PriceMajorEditSettings != int32(201) {
 		t.Error("PriceMajorEditSettings mismatch")
 	}
