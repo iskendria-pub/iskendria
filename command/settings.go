@@ -83,7 +83,7 @@ func GetSettingsUpdateCommand(
 	price int32) *Command {
 	return &Command{
 		InputAddresses:  []string{model.GetSettingsAddress(), signerId},
-		OutputAddresses: []string{model.GetSettingsAddress()},
+		OutputAddresses: []string{model.GetSettingsAddress(), signerId},
 		CryptoIdentity:  cryptoIdentity,
 		Command: &model.Command{
 			Price:     price,

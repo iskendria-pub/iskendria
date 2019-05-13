@@ -20,13 +20,35 @@ func TestBootstrap(t *testing.T) {
 func TestPersonCreate(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonCreate", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	withNewPersonCreate(doTestPersonCreate, t)
+	f := func(personCreate *command.PersonCreate, t *testing.T) {
+		doTestPersonCreate(personCreate, t)
+		checkStateBalanceOfKey(
+			SUFFICIENT_BALANCE-priceMajorCreatePerson,
+			cliAlexandria.LoggedIn().PublicKeyStr,
+			t)
+		checkDaoBalanceOfKey(
+			SUFFICIENT_BALANCE-priceMajorCreatePerson,
+			cliAlexandria.LoggedIn().PublicKeyStr,
+			t)
+	}
+	withNewPersonCreate(f, t)
 }
 
 func TestPersonUpdateProperties(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdateProperties", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	withNewPersonCreate(doTestPersonUpdate, t)
+	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
+		doTestPersonUpdate(originalPersonCreate, t)
+		checkStateBalanceOfKey(
+			SUFFICIENT_BALANCE-pricePersonEdit,
+			"Fake key",
+			t)
+		checkDaoBalanceOfKey(
+			SUFFICIENT_BALANCE-pricePersonEdit,
+			"Fake key",
+			t)
+	}
+	withNewPersonCreate(f, t)
 }
 
 func doTestPersonUpdate(originalPersonCreate *command.PersonCreate, t *testing.T) {
@@ -98,9 +120,6 @@ func checkModifiedStatePerson(person *model.StatePerson, expectedPersonId, expec
 	if person.IsSigned != false {
 		t.Error("IsSigned mismatch")
 	}
-	if person.Balance != int32(0) {
-		t.Error("Balance mismatch")
-	}
 	if person.BiographyHash != "01234567" {
 		t.Error("BiographyHash mismatch")
 	}
@@ -144,9 +163,6 @@ func checkModifiedDaoPerson(person *dao.Person, expectedId, expectedPublicKey st
 	if person.IsSigned != false {
 		t.Error("IsSigned mismatch")
 	}
-	if person.Balance != int32(0) {
-		t.Error("Balance mismatch")
-	}
 	if person.BiographyHash != "01234567" {
 		t.Error("BiographyHash mismatch")
 	}
@@ -173,7 +189,13 @@ func checkModifiedDaoPerson(person *dao.Person, expectedId, expectedPublicKey st
 func TestPersonUpdateSetMajor(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdateSetMajor", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	withNewPersonCreate(doTestPersonUpdateSetMajor, t)
+	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
+		doTestPersonUpdateSetMajor(originalPersonCreate, t)
+		expectedBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson - priceMajorChangePersonAuthorization
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withNewPersonCreate(f, t)
 }
 
 func doTestPersonUpdateSetMajor(originalPersonCreate *command.PersonCreate, t *testing.T) {
@@ -206,7 +228,13 @@ func doTestPersonUpdateSetMajor(originalPersonCreate *command.PersonCreate, t *t
 func TestPersonUpdateSetSigned(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdateSetSigned", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	withNewPersonCreate(doTestPersonUpdateSetSigned, t)
+	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
+		doTestPersonUpdateSetSigned(originalPersonCreate, t)
+		expectedBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson - priceMajorChangePersonAuthorization
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withNewPersonCreate(f, t)
 }
 
 func doTestPersonUpdateSetSigned(originalPersonCreate *command.PersonCreate, t *testing.T) {
@@ -239,7 +267,13 @@ func doTestPersonUpdateSetSigned(originalPersonCreate *command.PersonCreate, t *
 func TestPersonUpdateUnsetMajor(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdateUnsetMajor", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	withLoggedInWithNewKey(doTestPersonUpdateUnsetMajor, t)
+	f := func(t *testing.T) {
+		doTestPersonUpdateUnsetMajor(t)
+		expectedBalance := SUFFICIENT_BALANCE - priceMajorChangePersonAuthorization
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withLoggedInWithNewKey(f, t)
 }
 
 func doTestPersonUpdateUnsetMajor(t *testing.T) {
@@ -274,7 +308,13 @@ func doTestPersonUpdateUnsetMajor(t *testing.T) {
 func TestPersonUpdateUnsetSigned(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdateUnsetSigned", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	withLoggedInWithNewKey(doTestPersonUpdateUnsetSigned, t)
+	f := func(t *testing.T) {
+		doTestPersonUpdateUnsetSigned(t)
+		expectedBalance := SUFFICIENT_BALANCE - priceMajorChangePersonAuthorization
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withLoggedInWithNewKey(f, t)
 }
 
 func doTestPersonUpdateUnsetSigned(t *testing.T) {
@@ -314,11 +354,11 @@ func TestPersonUpdateIncBalance(t *testing.T) {
 
 func doTestPersonUpdateIncBalance(t *testing.T) {
 	doTestBootstrap(t)
-	theBalanceIncrement := 50
+	theBalanceIncrement := int32(50)
 	originalPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
 	cmd := command.GetPersonUpdateIncBalanceCommand(
 		originalPerson.Id,
-		int32(theBalanceIncrement),
+		theBalanceIncrement,
 		originalPerson.Id,
 		cliAlexandria.LoggedIn(),
 		int32(0))
@@ -327,11 +367,12 @@ func doTestPersonUpdateIncBalance(t *testing.T) {
 		t.Error("Could not run person update inc balance command: " + err.Error())
 	}
 	updatedDaoPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
-	if updatedDaoPerson.Balance != int32(theBalanceIncrement) {
+	expectedBalance := SUFFICIENT_BALANCE + theBalanceIncrement
+	if updatedDaoPerson.Balance != expectedBalance {
 		t.Error("Balance has not been incremented")
 	}
 	updatedStatePerson := getStatePerson(updatedDaoPerson.Id, t)
-	if updatedStatePerson.Balance != int32(theBalanceIncrement) {
+	if updatedStatePerson.Balance != expectedBalance {
 		t.Error("Balance has not been incremented")
 	}
 }
@@ -339,7 +380,13 @@ func doTestPersonUpdateIncBalance(t *testing.T) {
 func TestSettingsUpdate(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestSettingsUpdate", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	withLoggedInWithNewKey(doTestSettingsUpdate, t)
+	f := func(t *testing.T) {
+		doTestSettingsUpdate(t)
+		expectedBalance := SUFFICIENT_BALANCE - priceMajorEditSettings
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withLoggedInWithNewKey(f, t)
 }
 
 func doTestSettingsUpdate(t *testing.T) {

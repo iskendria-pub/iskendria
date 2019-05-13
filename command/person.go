@@ -23,7 +23,7 @@ func GetPersonCreateCommand(
 	personId := model.CreatePersonAddress()
 	return &Command{
 		InputAddresses:  []string{personId, signerId, model.GetSettingsAddress()},
-		OutputAddresses: []string{personId},
+		OutputAddresses: []string{personId, signerId},
 		CryptoIdentity:  cryptoIdentity,
 		Command: &model.Command{
 			Signer:    signerId,
@@ -50,7 +50,7 @@ func GetPersonUpdatePropertiesCommand(
 	price int32) *Command {
 	return &Command{
 		InputAddresses:  []string{model.GetSettingsAddress(), personId, signerId},
-		OutputAddresses: []string{personId},
+		OutputAddresses: []string{personId, signerId},
 		CryptoIdentity:  cryptoIdentity,
 		Command: &model.Command{
 			Signer:    signerId,
@@ -119,7 +119,7 @@ func getGenericPersonUpdateAuthorizationCommand(
 	update *authorizationUpdate) *Command {
 	return &Command{
 		InputAddresses:  []string{model.GetSettingsAddress(), signerId, personId},
-		OutputAddresses: []string{personId},
+		OutputAddresses: []string{personId, signerId},
 		CryptoIdentity:  cryptoIdentity,
 		Command: &model.Command{
 			Signer:    signerId,
@@ -149,7 +149,7 @@ func GetPersonUpdateIncBalanceCommand(
 	price int32) *Command {
 	return &Command{
 		InputAddresses:  []string{model.GetSettingsAddress(), signerId, personId},
-		OutputAddresses: []string{personId},
+		OutputAddresses: []string{personId, signerId},
 		CryptoIdentity:  cryptoIdentity,
 		Command: &model.Command{
 			Signer:    signerId,

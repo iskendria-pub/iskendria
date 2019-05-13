@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"fmt"
 	"github.com/golang/protobuf/proto"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
@@ -15,6 +16,13 @@ const TIME_DIFF_THRESHOLD_SECONDS = 10
 
 const personPublicKeyFile = "person.pub"
 const personPrivateKeyFile = "person.priv"
+
+const SUFFICIENT_BALANCE = int32(1000)
+
+const priceMajorEditSettings int32 = 101
+const priceMajorCreatePerson int32 = 102
+const priceMajorChangePersonAuthorization int32 = 103
+const pricePersonEdit int32 = 105
 
 var logger *log.Logger
 var blockchainAccess command.BlockchainAccess
@@ -94,6 +102,7 @@ func doTestBootstrap(t *testing.T) {
 	checkBootstrapStatePerson(getStatePerson(person.Id, t), t)
 	checkBootstrapDaoSettings(readSettings, t)
 	checkBootstrapDaoPerson(person, t)
+	addSufficientBalance(person.Id, t)
 }
 
 func getStateSettings(t *testing.T) *model.StateSettings {
@@ -130,11 +139,11 @@ func getStatePerson(personId string, t *testing.T) *model.StatePerson {
 
 func getBootstrap() *command.Bootstrap {
 	return &command.Bootstrap{
-		PriceMajorEditSettings:               101,
-		PriceMajorCreatePerson:               102,
-		PriceMajorChangePersonAuthorization:  103,
+		PriceMajorEditSettings:               priceMajorEditSettings,
+		PriceMajorCreatePerson:               priceMajorCreatePerson,
+		PriceMajorChangePersonAuthorization:  priceMajorChangePersonAuthorization,
 		PriceMajorChangeJournalAuthorization: 104,
-		PricePersonEdit:                      105,
+		PricePersonEdit:                      pricePersonEdit,
 		PriceAuthorSubmitNewManuscript:       106,
 		PriceAuthorSubmitNewVersion:          107,
 		PriceAuthorAcceptAuthorship:          108,
@@ -375,6 +384,27 @@ func checkBootstrapDaoPerson(person *dao.Person, t *testing.T) {
 	}
 }
 
+func addSufficientBalance(personId string, t *testing.T) {
+	cmd := command.GetPersonUpdateIncBalanceCommand(
+		personId,
+		SUFFICIENT_BALANCE,
+		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+		cliAlexandria.LoggedIn(),
+		int32(0))
+	err := command.RunCommandForTest(cmd, "transactionIdAddSufficientBalance", blockchainAccess)
+	if err != nil {
+		t.Error("integration.addSufficientBalance could not run command: " + err.Error())
+	}
+	person, err := dao.GetPersonById(personId)
+	if err != nil {
+		t.Error("integration.addSufficientBalance could not read person from db")
+		return
+	}
+	if person.Balance != SUFFICIENT_BALANCE {
+		t.Error("integration.addSufficientBalance: balance was not updated")
+	}
+}
+
 func doTestPersonCreate(personCreate *command.PersonCreate, t *testing.T) {
 	newPersonKey := personCreate.PublicKey
 	personCreateCommand := command.GetPersonCreateCommand(
@@ -395,6 +425,24 @@ func doTestPersonCreate(personCreate *command.PersonCreate, t *testing.T) {
 	}
 	checkCreatedStatePerson(getStatePerson(getPersonByKey(newPersonKey, t).Id, t), newPersonKey, t)
 	checkCreatedDaoPerson(createdPersons[0], newPersonKey, t)
+	addSufficientBalance(createdPersons[0].Id, t)
+}
+
+func checkDaoBalanceOfKey(expectedSignerBalance int32, key string, t *testing.T) {
+	signerPerson := getPersonByKey(key, t)
+	if signerPerson.Balance != expectedSignerBalance {
+		t.Error(fmt.Sprintf("Signer saldo on client side not OK, expected %d, got %d",
+			expectedSignerBalance, signerPerson.Balance))
+	}
+}
+
+func checkStateBalanceOfKey(expectedSignerBalance int32, key string, t *testing.T) {
+	daoSignerPerson := getPersonByKey(key, t)
+	signerPerson := getStatePerson(daoSignerPerson.Id, t)
+	if signerPerson.Balance != expectedSignerBalance {
+		t.Error(fmt.Sprintf("Signer balance on blockchain not OK, expected %d, got %d",
+			expectedSignerBalance, signerPerson.Balance))
+	}
 }
 
 func getPersonByKey(key string, t *testing.T) *dao.Person {

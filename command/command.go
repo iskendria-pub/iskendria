@@ -160,6 +160,11 @@ func (ce *commandExecution) checkNonBootstrap() (*updater, error) {
 		return nil, errors.New(fmt.Sprintf("Signer id does not match signing key, id = %s, key = %s",
 			ce.command.Signer, ce.signerKey))
 	}
+	balance := u.persons[ce.command.Signer].Balance
+	if balance < ce.command.Price {
+		return nil, errors.New(fmt.Sprintf("Insufficient balance, got %d need %d",
+			balance, ce.command.Price))
+	}
 	nbce := &nonBootstrapCommandExecution{
 		verifiedSignerId:  ce.command.Signer,
 		price:             ce.command.Price,
@@ -245,6 +250,14 @@ type nonBootstrapCommandExecution struct {
 }
 
 func (nbce *nonBootstrapCommandExecution) check(c *model.Command) (*updater, error) {
+	result, err := nbce.checkSpecific(c)
+	if err == nil {
+		nbce.addBalanceDeduct(result)
+	}
+	return result, err
+}
+
+func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*updater, error) {
 	switch c.Body.(type) {
 	case *model.Command_CommandSettingsUpdate:
 		return nbce.checkSettingsUpdate(c.GetCommandSettingsUpdate())
@@ -259,4 +272,17 @@ func (nbce *nonBootstrapCommandExecution) check(c *model.Command) (*updater, err
 	default:
 		return nil, errors.New("Non-bootstrap command type not supported")
 	}
+}
+
+func (nbce *nonBootstrapCommandExecution) addBalanceDeduct(u *updater) {
+	// Balance deduction should happen first. If a balance increment update
+	// had come before the deduction with the price, the updates would conflict.
+	// Each update sets the balance to a pre-calculated value. Now this
+	// conflict won't occur because incrementing the balance has price zero.
+	var deductUpdate singleUpdate = &singleUpdatePersonIncBalance{
+		personId:   nbce.verifiedSignerId,
+		newBalance: nbce.unmarshalledState.persons[nbce.verifiedSignerId].Balance - nbce.price,
+		timestamp:  nbce.timestamp,
+	}
+	u.updates = append([]singleUpdate{deductUpdate}, u.updates...)
 }
