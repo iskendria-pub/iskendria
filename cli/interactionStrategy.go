@@ -24,6 +24,7 @@ type interactionStrategyImpl struct {
 	name               string
 	formatEscape       string
 	stopWords          map[string]bool
+	eventPager         func(Outputter)
 }
 
 func (isi *interactionStrategyImpl) run(lineHandler lineHandlerType) {
@@ -40,7 +41,7 @@ func (isi *interactionStrategyImpl) run(lineHandler lineHandlerType) {
 func (isi *interactionStrategyImpl) nextLine(reader *bufio.Reader, lineHandler lineHandlerType) bool {
 	isi.prompt()
 	outputToStdout(UNDO_FORMAT)
-	defer outputToStdout(isi.getFormatEscape())
+	defer isi.afterEnter()
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		panic(err)
@@ -55,6 +56,20 @@ func (isi *interactionStrategyImpl) nextLine(reader *bufio.Reader, lineHandler l
 	}
 	_, stop := isi.stopWords[line]
 	return stop
+}
+
+func (isi *interactionStrategyImpl) afterEnter() {
+	outputToStdout(isi.getFormatEscape())
+	isi.runEventPager()
+}
+
+func (isi *interactionStrategyImpl) runEventPager() {
+	switch {
+	case isi.eventPager != nil:
+		isi.eventPager(outputToStdout)
+	case isi.parent != nil:
+		isi.parent.runEventPager()
+	}
 }
 
 func (isi *interactionStrategyImpl) getFormattedHelpScreenTitle() string {

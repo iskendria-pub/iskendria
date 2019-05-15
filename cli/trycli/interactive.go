@@ -32,6 +32,12 @@ reference value; this dialog does not require an argument to start.
 The other uses a dynamic reference value that depends on the input
 value supplied when entering the dialog.
 
+Finally, there is a group to test event paging. After every ten
+enter-presses within this group, a message is displayed to simulate
+an application event that has to be paged. There is a subgroup
+to test that a parent event pager is applied recursively in
+subgroups.
+
 Note that your options are sorted alphabetically. Please enter "help" to
 start or "exit" to quit.`)
 
@@ -146,6 +152,25 @@ func main() {
 				ReferenceValueGetter:         chooseReference,
 				ReferenceValueGetterArgNames: []string{"chosen number"},
 			}),
+			cli.Handler(&cli.Cli{
+				FullDescription: "With event paging, parent. You should see a message after each 10 enter presses",
+				OneLineDescription: "With event paging",
+				Name: "with-paging",
+				EventPager: countNumberOfCalls,
+				Handlers: []cli.Handler {
+					&cli.SingleLineHandler{
+						Name:     "and",
+						Handler:  and,
+						ArgNames: []string{"first value", "second value"},
+					},
+					&cli.Cli{
+						FullDescription: "Sub group - continues counting enters",
+						OneLineDescription: "Sub group that continues counting enters",
+						Name: "subgroup",
+						Handlers: []cli.Handler{},
+					},
+				},
+			}),
 		},
 	}
 	context.Run()
@@ -244,4 +269,13 @@ func chooseReference(outputter cli.Outputter, number int32) *DialogStruct {
 		return nil
 	}
 	return reference
+}
+
+var callCount int
+
+func countNumberOfCalls(outputter cli.Outputter) {
+	callCount++
+	if callCount % 10 == 0 {
+		outputter(fmt.Sprintf("*** Number of enters: %d\n", callCount))
+	}
 }

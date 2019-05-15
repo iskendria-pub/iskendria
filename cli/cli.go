@@ -45,6 +45,15 @@ with the reference value. There is a "clear" function that
 fills the read value with the reference value, or the zero
 values of the struct if there is no ReferenceValueGetter.
 
+There is one more feature to describe. The user may have
+background processes. These may have messages to report
+to the user. This package provides a hook that is called
+each time the end user presses Enter. This way, the user
+interface provides frequent opportunities to show messages,
+but messages do not interfere when the end user is
+typing a command. Please set the EventPager property
+of struct Cli.
+
 The cli is implemented as follows. The top-level Handler's
 "build" method is executed to get a runnableHandler instance.
 This is done recursively resulting in a nested structure of
@@ -160,6 +169,7 @@ type Cli struct {
 	Name               string
 	FormatEscape       string
 	Handlers           []Handler
+	EventPager         func(Outputter)
 }
 
 func (c *Cli) Run() {
@@ -185,6 +195,7 @@ func (c *Cli) buildMain() *groupContextRunnable {
 			name:               c.Name,
 			formatEscape:       c.FormatEscape,
 			stopWords:          map[string]bool{EXIT: true},
+			eventPager:         c.EventPager,
 		},
 	}
 	c.addGeneratedCommandHandlers(result)
