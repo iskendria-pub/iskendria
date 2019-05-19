@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -90,4 +93,58 @@ func (lg *lineGroup) String() string {
 
 func (lg *lineGroup) isEmpty() bool {
 	return lg.lines == nil || len(lg.lines) == 0
+}
+
+type inputSource interface {
+	readLine() (string, bool, error)
+	open()
+	close()
+}
+
+type inputSourceConsole struct {
+	reader *bufio.Reader
+}
+
+var _ inputSource = new(inputSourceConsole)
+
+func (inp *inputSourceConsole) readLine() (string, bool, error) {
+	line, err := inp.reader.ReadString('\n')
+	return line, false, err
+}
+
+func (inp *inputSourceConsole) open() {
+	inp.reader = bufio.NewReader(os.Stdin)
+}
+
+func (inp *inputSourceConsole) close() {
+}
+
+type inputSourceFile struct {
+	fname  string
+	f      *os.File
+	reader *bufio.Reader
+}
+
+var _ inputSource = new(inputSourceFile)
+
+func (fi *inputSourceFile) readLine() (string, bool, error) {
+	line, err := fi.reader.ReadString('\n')
+	fmt.Print(line)
+	if err == io.EOF {
+		return line, true, err
+	}
+	return line, false, err
+}
+
+func (fi *inputSourceFile) open() {
+	var err error
+	fi.f, err = os.Open(fi.fname)
+	if err != nil {
+		panic(err)
+	}
+	fi.reader = bufio.NewReader(fi.f)
+}
+
+func (fi *inputSourceFile) close() {
+	_ = fi.f.Close()
 }

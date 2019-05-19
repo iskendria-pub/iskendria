@@ -1,13 +1,13 @@
 package cli
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"strings"
 )
 
 type lineHandlerType func(string) error
+
+var inp inputSource
 
 type interactionStrategy interface {
 	run(lineHandler lineHandlerType)
@@ -31,18 +31,17 @@ func (isi *interactionStrategyImpl) run(lineHandler lineHandlerType) {
 	outputToStdout(isi.getFormatEscape())
 	defer outputToStdout(UNDO_FORMAT)
 	outputToStdout(isi.fullDescription + "\n\n")
-	reader := bufio.NewReader(os.Stdin)
-	stop := isi.nextLine(reader, lineHandler)
+	stop := isi.nextLine(lineHandler)
 	for !stop {
-		stop = isi.nextLine(reader, lineHandler)
+		stop = isi.nextLine(lineHandler)
 	}
 }
 
-func (isi *interactionStrategyImpl) nextLine(reader *bufio.Reader, lineHandler lineHandlerType) bool {
+func (isi *interactionStrategyImpl) nextLine(lineHandler lineHandlerType) bool {
 	isi.prompt()
 	outputToStdout(UNDO_FORMAT)
 	defer isi.afterEnter()
-	line, err := reader.ReadString('\n')
+	line, haveEof, err := inp.readLine()
 	if err != nil {
 		panic(err)
 	}
@@ -54,8 +53,8 @@ func (isi *interactionStrategyImpl) nextLine(reader *bufio.Reader, lineHandler l
 	if err := lineHandler(line); err != nil {
 		fmt.Println(err)
 	}
-	_, stop := isi.stopWords[line]
-	return stop
+	_, haveStopWord := isi.stopWords[line]
+	return haveEof || haveStopWord
 }
 
 func (isi *interactionStrategyImpl) afterEnter() {

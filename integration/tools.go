@@ -407,7 +407,7 @@ func addSufficientBalance(personId string, t *testing.T) {
 
 func doTestPersonCreate(personCreate *command.PersonCreate, t *testing.T) {
 	newPersonKey := personCreate.PublicKey
-	personCreateCommand := command.GetPersonCreateCommand(
+	personCreateCommand, newPersonId := command.GetPersonCreateCommand(
 		personCreate,
 		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
 		cliAlexandria.LoggedIn(),
@@ -423,7 +423,12 @@ func doTestPersonCreate(personCreate *command.PersonCreate, t *testing.T) {
 	if len(createdPersons) != 1 {
 		t.Error("Expected exactly one newly created person")
 	}
-	checkCreatedStatePerson(getStatePerson(getPersonByKey(newPersonKey, t).Id, t), newPersonKey, t)
+
+	createdPerson := getPersonByKey(newPersonKey, t)
+	if createdPerson.Id != newPersonId {
+		t.Error("Returned created person id differs from person id found in database")
+	}
+	checkCreatedStatePerson(getStatePerson(createdPerson.Id, t), newPersonKey, t)
 	checkCreatedDaoPerson(createdPersons[0], newPersonKey, t)
 	addSufficientBalance(createdPersons[0].Id, t)
 }

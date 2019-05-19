@@ -6,6 +6,7 @@ import (
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"log"
 	"strconv"
 )
 
@@ -19,7 +20,7 @@ func GetPersonCreateCommand(
 	pc *PersonCreate,
 	signerId string,
 	cryptoIdentity *CryptoIdentity,
-	price int32) *Command {
+	price int32) (*Command, string) {
 	personId := model.CreatePersonAddress()
 	return &Command{
 		InputAddresses:  []string{personId, signerId, model.GetSettingsAddress()},
@@ -38,7 +39,7 @@ func GetPersonCreateCommand(
 				},
 			},
 		},
-	}
+	}, personId
 }
 
 func GetPersonUpdatePropertiesCommand(
@@ -242,8 +243,10 @@ func (u *singleUpdatePersonCreate) updateState(state *unmarshalledState) (writte
 }
 
 func (u *singleUpdatePersonCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_PERSON_CREATE
+	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(
-		model.EV_TYPE_PERSON_CREATE,
+		eventType,
 		[]processor.Attribute{
 			{
 				Key:   model.EV_KEY_TRANSACTION_ID,
@@ -291,10 +294,13 @@ func (nbce *nonBootstrapCommandExecution) checkPersonUpdateProperties(c *model.C
 	if nbce.price != expectedPrice {
 		return nil, formatPriceError("PricePersonEdit", expectedPrice)
 	}
-	if c.PersonId != nbce.verifiedSignerId {
-		return nil, errors.New("Person update properties not authorized. Properties can not be updated by someone else")
+	if err := nbce.checkPersonUpdatePropertiesAuthorized(c); err != nil {
+		return nil, err
 	}
-	oldPerson := nbce.unmarshalledState.persons[nbce.verifiedSignerId]
+	if err := nbce.readPersonBeingUpdatedIfNotPresent(c); err != nil {
+		return nil, err
+	}
+	oldPerson := nbce.unmarshalledState.persons[c.PersonId]
 	if err := checkModelCommandPersonUpdateProperties(c, oldPerson); err != nil {
 		return nil, err
 	}
@@ -304,6 +310,34 @@ func (nbce *nonBootstrapCommandExecution) checkPersonUpdateProperties(c *model.C
 		unmarshalledState: nbce.unmarshalledState,
 		updates:           singleUpdates,
 	}, nil
+}
+
+func (nbce *nonBootstrapCommandExecution) checkPersonUpdatePropertiesAuthorized(
+	c *model.CommandPersonUpdateProperties) error {
+	isSelf := c.PersonId == nbce.verifiedSignerId
+	isMajor := nbce.unmarshalledState.persons[nbce.verifiedSignerId].IsMajor
+	if !(isSelf || isMajor) {
+		return errors.New("Not authorized. Properties can be updated by oneself or by a major")
+	}
+	return nil
+}
+
+func (nbce *nonBootstrapCommandExecution) readPersonBeingUpdatedIfNotPresent(
+	c *model.CommandPersonUpdateProperties) error {
+	if nbce.verifiedSignerId != c.PersonId {
+		readData, err := nbce.blockchainAccess.GetState([]string{c.PersonId})
+		if err != nil {
+			return err
+		}
+		err = nbce.unmarshalledState.add(readData, []string{c.PersonId})
+		if err != nil {
+			return err
+		}
+		if nbce.unmarshalledState.getAddressState(c.PersonId) != ADDRESS_FILLED {
+			return errors.New("Person being updated does not exist: " + c.PersonId)
+		}
+	}
+	return nil
 }
 
 func (nbce *nonBootstrapCommandExecution) addSingleUpdatePersonModificationTimeIfNeeded(
@@ -334,8 +368,9 @@ func (su singleUpdatePersonPropertyUpdate) updateState(_ *unmarshalledState) (wr
 
 func (su singleUpdatePersonPropertyUpdate) issueEvent(
 	eventSeq int32, transactionId string, ba BlockchainAccess) error {
-	return ba.AddEvent(
-		model.EV_TYPE_PERSON_UPDATE,
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_PERSON_UPDATE
+	log.Println("Sending event of type: " + eventType)
+	return ba.AddEvent(eventType,
 		[]processor.Attribute{
 			{
 				Key:   model.EV_KEY_TRANSACTION_ID,
@@ -373,8 +408,9 @@ func (u *singleUpdatePersonModificationTime) updateState(state *unmarshalledStat
 }
 
 func (u *singleUpdatePersonModificationTime) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
-	return ba.AddEvent(
-		model.EV_TYPE_PERSON_MODIFICATION_TIME,
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_PERSON_MODIFICATION_TIME
+	log.Println("Sending event of type: " + eventType)
+	return ba.AddEvent(eventType,
 		[]processor.Attribute{
 			{
 				Key:   model.EV_KEY_TRANSACTION_ID,
@@ -495,8 +531,10 @@ func (u *singleUpdatePersonAuthorizationUpdate) updateState(*unmarshalledState) 
 
 func (u *singleUpdatePersonAuthorizationUpdate) issueEvent(
 	eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_PERSON_UPDATE
+	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(
-		model.EV_TYPE_PERSON_UPDATE,
+		eventType,
 		[]processor.Attribute{
 			{
 				Key:   model.EV_KEY_TRANSACTION_ID,
@@ -570,8 +608,10 @@ func (u *singleUpdatePersonIncBalance) updateState(state *unmarshalledState) (wr
 }
 
 func (u *singleUpdatePersonIncBalance) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_PERSON_UPDATE
+	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(
-		model.EV_TYPE_PERSON_UPDATE,
+		eventType,
 		[]processor.Attribute{
 			{
 				Key:   model.EV_KEY_TRANSACTION_ID,

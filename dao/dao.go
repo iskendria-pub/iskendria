@@ -14,6 +14,17 @@ import (
 
 var DbFileName string
 
+var AllEventTypes = []string{
+	model.SAWTOOTH_BLOCK_COMMIT,
+	model.AlexandriaPrefix + model.EV_TYPE_TRANSACTION_CONTROL,
+	model.AlexandriaPrefix + model.EV_TYPE_SETTINGS_CREATE,
+	model.AlexandriaPrefix + model.EV_TYPE_SETTINGS_UPDATE,
+	model.AlexandriaPrefix + model.EV_TYPE_SETTINGS_MODIFICATION_TIME,
+	model.AlexandriaPrefix + model.EV_TYPE_PERSON_CREATE,
+	model.AlexandriaPrefix + model.EV_TYPE_PERSON_UPDATE,
+	model.AlexandriaPrefix + model.EV_TYPE_PERSON_MODIFICATION_TIME,
+}
+
 func Init(fname string, logger *log.Logger) {
 	var err error
 	DbFileName = fname
@@ -61,6 +72,10 @@ func HandleEvent(input *events_pb2.Event) error {
 	}
 	return ev.accept(theContext)
 }
+
+type EventHandler func(*events_pb2.Event) error
+
+var _ EventHandler = HandleEvent
 
 func parseEvent(input *events_pb2.Event) (event, error) {
 	switch simplifyEventType(input.EventType) {

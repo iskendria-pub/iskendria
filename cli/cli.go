@@ -173,8 +173,19 @@ type Cli struct {
 }
 
 func (c *Cli) Run() {
+	if InputScript == "" {
+		inp = new(inputSourceConsole)
+	} else {
+		inp = &inputSourceFile{
+			fname: InputScript,
+		}
+	}
+	inp.open()
+	defer inp.close()
 	c.buildMain().run()
 }
+
+var InputScript string
 
 func (c *Cli) build() runnableHandler {
 	return runnableHandler(c.buildMain())

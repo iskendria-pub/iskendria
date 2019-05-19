@@ -6,6 +6,7 @@ import (
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"log"
 )
 
 type Bootstrap struct {
@@ -132,8 +133,10 @@ func (u *singleUpdateSettingsCreate) updateState(state *unmarshalledState) (writ
 }
 
 func (u *singleUpdateSettingsCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_SETTINGS_CREATE
+	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(
-		model.EV_TYPE_SETTINGS_CREATE,
+		eventType,
 		[]processor.Attribute{
 			{
 				Key:   model.EV_KEY_TRANSACTION_ID,
@@ -268,7 +271,9 @@ func (u *singleUpdateSettingsUpdate) updateState(_ *unmarshalledState) (writtenA
 }
 
 func (u *singleUpdateSettingsUpdate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
-	return ba.AddEvent(model.EV_TYPE_SETTINGS_UPDATE,
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_SETTINGS_UPDATE
+	log.Println("Sending event of type: " + eventType)
+	return ba.AddEvent(eventType,
 		[]processor.Attribute{
 			{
 				Key:   model.EV_KEY_TRANSACTION_ID,
@@ -302,8 +307,10 @@ func (u *singleUpdateSettingsModificationTime) updateState(state *unmarshalledSt
 }
 
 func (u *singleUpdateSettingsModificationTime) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_SETTINGS_MODIFICATION_TIME
+	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(
-		model.EV_TYPE_SETTINGS_MODIFICATION_TIME,
+		eventType,
 		[]processor.Attribute{
 			{
 				Key:   model.EV_KEY_TRANSACTION_ID,

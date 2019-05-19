@@ -7,6 +7,7 @@ import (
 	"github.com/hyperledger/sawtooth-sdk-go/signing"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"gitlab.bbinfra.net/3estack/alexandria/util"
+	"log"
 )
 
 type Command struct {
@@ -66,6 +67,9 @@ func (ce *commandExecution) run() error {
 }
 
 func (ce *commandExecution) doRun() error {
+	log.Println("Entering commandExecution.doRun...")
+	defer log.Println("Left commandExecution.doRun")
+	log.Printf("Have model command: %s\n", ce.command.String())
 	u, err := ce.check()
 	if err != nil {
 		return err
@@ -91,6 +95,8 @@ func (ce *commandExecution) check() (*updater, error) {
 }
 
 func (ce *commandExecution) checkBootstrap(bootstrap *model.CommandBootstrap) (*updater, error) {
+	log.Println("Entering commandExecution.checkBootstrap")
+	defer log.Println("Left commandExecution.checkBootstrap")
 	if bootstrap.PriceList == nil {
 		return nil, errors.New("Bootstrap: missing price list")
 	}
@@ -176,6 +182,8 @@ func (ce *commandExecution) checkNonBootstrap() (*updater, error) {
 }
 
 func (ce *commandExecution) runUpdater(u *updater) error {
+	log.Println("Entering commandExecution.runUpdater...")
+	defer log.Println("Left commandExecution.runUpdater")
 	if err := ce.updateState(u); err != nil {
 		return err
 	}
@@ -217,8 +225,10 @@ func (ce *commandExecution) writeTransactionControlEvent(numNonControlEvents int
 	eventSeqString := fmt.Sprintf("%d", numNonControlEvents)
 	numEventsString := fmt.Sprintf("%d", numNonControlEvents+1)
 	timestampString := fmt.Sprintf("%d", ce.command.Timestamp)
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_TRANSACTION_CONTROL
+	log.Println("Sending event of type: " + eventType)
 	err := ce.blockchainAccess.AddEvent(
-		model.EV_TYPE_TRANSACTION_CONTROL,
+		eventType,
 		[]processor.Attribute{
 			{
 				Key:   model.EV_KEY_TRANSACTION_ID,

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"gitlab.bbinfra.net/3estack/alexandria/blockchain"
 	"gitlab.bbinfra.net/3estack/alexandria/cli"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"log"
+	"os"
 	"strings"
 )
 
@@ -26,17 +29,19 @@ func main() {
 		OneLineDescription: "Alexandria Major Tool",
 		Name:               "alexandria-major",
 		FormatEscape:       makeRed,
-		Handlers: append(cliAlexandria.CommonHandlers,
+		EventPager:         cliAlexandria.PageEventStreamMessages,
+		Handlers: append(cliAlexandria.CommonRootHandlers,
+			cliAlexandria.CommonDiagnosticsGroup,
 			&cli.Cli{
 				FullDescription:    "Welcome to the Bootstrap and Settings Update commands",
 				OneLineDescription: "Settings",
 				Name:               "settings",
-				Handlers: []cli.Handler{
+				Handlers: append(cliAlexandria.CommonSettingsHandlers,
 					&cli.StructRunnerHandler{
 						FullDescription:    "Welcome to the dialog to bootstrap Alexandria",
 						OneLineDescription: "Bootstrap",
 						Name:               "bootstrap",
-						Action:             command.GetBootstrapCommand,
+						Action:             bootstrap,
 					},
 					&cli.StructRunnerHandler{
 						FullDescription:              "Welcome to the settings update dialog",
@@ -46,18 +51,26 @@ func main() {
 						ReferenceValueGetterArgNames: []string{},
 						Action:                       settingsUpdate,
 					},
-				},
+				),
 			},
 			&cli.Cli{
 				FullDescription:    "Welcome to the person commands",
 				OneLineDescription: "Person",
 				Name:               "person",
-				Handlers: []cli.Handler{
+				Handlers: append(cliAlexandria.CommonPersonHandlers,
 					&cli.StructRunnerHandler{
 						FullDescription:    "Welcome to the person create dialog.",
 						OneLineDescription: "Create Person",
 						Name:               "createPerson",
 						Action:             createPerson,
+					},
+					&cli.StructRunnerHandler{
+						FullDescription:              "Welcome to the person update dialog.",
+						OneLineDescription:           "Person Update",
+						Name:                         "updatePerson",
+						ReferenceValueGetter:         personUpdateReference,
+						ReferenceValueGetterArgNames: []string{"person id"},
+						Action:                       cliAlexandria.PersonUpdate,
 					},
 					&cli.SingleLineHandler{
 						Name:     "setMajor",
@@ -84,11 +97,28 @@ func main() {
 						Handler:  incBalance,
 						ArgNames: []string{"person id", "amount"},
 					},
-				},
+				),
 			},
 		),
 	}
+	if len(os.Args) >= 2 {
+		cli.InputScript = os.Args[1]
+	}
+	fmt.Print(makeRed)
+	dao.Init("major.db", log.New(os.Stdout, "db", log.Flags()))
+	cliAlexandria.InitEventStream("./major-events.log", "major")
 	context.Run()
+}
+
+func bootstrap(outputter cli.Outputter, bootstrap *command.Bootstrap) {
+	if !cliAlexandria.IsLoggedIn() {
+		outputter("You should login before you can bootstrap\n")
+		return
+	}
+	cmd := command.GetBootstrapCommand(bootstrap, cliAlexandria.LoggedIn())
+	if err := blockchain.SendCommand(cmd, outputter); err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+	}
 }
 
 func settingsUpdateReference(outputter cli.Outputter) *dao.Settings {
@@ -105,20 +135,26 @@ func settingsUpdate(outputter cli.Outputter, updated *dao.Settings) {
 		cliAlexandria.LoggedInPerson.Id,
 		cliAlexandria.LoggedIn(),
 		cliAlexandria.Settings.PriceMajorEditSettings)
-	if err := blockchain.SendCommand(theCommand); err != nil {
+	if err := blockchain.SendCommand(theCommand, outputter); err != nil {
 		outputter(cliAlexandria.ToIoError(err))
-		return
 	}
 }
 
 func createPerson(outputter cli.Outputter, personInput *command.PersonCreate) {
-	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
-		return command.GetPersonCreateCommand(
-			personInput,
-			cliAlexandria.LoggedInPerson.Id,
-			cliAlexandria.LoggedIn(),
-			cliAlexandria.Settings.PriceMajorCreatePerson)
-	})
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		outputter("You are not logged in as a person\n")
+		return
+	}
+	cmd, personId := command.GetPersonCreateCommand(
+		personInput,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceMajorCreatePerson)
+	if err := blockchain.SendCommand(cmd, outputter); err != nil {
+		outputter(cliAlexandria.ToIoError(err) + "\n")
+		return
+	}
+	outputter("The personId of the created person is: " + personId + "\n")
 }
 
 func setMajor(outputter cli.Outputter, personId string) {
@@ -170,4 +206,18 @@ func incBalance(outputter cli.Outputter, personId string, amount int32) {
 			cliAlexandria.LoggedIn(),
 			int32(0))
 	})
+}
+
+func personUpdateReference(outputter cli.Outputter, personId string) *dao.PersonUpdate {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return nil
+	}
+	person, err := dao.GetPersonById(personId)
+	if err != nil {
+		outputter(fmt.Sprintf("Could not find person %s, error: %s\n", personId, err.Error()))
+		return nil
+	}
+	cliAlexandria.OriginalPersonId = personId
+	cliAlexandria.OriginalPerson = dao.PersonToPersonUpdate(person)
+	return cliAlexandria.OriginalPerson
 }

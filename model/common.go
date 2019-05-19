@@ -26,6 +26,8 @@ const (
 const FamilyName = "alexandria"
 const FamilyVersion = "1.0"
 
+const AlexandriaPrefix = FamilyName + "/"
+
 var Namespace string = Hexdigest(FamilyName)[:6]
 
 func Hexdigest(s string) string {

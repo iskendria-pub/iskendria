@@ -1,11 +1,12 @@
 package main
 
 import (
-	"gitlab.bbinfra.net/3estack/alexandria/blockchain"
+	"fmt"
 	"gitlab.bbinfra.net/3estack/alexandria/cli"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
-	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"log"
+	"os"
 	"strings"
 )
 
@@ -22,17 +23,35 @@ func main() {
 		OneLineDescription: "Alexandria Client Tool",
 		Name:               "alexandria-client",
 		FormatEscape:       makeGreen,
-		Handlers: []cli.Handler{
-			&cli.StructRunnerHandler{
-				FullDescription:              "Welcome to the person update dialog.",
-				OneLineDescription:           "Person Update",
-				Name:                         "person-update",
-				ReferenceValueGetter:         personUpdateReference,
-				ReferenceValueGetterArgNames: []string{},
-				Action:                       personUpdate,
+		EventPager:         cliAlexandria.PageEventStreamMessages,
+		Handlers: append(cliAlexandria.CommonRootHandlers,
+			cliAlexandria.CommonDiagnosticsGroup,
+			&cli.Cli{
+				FullDescription:    "Welcome to the settings commands",
+				OneLineDescription: "Settings",
+				Name:               "settings",
+				Handlers:           cliAlexandria.CommonSettingsHandlers,
 			},
-		},
+			&cli.Cli{
+				FullDescription:    "Welcome to the person commands",
+				OneLineDescription: "Person",
+				Name:               "person",
+				Handlers: append(cliAlexandria.CommonPersonHandlers,
+					&cli.StructRunnerHandler{
+						FullDescription:              "Welcome to the person update dialog.",
+						OneLineDescription:           "Person Update",
+						Name:                         "updatePerson",
+						ReferenceValueGetter:         personUpdateReference,
+						ReferenceValueGetterArgNames: []string{},
+						Action:                       cliAlexandria.PersonUpdate,
+					},
+				),
+			},
+		),
 	}
+	fmt.Print(makeGreen)
+	dao.Init("client.db", log.New(os.Stdout, "db", log.Flags()))
+	cliAlexandria.InitEventStream("./client-events.log", "client")
 	context.Run()
 }
 
@@ -40,21 +59,7 @@ func personUpdateReference(outputter cli.Outputter) *dao.PersonUpdate {
 	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
 		return nil
 	}
-	originalPerson = dao.PersonToPersonUpdate(cliAlexandria.LoggedInPerson)
-	return originalPerson
-}
-
-var originalPerson *dao.PersonUpdate
-
-func personUpdate(outputter cli.Outputter, newPerson *dao.PersonUpdate) {
-	theCommand := command.GetPersonUpdatePropertiesCommand(
-		cliAlexandria.LoggedInPerson.Id,
-		originalPerson,
-		newPerson,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PricePersonEdit)
-	if err := blockchain.SendCommand(theCommand); err != nil {
-		outputter(cliAlexandria.ToIoError(err))
-	}
+	cliAlexandria.OriginalPersonId = cliAlexandria.LoggedInPerson.Id
+	cliAlexandria.OriginalPerson = dao.PersonToPersonUpdate(cliAlexandria.LoggedInPerson)
+	return cliAlexandria.OriginalPerson
 }
