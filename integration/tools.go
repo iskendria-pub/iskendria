@@ -436,7 +436,7 @@ func doTestPersonCreate(personCreate *command.PersonCreate, t *testing.T) {
 func checkDaoBalanceOfKey(expectedSignerBalance int32, key string, t *testing.T) {
 	signerPerson := getPersonByKey(key, t)
 	if signerPerson.Balance != expectedSignerBalance {
-		t.Error(fmt.Sprintf("Signer saldo on client side not OK, expected %d, got %d",
+		t.Error(fmt.Sprintf("Signer balance on client side not OK, expected %d, got %d",
 			expectedSignerBalance, signerPerson.Balance))
 	}
 }

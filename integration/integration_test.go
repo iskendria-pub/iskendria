@@ -34,10 +34,14 @@ func TestPersonCreate(t *testing.T) {
 	withNewPersonCreate(f, t)
 }
 
-func TestPersonUpdateProperties(t *testing.T) {
-	logger = log.New(os.Stdout, "integration.TestPersonUpdateProperties", log.Flags())
+func TestPersonUpdatePropertiesAsSelf(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestPersonUpdatePropertiesAsSelf", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
 	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
+		doTestPersonCreate(originalPersonCreate, t)
+		if err := cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile); err != nil {
+			t.Error("Could not login as newly created person")
+		}
 		doTestPersonUpdate(originalPersonCreate, t)
 		checkStateBalanceOfKey(
 			SUFFICIENT_BALANCE-pricePersonEdit,
@@ -52,10 +56,6 @@ func TestPersonUpdateProperties(t *testing.T) {
 }
 
 func doTestPersonUpdate(originalPersonCreate *command.PersonCreate, t *testing.T) {
-	doTestPersonCreate(originalPersonCreate, t)
-	if err := cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile); err != nil {
-		t.Error("Could not login as newly created person")
-	}
 	newPublicKey := "Fake key"
 	cmd, originalPersonId := getPersonUpdatePropertiesCommand(originalPersonCreate, newPublicKey, t)
 	err := command.RunCommandForTest(cmd, "transactionPersonUpdate", blockchainAccess)
@@ -184,6 +184,24 @@ func checkModifiedDaoPerson(person *dao.Person, expectedId, expectedPublicKey st
 	if person.ExtraInfo != "Some fake data" {
 		t.Error("ExtraInfo mismatch")
 	}
+}
+
+func TestPersonUpdatePropertiesAsSMajor(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestPersonUpdatePropertiesAsMajor", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
+		doTestPersonCreate(originalPersonCreate, t)
+		doTestPersonUpdate(originalPersonCreate, t)
+		checkStateBalanceOfKey(
+			SUFFICIENT_BALANCE-priceMajorCreatePerson-pricePersonEdit,
+			cliAlexandria.LoggedIn().PublicKeyStr,
+			t)
+		checkDaoBalanceOfKey(
+			SUFFICIENT_BALANCE-priceMajorCreatePerson-pricePersonEdit,
+			cliAlexandria.LoggedIn().PublicKeyStr,
+			t)
+	}
+	withNewPersonCreate(f, t)
 }
 
 func TestPersonUpdateSetMajor(t *testing.T) {
