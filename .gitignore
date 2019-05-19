@@ -1,5 +1,7 @@
 .idea
 *.db
+*.pub
+*.priv
 cli/trycli/trycli
 client/client
 client/client.log
