@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+import "common.proto";
+
+option go_package = "model";
+
+message StateJournal {
+    string id = 1;
+    int64 createdOn = 2;
+    int64 modifiedOn = 3;
+    string title = 4;
+    bool isSigned = 5;
+    string descriptionHash = 6;
+    repeated EditorInfo editorInfo = 7;
+}
+
+message EditorInfo {
+    string editorId = 1;
+    EditorState editorState = 2;
+}
+
+enum EditorState {
+    editorProposed = 0;
+    editorAccepted = 1;
+}
+
+message CommandJournalCreate {
+    string journalId = 1;
+    string title = 2;
+    string descriptionHash = 3;
+}
+
+message CommandJournalUpdateProperties {
+    string journalId = 1;
+    StringUpdate titleUpdate = 2;
+    StringUpdate descriptionHashUpdate = 3;
+}
+
+message CommandJournalAuthorizationUpdate {
+    string journalId = 1;
+    bool makeSigned = 2;
+}
+
+message CommandEditorResign {
+    string journalId = 1;
+}
+
+message CommandJournalEditorInvite {
+    string journalId = 1;
+    string invitedEditorId = 2;
+}
+
+message CommandEditorAcceptDuty {
+    string journalId = 1;
+}

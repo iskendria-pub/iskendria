@@ -55,6 +55,8 @@ func createTables(logger *log.Logger) {
 	tableCreateStatements := []string{
 		model.TableCreateSettings,
 		model.TableCreatePerson,
+		model.TableCreateJournal,
+		model.TableCreateEditor,
 	}
 	for _, stmt := range tableCreateStatements {
 		_, err := db.Exec(stmt)
