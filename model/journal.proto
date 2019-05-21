@@ -36,12 +36,12 @@ message CommandJournalUpdateProperties {
     StringUpdate descriptionHashUpdate = 3;
 }
 
-message CommandJournalAuthorizationUpdate {
+message CommandJournalUpdateAuthorization {
     string journalId = 1;
     bool makeSigned = 2;
 }
 
-message CommandEditorResign {
+message CommandJournalEditorResign {
     string journalId = 1;
 }
 
@@ -50,6 +50,6 @@ message CommandJournalEditorInvite {
     string invitedEditorId = 2;
 }
 
-message CommandEditorAcceptDuty {
+message CommandJournalEditorAcceptDuty {
     string journalId = 1;
 }

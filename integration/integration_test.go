@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"fmt"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
@@ -568,4 +569,30 @@ func checkUpdatedDaoSettings(updated *dao.Settings, t *testing.T) {
 	if updated.PriceEditorAcceptDuty != int32(218) {
 		t.Error("PriceEditorAcceptDuty mismatch")
 	}
+}
+
+func TestJournalCreate(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalCreate", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	f := func(journal *command.Journal, initialBalance int32, t *testing.T) {
+		cmd, journalId := command.GetJournalCreateCommand(
+			journal,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorCreateJournal)
+		err := command.RunCommandForTest(cmd, "transactionJournalCreate", blockchainAccess)
+		if err != nil {
+			t.Error()
+		}
+		journals, err := dao.GetAllJournals()
+		if err != nil {
+			t.Error(err)
+		}
+		if len(journals) != 1 {
+			t.Error(fmt.Sprintf("Expected to have exactly one journal, but got %d", len(journals)))
+		}
+		actualJournal := journals[0]
+		checkJournal(actualJournal, journalId, getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id, t)
+	}
+	withNewJournalCreate(ROLE_MAJOR, f, t)
 }

@@ -23,6 +23,7 @@ const priceMajorEditSettings int32 = 101
 const priceMajorCreatePerson int32 = 102
 const priceMajorChangePersonAuthorization int32 = 103
 const pricePersonEdit int32 = 105
+const priceEditorCreateJournal int32 = 114
 
 var logger *log.Logger
 var blockchainAccess command.BlockchainAccess
@@ -76,6 +77,81 @@ func withNewPersonCreate(testFunc func(personCreate *command.PersonCreate, t *te
 		testFunc(personCreate, t)
 	}
 	withLoggedInWithNewKey(withNewPersonCreate, t)
+}
+
+func withNewJournalCreate(r role, testFunc func(*command.Journal, int32, *testing.T), t *testing.T) {
+	journal := &command.Journal{
+		Title:           "The Journal",
+		DescriptionHash: "abcdef01",
+	}
+	var f func(*command.PersonCreate, *testing.T)
+	switch r {
+	case ROLE_MAJOR:
+		f = getWithNewJournalCreateForMajor(testFunc, journal)
+	case ROLE_COMMON:
+		f = getWithNewJournalCreateForCommon(testFunc, journal)
+	default:
+		panic(fmt.Sprintf("Unknown role %d", r))
+	}
+	withNewPersonCreate(f, t)
+}
+
+func checkJournal(journal *dao.Journal, journalId string, editorId string, t *testing.T) {
+	if journal.JournalId != journalId {
+		t.Error("JournalId mismatch")
+	}
+	if util.Abs(journal.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("CreatedOn mismatch")
+	}
+	if util.Abs(journal.ModifiedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("ModifiedOn mismatch")
+	}
+	if journal.Title != "The Journal" {
+		t.Error("Title mismatch")
+	}
+	if journal.IsSigned != false {
+		t.Error("IsSigned mismatch")
+	}
+	if journal.Descriptionhash != "abcdef01" {
+		t.Error("DescriptionHash mismatch")
+	}
+	if len(journal.AcceptedEditors) != 1 {
+		t.Error("Length mismatch of accepted editors")
+	}
+	if journal.AcceptedEditors[0] != editorId {
+		t.Error("AcceptedEditor mismatch")
+	}
+}
+
+type role int
+
+const (
+	ROLE_MAJOR  = role(0)
+	ROLE_COMMON = role(1)
+)
+
+func getWithNewJournalCreateForMajor(
+	testFunc func(*command.Journal, int32, *testing.T), journal *command.Journal) func(*command.PersonCreate, *testing.T) {
+	return func(personCreate *command.PersonCreate, t *testing.T) {
+		doTestPersonCreate(personCreate, t)
+		initialBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson
+		checkStateBalanceOfKey(initialBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(initialBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		testFunc(journal, initialBalance, t)
+	}
+}
+
+func getWithNewJournalCreateForCommon(
+	testFunc func(*command.Journal, int32, *testing.T), journal *command.Journal) func(*command.PersonCreate, *testing.T) {
+	return func(personCreate *command.PersonCreate, t *testing.T) {
+		doTestPersonCreate(personCreate, t)
+		if err := cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile); err != nil {
+			t.Error("Could not login as newly created person")
+		}
+		checkStateBalanceOfKey(SUFFICIENT_BALANCE, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(SUFFICIENT_BALANCE, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		testFunc(journal, SUFFICIENT_BALANCE, t)
+	}
 }
 
 func doTestBootstrap(t *testing.T) {
@@ -152,7 +228,7 @@ func getBootstrap() *command.Bootstrap {
 		PriceEditorRejectManuscript:          111,
 		PriceEditorPublishManuscript:         112,
 		PriceEditorAssignManuscript:          113,
-		PriceEditorCreateJournal:             114,
+		PriceEditorCreateJournal:             priceEditorCreateJournal,
 		PriceEditorCreateVolume:              115,
 		PriceEditorEditJournal:               116,
 		PriceEditorAddColleague:              117,
@@ -172,7 +248,7 @@ func checkBootstrapStateSettings(settings *model.StateSettings, t *testing.T) {
 	if settings.PriceList.PriceMajorEditSettings != 101 {
 		t.Error("PriceMajorEditSettings mismatch")
 	}
-	if settings.PriceList.PriceMajorCreatePerson != 102 {
+	if settings.PriceList.PriceMajorCreatePerson != priceMajorCreatePerson {
 		t.Error("PriceMajorCreatePerson mismatch")
 	}
 	if settings.PriceList.PriceMajorChangePersonAuthorization != 103 {
@@ -229,7 +305,7 @@ func checkBootstrapDaoSettings(settings *dao.Settings, t *testing.T) {
 	if settings.PriceMajorEditSettings != 101 {
 		t.Error("PriceMajorEditSettings mismatch")
 	}
-	if settings.PriceMajorCreatePerson != 102 {
+	if settings.PriceMajorCreatePerson != priceMajorCreatePerson {
 		t.Error("PriceMajorCreatePerson mismatch")
 	}
 	if settings.PriceMajorChangePersonAuthorization != 103 {
@@ -411,7 +487,7 @@ func doTestPersonCreate(personCreate *command.PersonCreate, t *testing.T) {
 		personCreate,
 		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
 		cliAlexandria.LoggedIn(),
-		int32(102))
+		int32(priceMajorCreatePerson))
 	err := command.RunCommandForTest(personCreateCommand, "secondTransaction", blockchainAccess)
 	if err != nil {
 		t.Error("Running person create command failed: " + err.Error())
@@ -423,7 +499,6 @@ func doTestPersonCreate(personCreate *command.PersonCreate, t *testing.T) {
 	if len(createdPersons) != 1 {
 		t.Error("Expected exactly one newly created person")
 	}
-
 	createdPerson := getPersonByKey(newPersonKey, t)
 	if createdPerson.Id != newPersonId {
 		t.Error("Returned created person id differs from person id found in database")

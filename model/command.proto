@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "person.proto";
+import "journal.proto";
 import "settings.proto";
 
 option go_package = "model";
@@ -11,10 +12,16 @@ message Command {
     int64 timestamp = 3;
     oneof body {
         CommandBootstrap bootstrap = 4;
-        CommandSettingsUpdate commandSettingsUpdate = 5;
-        CommandPersonCreate personCreate = 6;
-        CommandPersonUpdateProperties commandPersonUpdateProperties = 7;
-        CommandPersonUpdateAuthorization commandUpdateAuthorization = 8;
-        CommandPersonUpdateBalanceIncrement commandPersonUpdateBalanceIncrement = 9;
+        CommandJournalCreate commandJournalCreate = 5;
+        CommandJournalUpdateProperties commandJournalUpdateProperties = 6;
+        CommandJournalUpdateAuthorization commandJournalUpdateAuthorization = 7;
+        CommandJournalEditorAcceptDuty commandJournalEditorAcceptDuty = 8;
+        CommandJournalEditorInvite commandJournalEditorInvite = 9;
+        CommandJournalEditorResign commandJournalEditorResign = 10;
+        CommandSettingsUpdate commandSettingsUpdate = 11;
+        CommandPersonCreate personCreate = 12;
+        CommandPersonUpdateProperties commandPersonUpdateProperties = 13;
+        CommandPersonUpdateAuthorization commandUpdateAuthorization = 14;
+        CommandPersonUpdateBalanceIncrement commandPersonUpdateBalanceIncrement = 15;
     }
 }

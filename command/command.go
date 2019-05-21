@@ -271,6 +271,8 @@ func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*upda
 	switch c.Body.(type) {
 	case *model.Command_CommandSettingsUpdate:
 		return nbce.checkSettingsUpdate(c.GetCommandSettingsUpdate())
+	case *model.Command_CommandJournalCreate:
+		return nbce.checkJournalCreate(c.GetCommandJournalCreate())
 	case *model.Command_PersonCreate:
 		return nbce.checkPersonCreate(c.GetPersonCreate())
 	case *model.Command_CommandPersonUpdateProperties:

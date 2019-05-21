@@ -82,6 +82,7 @@ type unmarshalledState struct {
 	emptyAddresses map[string]bool
 	settings       *model.StateSettings
 	persons        map[string]*model.StatePerson
+	journals       map[string]*model.StateJournal
 }
 
 func newUnmarshalledState() *unmarshalledState {
@@ -89,6 +90,7 @@ func newUnmarshalledState() *unmarshalledState {
 		emptyAddresses: make(map[string]bool),
 		settings:       nil,
 		persons:        make(map[string]*model.StatePerson),
+		journals:       make(map[string]*model.StateJournal),
 	}
 }
 
@@ -104,6 +106,11 @@ func (us *unmarshalledState) getAddressState(address string) addressState {
 		}
 	case model.IsPersonAddress(address):
 		_, found := us.persons[address]
+		if found {
+			return ADDRESS_FILLED
+		}
+	case model.IsJournalAddress(address):
+		_, found := us.journals[address]
 		if found {
 			return ADDRESS_FILLED
 		}
@@ -134,6 +141,8 @@ func (us *unmarshalledState) addAvailable(address string, contents []byte) error
 		err = us.addSettings(contents)
 	case model.IsPersonAddress(address):
 		err = us.addPerson(address, contents)
+	case model.IsJournalAddress(address):
+		err = us.addJournal(address, contents)
 	}
 	return err
 }
@@ -158,6 +167,16 @@ func (us *unmarshalledState) addPerson(personId string, contents []byte) error {
 	return nil
 }
 
+func (us *unmarshalledState) addJournal(journalId string, contents []byte) error {
+	journal := &model.StateJournal{}
+	err := proto.Unmarshal(contents, journal)
+	if err != nil {
+		return err
+	}
+	us.journals[journalId] = journal
+	return nil
+}
+
 func (us *unmarshalledState) read(addresses []string) (map[string][]byte, error) {
 	result := make(map[string][]byte)
 	var err error
@@ -167,6 +186,8 @@ func (us *unmarshalledState) read(addresses []string) (map[string][]byte, error)
 			err = us.readSettings(result)
 		case model.IsPersonAddress(address):
 			err = us.readPerson(address, result)
+		case model.IsJournalAddress(address):
+			err = us.readJournal(address, result)
 		}
 		if err != nil {
 			return result, err
@@ -181,6 +202,15 @@ func (us *unmarshalledState) readSettings(result map[string][]byte) error {
 		return err
 	}
 	result[model.GetSettingsAddress()] = marshalled
+	return nil
+}
+
+func (us *unmarshalledState) readJournal(journalId string, result map[string][]byte) error {
+	marshalled, err := proto.Marshal(us.journals[journalId])
+	if err != nil {
+		return err
+	}
+	result[journalId] = marshalled
 	return nil
 }
 

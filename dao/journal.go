@@ -1,0 +1,176 @@
+package dao
+
+import (
+	"errors"
+	"fmt"
+	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
+	"github.com/jmoiron/sqlx"
+	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"strconv"
+	"strings"
+)
+
+func createJournalCreateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationJournalCreate{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_JOURNAL_ID:
+			dm.journalId = a.Value
+		case model.EV_KEY_TIMESTAMP:
+			i64, err = strconv.ParseInt(a.Value, 10, 64)
+			dm.timestamp = i64
+		case model.EV_KEY_TITLE:
+			dm.title = a.Value
+		case model.EV_KEY_DESCRIPTION_HASH:
+			dm.descriptionHash = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationJournalCreate struct {
+	journalId       string
+	timestamp       int64
+	title           string
+	descriptionHash string
+}
+
+var _ dataManipulation = new(dataManipulationJournalCreate)
+
+func (dm *dataManipulationJournalCreate) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec(fmt.Sprintf("INSERT INTO journal VALUES (%s)", GetPlaceHolders(6)),
+		dm.journalId, dm.timestamp, dm.timestamp, dm.title, false, dm.descriptionHash)
+	return err
+}
+
+func createEditorCreateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationEditorCreate{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_JOURNAL_ID:
+			dm.journalId = a.Value
+		case model.EV_KEY_PERSON_ID:
+			dm.personId = a.Value
+		case model.EV_KEY_EDITOR_STATE:
+			dm.editorState = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationEditorCreate struct {
+	journalId   string
+	personId    string
+	editorState string
+}
+
+var _ dataManipulation = new(dataManipulationEditorCreate)
+
+func (dm *dataManipulationEditorCreate) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec(fmt.Sprintf("INSERT INTO editor VALUES (%s)", GetPlaceHolders(3)),
+		dm.journalId, dm.personId, model.GetEditorStateString(model.EditorState_editorAccepted))
+	return err
+}
+
+func GetAllJournals() ([]*Journal, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	return doGetAllJournals(tx)
+}
+
+func doGetAllJournals(tx *sqlx.Tx) ([]*Journal, error) {
+	journalEditorCombinations := []JournalEditorCombination{}
+	err := tx.Select(&journalEditorCombinations, getAllJournalsQuery())
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Could not get all journals: %s", err.Error()))
+	}
+	result := make([]*Journal, 0)
+	var currentJournal *Journal
+	for _, jec := range journalEditorCombinations {
+		if currentJournal == nil || currentJournal.JournalId != jec.JournalId {
+			currentJournal = toJournal(&jec)
+			result = append(result, currentJournal)
+		} else {
+			currentJournal.AcceptedEditors = append(currentJournal.AcceptedEditors, jec.PersonId)
+		}
+	}
+	return result, nil
+}
+
+type Journal struct {
+	JournalId       string
+	CreatedOn       int64
+	ModifiedOn      int64
+	Title           string
+	IsSigned        bool
+	Descriptionhash string
+	AcceptedEditors []string
+}
+
+type JournalEditorCombination struct {
+	JournalId       string
+	CreatedOn       int64
+	ModifiedOn      int64
+	Title           string
+	IsSigned        bool
+	Descriptionhash string
+	PersonId        string
+}
+
+func getAllJournalsQuery() string {
+	return strings.TrimSpace(fmt.Sprintf(`
+SELECT
+  journal.journalid,
+  journal.createdon,
+  journal.modifiedon,
+  journal.title,
+  journal.issigned,
+  journal.descriptionhash,
+  editor.personid
+FROM journal, editor
+WHERE editor.journalid = journal.journalid
+  AND editor.editorState = "%s"
+ORDER BY journal.journalId, editor.personId
+`, model.GetEditorStateString(model.EditorState_editorAccepted)))
+}
+
+func toJournal(jec *JournalEditorCombination) *Journal {
+	journal := new(Journal)
+	journal.JournalId = jec.JournalId
+	journal.CreatedOn = jec.CreatedOn
+	journal.ModifiedOn = jec.ModifiedOn
+	journal.Title = jec.Title
+	journal.IsSigned = jec.IsSigned
+	journal.Descriptionhash = jec.Descriptionhash
+	journal.AcceptedEditors = []string{jec.PersonId}
+	return journal
+}

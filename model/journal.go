@@ -1,5 +1,10 @@
 package model
 
+import (
+	"fmt"
+	"github.com/google/uuid"
+)
+
 var TableCreateJournal = `
 CREATE TABLE journal (
 	journalid VARCHAR primary key not null,
@@ -38,3 +43,25 @@ const (
 	EV_KEY_PERSON_ID        = "personId"
 	EV_KEY_EDITOR_STATE     = "editorState"
 )
+
+const journalAddressPrefix = "20"
+
+func CreateJournalAddress() string {
+	var theUuid uuid.UUID = uuid.New()
+	uuidDigest := hexdigestOfUuid(theUuid)
+	return Namespace + journalAddressPrefix + uuidDigest[:62]
+}
+
+func IsJournalAddress(address string) bool {
+	return getAddressPrefixFromAddress(address) == journalAddressPrefix
+}
+
+func GetEditorStateString(value EditorState) string {
+	switch value {
+	case EditorState_editorProposed:
+		return "PROPOSED"
+	case EditorState_editorAccepted:
+		return "ACCEPTED"
+	}
+	panic(fmt.Sprintf("Unknown editor state: %d", value))
+}
