@@ -5,6 +5,7 @@ import (
 	"gitlab.bbinfra.net/3estack/alexandria/blockchain"
 	"gitlab.bbinfra.net/3estack/alexandria/cli"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"sync"
 )
 
 func InitEventStream(fname, tag string) {
@@ -14,7 +15,7 @@ func InitEventStream(fname, tag string) {
 
 func awaitEventStreamRunning(outputter cli.Outputter) {
 	for {
-		eventStreamStatus := readEventStreamStatus()
+		eventStreamStatus := ReadEventStreamStatus()
 		outputter(formatEventStreamMessage(eventStreamStatus.Msg))
 		switch eventStreamStatus.StatusCode {
 		case blockchain.EVENT_STREAM_STATUS_INITIALIZING:
@@ -29,12 +30,31 @@ func awaitEventStreamRunning(outputter cli.Outputter) {
 }
 
 func eventStatus(outputter cli.Outputter) {
-	outputter(LastEventStatus + "\n")
+	outputter(LastEventStatus.Get() + "\n")
 }
 
-var LastEventStatus string
+type ThreadSafeLastEventStatus struct {
+	mux             sync.Mutex
+	lastEventStatus string
+}
 
-func readEventStreamStatus() *blockchain.EventStreamStatus {
+func (es *ThreadSafeLastEventStatus) set(value string) {
+	es.mux.Lock()
+	defer es.mux.Unlock()
+	es.lastEventStatus = value
+}
+
+func (es *ThreadSafeLastEventStatus) Get() string {
+	es.mux.Lock()
+	defer es.mux.Unlock()
+	return es.lastEventStatus
+}
+
+var LastEventStatus = &ThreadSafeLastEventStatus{
+	mux: sync.Mutex{},
+}
+
+func ReadEventStreamStatus() *blockchain.EventStreamStatus {
 	eventStatus := <-blockchain.EventStreamStatusChannel
 	updateLastEventStatus(eventStatus)
 	return eventStatus
@@ -43,11 +63,11 @@ func readEventStreamStatus() *blockchain.EventStreamStatus {
 func updateLastEventStatus(status *blockchain.EventStreamStatus) {
 	switch status.StatusCode {
 	case blockchain.EVENT_STREAM_STATUS_STOPPED:
-		LastEventStatus = "STOPPED"
+		LastEventStatus.set("STOPPED")
 	case blockchain.EVENT_STREAM_STATUS_RUNNING:
-		LastEventStatus = "RUNNING"
+		LastEventStatus.set("RUNNING")
 	case blockchain.EVENT_STREAM_STATUS_INITIALIZING:
-		LastEventStatus = "INITIALIZING"
+		LastEventStatus.set("INITIALIZING")
 	}
 }
 

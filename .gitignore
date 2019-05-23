@@ -15,5 +15,7 @@ major/inputScript
 major/major
 major/major.log
 major/major-events.log
+portal/portal
+portal/portal-events.log
 processor/processor
 temp

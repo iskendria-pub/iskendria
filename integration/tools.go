@@ -17,6 +17,8 @@ const TIME_DIFF_THRESHOLD_SECONDS = 10
 const personPublicKeyFile = "person.pub"
 const personPrivateKeyFile = "person.priv"
 
+var majorName = "Brita"
+
 const SUFFICIENT_BALANCE = int32(1000)
 
 const priceMajorEditSettings int32 = 101
@@ -118,8 +120,12 @@ func checkJournal(journal *dao.Journal, journalId string, editorId string, t *te
 	if len(journal.AcceptedEditors) != 1 {
 		t.Error("Length mismatch of accepted editors")
 	}
-	if journal.AcceptedEditors[0] != editorId {
-		t.Error("AcceptedEditor mismatch")
+	if journal.AcceptedEditors[0].PersonId != editorId {
+		t.Error("AcceptedEditor PersonId mismatch")
+	}
+	if journal.AcceptedEditors[0].PersonName != majorName {
+		t.Error(fmt.Sprintf("AcceptedEditor PersonName mismatch, expected %s, got %s",
+			majorName, journal.AcceptedEditors[0].PersonName))
 	}
 }
 
@@ -233,7 +239,7 @@ func getBootstrap() *command.Bootstrap {
 		PriceEditorEditJournal:               116,
 		PriceEditorAddColleague:              117,
 		PriceEditorAcceptDuty:                118,
-		Name:                                 "Brita",
+		Name:                                 majorName,
 		Email:                                "brita@xxx.nl",
 	}
 }
@@ -371,7 +377,7 @@ func checkBootstrapStatePerson(person *model.StatePerson, t *testing.T) {
 	if person.PublicKey != cliAlexandria.LoggedIn().PublicKeyStr {
 		t.Error("PublicKey mismatch")
 	}
-	if person.Name != "Brita" {
+	if person.Name != majorName {
 		t.Error("Name mismatch")
 	}
 	if person.Email != "brita@xxx.nl" {
@@ -422,7 +428,7 @@ func checkBootstrapDaoPerson(person *dao.Person, t *testing.T) {
 	if person.PublicKey != cliAlexandria.LoggedIn().PublicKeyStr {
 		t.Error("PublicKey mismatch")
 	}
-	if person.Name != "Brita" {
+	if person.Name != majorName {
 		t.Error("Name mismatch")
 	}
 	if person.Email != "brita@xxx.nl" {

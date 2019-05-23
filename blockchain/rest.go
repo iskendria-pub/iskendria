@@ -28,10 +28,10 @@ func getFirstBlock(logger *log.Logger) (string, error) {
 	url := fmt.Sprintf("http://%s:%s/blocks?reverse", getIp(), restPort)
 	logger.Printf("Reading %s...\n", url)
 	response, err := http.Get(url)
-	defer func() { _ = response.Body.Close }()
 	if err != nil {
 		return "", err
 	}
+	defer func() { _ = response.Body.Close }()
 	logger.Printf("Got status code %d\n", response.StatusCode)
 	if response.StatusCode >= 400 {
 		return "", errors.New(fmt.Sprintf("Request for blocks resulted in status code %d", response.StatusCode))

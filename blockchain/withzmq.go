@@ -177,10 +177,6 @@ func sendCloseSubscriptionRequest(connection *messaging.ZmqConnection) {
 }
 
 func handleEventsMessage(message *validator_pb2.Message, eventHandler dao.EventHandler) error {
-	EventStreamStatusChannel <- &EventStreamStatus{
-		StatusCode: EVENT_STREAM_STATUS_RUNNING,
-		Msg:        "Received events from blockchain",
-	}
 	if message.MessageType != validator_pb2.Message_CLIENT_EVENTS {
 		return errors.New("Received message is not requested for")
 	}

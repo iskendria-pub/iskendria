@@ -120,7 +120,10 @@ func doGetAllJournals(tx *sqlx.Tx) ([]*Journal, error) {
 			currentJournal = toJournal(&jec)
 			result = append(result, currentJournal)
 		} else {
-			currentJournal.AcceptedEditors = append(currentJournal.AcceptedEditors, jec.PersonId)
+			currentJournal.AcceptedEditors = append(currentJournal.AcceptedEditors, &Editor{
+				PersonId:   jec.PersonId,
+				PersonName: jec.PersonName,
+			})
 		}
 	}
 	return result, nil
@@ -133,7 +136,12 @@ type Journal struct {
 	Title           string
 	IsSigned        bool
 	Descriptionhash string
-	AcceptedEditors []string
+	AcceptedEditors []*Editor
+}
+
+type Editor struct {
+	PersonId   string
+	PersonName string
 }
 
 type JournalEditorCombination struct {
@@ -144,6 +152,7 @@ type JournalEditorCombination struct {
 	IsSigned        bool
 	Descriptionhash string
 	PersonId        string
+	PersonName      string
 }
 
 func getAllJournalsQuery() string {
@@ -155,11 +164,13 @@ SELECT
   journal.title,
   journal.issigned,
   journal.descriptionhash,
-  editor.personid
-FROM journal, editor
+  editor.personid,
+  person.name AS personname
+FROM journal, editor, person
 WHERE editor.journalid = journal.journalid
   AND editor.editorState = "%s"
-ORDER BY journal.journalId, editor.personId
+  AND person.id = editor.personid
+ORDER BY journal.title, journal.journalId, person.name, editor.personId
 `, model.GetEditorStateString(model.EditorState_editorAccepted)))
 }
 
@@ -171,6 +182,11 @@ func toJournal(jec *JournalEditorCombination) *Journal {
 	journal.Title = jec.Title
 	journal.IsSigned = jec.IsSigned
 	journal.Descriptionhash = jec.Descriptionhash
-	journal.AcceptedEditors = []string{jec.PersonId}
+	journal.AcceptedEditors = []*Editor{
+		{
+			PersonId:   jec.PersonId,
+			PersonName: jec.PersonName,
+		},
+	}
 	return journal
 }

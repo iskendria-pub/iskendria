@@ -45,8 +45,8 @@ func main() {
 					},
 					&cli.StructRunnerHandler{
 						FullDescription:              "Welcome to the settings update dialog",
-						OneLineDescription:           "Settings Update",
-						Name:                         "settingsUpdate",
+						OneLineDescription:           "Update settings",
+						Name:                         "updateSettings",
 						ReferenceValueGetter:         settingsUpdateReference,
 						ReferenceValueGetterArgNames: []string{},
 						Action:                       settingsUpdate,
@@ -62,11 +62,11 @@ func main() {
 						FullDescription:    "Welcome to the person create dialog.",
 						OneLineDescription: "Create Person",
 						Name:               "createPerson",
-						Action:             createPerson,
+						Action:             personCreate,
 					},
 					&cli.StructRunnerHandler{
 						FullDescription:              "Welcome to the person update dialog.",
-						OneLineDescription:           "Person Update",
+						OneLineDescription:           "Update person",
 						Name:                         "updatePerson",
 						ReferenceValueGetter:         personUpdateReference,
 						ReferenceValueGetterArgNames: []string{"person id"},
@@ -105,7 +105,9 @@ func main() {
 		cli.InputScript = os.Args[1]
 	}
 	fmt.Print(makeRed)
-	dao.Init("major.db", log.New(os.Stdout, "db", log.Flags()))
+	dbLogger := log.New(os.Stdout, "db", log.Flags())
+	dao.Init("major.db", dbLogger)
+	defer dao.Shutdown(dbLogger)
 	cliAlexandria.InitEventStream("./major-events.log", "major")
 	context.Run()
 }
@@ -140,9 +142,8 @@ func settingsUpdate(outputter cli.Outputter, updated *dao.Settings) {
 	}
 }
 
-func createPerson(outputter cli.Outputter, personInput *command.PersonCreate) {
+func personCreate(outputter cli.Outputter, personInput *command.PersonCreate) {
 	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
-		outputter("You are not logged in as a person\n")
 		return
 	}
 	cmd, personId := command.GetPersonCreateCommand(
