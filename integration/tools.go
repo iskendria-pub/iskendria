@@ -98,7 +98,7 @@ func withNewJournalCreate(r role, testFunc func(*command.Journal, int32, *testin
 	withNewPersonCreate(f, t)
 }
 
-func checkJournal(journal *dao.Journal, journalId string, editorId string, t *testing.T) {
+func checkCreatedDaoJournal(journal *dao.Journal, journalId string, editorId string, t *testing.T) {
 	if journal.JournalId != journalId {
 		t.Error("JournalId mismatch")
 	}
@@ -126,6 +126,36 @@ func checkJournal(journal *dao.Journal, journalId string, editorId string, t *te
 	if journal.AcceptedEditors[0].PersonName != majorName {
 		t.Error(fmt.Sprintf("AcceptedEditor PersonName mismatch, expected %s, got %s",
 			majorName, journal.AcceptedEditors[0].PersonName))
+	}
+}
+
+func checkCreatedStateJournal(journal *model.StateJournal, journalId, editorId string, t *testing.T) {
+	if journal.Id != journalId {
+		t.Error("Id mismatch")
+	}
+	if journal.Title != "The Journal" {
+		t.Error("Title mismatch")
+	}
+	if journal.IsSigned != false {
+		t.Error("IsSigned mismatch")
+	}
+	if util.Abs(journal.ModifiedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("ModifiedOn mismatch")
+	}
+	if util.Abs(journal.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("CreatedOn mismatch")
+	}
+	if journal.DescriptionHash != "abcdef01" {
+		t.Error("DescriptionHash mismatch")
+	}
+	if len(journal.EditorInfo) != 1 {
+		t.Error("EditorInfo length mismatch")
+	}
+	if journal.EditorInfo[0].EditorId != editorId {
+		t.Error("EditorInfo.EditorId mismatch")
+	}
+	if journal.EditorInfo[0].EditorState != model.EditorState_editorAccepted {
+		t.Error("EditorInfo.EditorState mismatch")
 	}
 }
 
@@ -656,4 +686,44 @@ func getSettings(t *testing.T) *dao.Settings {
 		t.Error(err)
 	}
 	return settings
+}
+
+func doTestJournalCreate(journal *command.Journal, initialBalance int32, t *testing.T) {
+	editorId := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id
+	cmd, journalId := command.GetCommandJournalCreate(
+		journal,
+		editorId,
+		cliAlexandria.LoggedIn(),
+		priceEditorCreateJournal)
+	err := command.RunCommandForTest(cmd, "transactionJournalCreate", blockchainAccess)
+	if err != nil {
+		t.Error()
+	}
+	journals, err := dao.GetAllJournals()
+	if err != nil {
+		t.Error(err)
+	}
+	if len(journals) != 1 {
+		t.Error(fmt.Sprintf("Expected to have exactly one journal, but got %d", len(journals)))
+	}
+	actualJournal := journals[0]
+	checkCreatedDaoJournal(actualJournal, journalId, editorId, t)
+	checkCreatedStateJournal(getStateJournal(journalId, t), journalId, editorId, t)
+}
+
+func getStateJournal(journalId string, t *testing.T) *model.StateJournal {
+	data, err := blockchainAccess.GetState([]string{journalId})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(data) != 1 {
+		t.Error("Expected to read one address")
+	}
+	journalBytes := data[journalId]
+	journal := &model.StateJournal{}
+	err = proto.Unmarshal(journalBytes, journal)
+	if err != nil {
+		t.Error(err)
+	}
+	return journal
 }
