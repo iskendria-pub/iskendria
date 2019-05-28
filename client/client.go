@@ -85,7 +85,7 @@ func journalCreate(outputter cli.Outputter, journal *command.Journal) {
 	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
-	cmd, journalId := command.GetJournalCreateCommand(
+	cmd, journalId := command.GetCommandJournalCreate(
 		journal,
 		cliAlexandria.LoggedInPerson.Id,
 		cliAlexandria.LoggedIn(),

@@ -575,7 +575,7 @@ func TestJournalCreate(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestJournalCreate", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
 	f := func(journal *command.Journal, initialBalance int32, t *testing.T) {
-		cmd, journalId := command.GetJournalCreateCommand(
+		cmd, journalId := command.GetCommandJournalCreate(
 			journal,
 			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
 			cliAlexandria.LoggedIn(),

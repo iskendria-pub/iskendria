@@ -8,7 +8,7 @@ import (
 	"sort"
 )
 
-func GetJournalCreateCommand(
+func GetCommandJournalCreate(
 	jc *Journal,
 	signer string,
 	cryptoIdentity *CryptoIdentity,
