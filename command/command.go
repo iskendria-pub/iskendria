@@ -298,5 +298,11 @@ func (nbce *nonBootstrapCommandExecution) addBalanceDeduct(u *updater) {
 		newBalance: nbce.unmarshalledState.persons[nbce.verifiedSignerId].Balance - nbce.price,
 		timestamp:  nbce.timestamp,
 	}
-	u.updates = append([]singleUpdate{deductUpdate}, u.updates...)
+	// This one may be duplicate, but them both will be identical because
+	// the timestamp comes from the client.
+	var updateModificationTime singleUpdate = &singleUpdatePersonModificationTime{
+		id: nbce.verifiedSignerId,
+		timestamp: nbce.timestamp,
+	}
+	u.updates = append([]singleUpdate{deductUpdate, updateModificationTime}, u.updates...)
 }
