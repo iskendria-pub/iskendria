@@ -83,16 +83,14 @@ func withNewPersonCreate(testFunc func(personCreate *command.PersonCreate, t *te
 	withLoggedInWithNewKey(withNewPersonCreate, t)
 }
 
-func withNewJournalCreate(r role, testFunc func(*command.Journal, int32, *testing.T), t *testing.T) {
+func withNewJournalCreate(testFunc func(*command.Journal, int32, *testing.T), t *testing.T) {
 	journal := getOriginalCommandJournal()
-	var f func(*command.PersonCreate, *testing.T)
-	switch r {
-	case ROLE_MAJOR:
-		f = getWithNewJournalCreateForMajor(testFunc, journal)
-	case ROLE_COMMON:
-		f = getWithNewJournalCreateForCommon(testFunc, journal)
-	default:
-		panic(fmt.Sprintf("Unknown role %d", r))
+	f := func(personCreate *command.PersonCreate, t *testing.T) {
+		doTestPersonCreate(personCreate, t)
+		initialBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson
+		checkStateBalanceOfKey(initialBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(initialBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		testFunc(journal, initialBalance, t)
 	}
 	withNewPersonCreate(f, t)
 }
@@ -162,37 +160,6 @@ func checkCreatedStateJournal(journal *model.StateJournal, journalId, editorId s
 	}
 	if journal.EditorInfo[0].EditorState != model.EditorState_editorAccepted {
 		t.Error("EditorInfo.EditorState mismatch")
-	}
-}
-
-type role int
-
-const (
-	ROLE_MAJOR  = role(0)
-	ROLE_COMMON = role(1)
-)
-
-func getWithNewJournalCreateForMajor(
-	testFunc func(*command.Journal, int32, *testing.T), journal *command.Journal) func(*command.PersonCreate, *testing.T) {
-	return func(personCreate *command.PersonCreate, t *testing.T) {
-		doTestPersonCreate(personCreate, t)
-		initialBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson
-		checkStateBalanceOfKey(initialBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(initialBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		testFunc(journal, initialBalance, t)
-	}
-}
-
-func getWithNewJournalCreateForCommon(
-	testFunc func(*command.Journal, int32, *testing.T), journal *command.Journal) func(*command.PersonCreate, *testing.T) {
-	return func(personCreate *command.PersonCreate, t *testing.T) {
-		doTestPersonCreate(personCreate, t)
-		if err := cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile); err != nil {
-			t.Error("Could not login as newly created person")
-		}
-		checkStateBalanceOfKey(SUFFICIENT_BALANCE, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(SUFFICIENT_BALANCE, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		testFunc(journal, SUFFICIENT_BALANCE, t)
 	}
 }
 

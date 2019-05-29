@@ -573,7 +573,7 @@ func checkUpdatedDaoSettings(updated *dao.Settings, t *testing.T) {
 func TestJournalCreate(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestJournalCreate", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	withNewJournalCreate(ROLE_MAJOR, doTestJournalCreate, t)
+	withNewJournalCreate(doTestJournalCreate, t)
 }
 
 func TestJournalUpdateProperties(t *testing.T) {
@@ -603,7 +603,7 @@ func TestJournalUpdateProperties(t *testing.T) {
 		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 	}
-	withNewJournalCreate(ROLE_MAJOR, f, t)
+	withNewJournalCreate(f, t)
 }
 
 func checkDaoJournalUpdatedProperties(journal *dao.Journal, t *testing.T) {
@@ -646,7 +646,7 @@ func TestJournalUpdateAuthorization(t *testing.T) {
 		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 	}
-	withNewJournalCreate(ROLE_MAJOR, f, t)
+	withNewJournalCreate(f, t)
 }
 
 func checkDaoJournalUpdatedAuthorization(journal *dao.Journal, t *testing.T) {
