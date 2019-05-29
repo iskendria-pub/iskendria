@@ -6,6 +6,7 @@ import (
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"sort"
+	"strconv"
 )
 
 func GetCommandJournalCreate(
@@ -448,7 +449,70 @@ func (nbce *nonBootstrapCommandExecution) signerIsEditor(
 
 func (nbce *nonBootstrapCommandExecution) checkJournalUpdateAuthorization(c *model.CommandJournalUpdateAuthorization) (
 	*updater, error) {
-	return nil, nil
+	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceMajorChangeJournalAuthorization
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("PriceMajorChangeJournalAuthorization", expectedPrice)
+	}
+	if err := nbce.readAndCheckJournal(c.JournalId, ADDRESS_FILLED); err != nil {
+		return nil, err
+	}
+	if !nbce.unmarshalledState.persons[nbce.verifiedSignerId].IsMajor {
+		return nil, errors.New("Only majors can change the isSigned property of a journal")
+	}
+	oldJournal := nbce.unmarshalledState.journals[c.JournalId]
+	updates := []singleUpdate{}
+	if oldJournal.IsSigned != c.MakeSigned {
+		updates = append(updates, &singleUpdateJournalUpdateAuthorization{
+			journalId:  c.JournalId,
+			makeSigned: c.MakeSigned,
+			timestamp:  nbce.timestamp,
+		})
+	}
+	updates = nbce.addSingleUpdateJournalModificationTimeIfNeeded(updates, c.JournalId)
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           updates,
+	}, nil
+}
+
+type singleUpdateJournalUpdateAuthorization struct {
+	journalId  string
+	makeSigned bool
+	timestamp  int64
+}
+
+var _ singleUpdate = new(singleUpdateJournalUpdateAuthorization)
+
+func (u *singleUpdateJournalUpdateAuthorization) updateState(state *unmarshalledState) (writtenAddress string) {
+	state.journals[u.journalId].IsSigned = u.makeSigned
+	return u.journalId
+}
+
+func (u *singleUpdateJournalUpdateAuthorization) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_JOURNAL_UPDATE
+	return ba.AddEvent(eventType,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_ID,
+				Value: u.journalId,
+			},
+			{
+				Key:   model.EV_KEY_JOURNAL_IS_SIGNED,
+				Value: strconv.FormatBool(u.makeSigned),
+			},
+		}, []byte{})
 }
 
 func (nbce *nonBootstrapCommandExecution) checkJournalEditorResign(c *model.CommandJournalEditorResign) (

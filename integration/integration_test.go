@@ -577,7 +577,7 @@ func TestJournalCreate(t *testing.T) {
 }
 
 func TestJournalUpdateProperties(t *testing.T) {
-	logger = log.New(os.Stdout, "integration.TestJournalCreate", log.Flags())
+	logger = log.New(os.Stdout, "integration.TestJournalUpdateProperties", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
 	f := func(journal *command.Journal, initialBalance int32, t *testing.T) {
 		doTestJournalCreate(journal, initialBalance, t)
@@ -621,5 +621,42 @@ func checkStateJournalUpdatedProperties(journal *model.StateJournal, t *testing.
 	}
 	if journal.DescriptionHash != "bcdef012" {
 		t.Error("DescriptionHash mismatch")
+	}
+}
+
+func TestJournalUpdateAuthorization(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalUpdateAuthorization", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	f := func(journal *command.Journal, initialBalance int32, t *testing.T) {
+		doTestJournalCreate(journal, initialBalance, t)
+		journalId := getTheOnlyDaoJournal(t).JournalId
+		cmd := command.GetCommandJournalUpdateAuthorization(
+			journalId,
+			true,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceMajorChangeJournalAuthorization)
+		err := command.RunCommandForTest(cmd, "transactionIdJournalUpdateProperties", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		checkDaoJournalUpdatedAuthorization(getTheOnlyDaoJournal(t), t)
+		checkStateJournalUpdatedAuthorization(getStateJournal(journalId, t), t)
+		expectedBalance := initialBalance - priceEditorCreateJournal - priceMajorChangeJournalAuthorization
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withNewJournalCreate(ROLE_MAJOR, f, t)
+}
+
+func checkDaoJournalUpdatedAuthorization(journal *dao.Journal, t *testing.T) {
+	if journal.IsSigned != true {
+		t.Error("Setting IsSigned of journal was not done")
+	}
+}
+
+func checkStateJournalUpdatedAuthorization(journal *model.StateJournal, t *testing.T) {
+	if journal.IsSigned != true {
+		t.Error("Setting IsSigned of journal was not done")
 	}
 }

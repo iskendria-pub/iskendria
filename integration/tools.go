@@ -24,6 +24,7 @@ const SUFFICIENT_BALANCE = int32(1000)
 const priceMajorEditSettings int32 = 101
 const priceMajorCreatePerson int32 = 102
 const priceMajorChangePersonAuthorization int32 = 103
+const priceMajorChangeJournalAuthorization = 104
 const pricePersonEdit int32 = 105
 const priceEditorCreateJournal int32 = 114
 const priceEditorEditJournal int32 = 116
@@ -259,7 +260,7 @@ func getBootstrap() *command.Bootstrap {
 		PriceMajorEditSettings:               priceMajorEditSettings,
 		PriceMajorCreatePerson:               priceMajorCreatePerson,
 		PriceMajorChangePersonAuthorization:  priceMajorChangePersonAuthorization,
-		PriceMajorChangeJournalAuthorization: 104,
+		PriceMajorChangeJournalAuthorization: priceMajorChangeJournalAuthorization,
 		PricePersonEdit:                      pricePersonEdit,
 		PriceAuthorSubmitNewManuscript:       106,
 		PriceAuthorSubmitNewVersion:          107,

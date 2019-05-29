@@ -99,12 +99,12 @@ func (dm *dataManipulationEditorCreate) apply(tx *sqlx.Tx) error {
 }
 
 func createJournalUpdateEvent(ev *events_pb2.Event) (event, error) {
-	dm := &dataManipulationJournalUpdateProperties{}
-	result := &dataManipulationEvent{
-		dataManipulation: dm,
-	}
+	dmProperties := &dataManipulationJournalUpdateProperties{}
+	dmAuthorization := &dataManipulationJournalUpdateAuthorization{}
+	result := &dataManipulationEvent{}
 	var err error
 	var i64 int64
+	var b bool
 	for _, a := range ev.Attributes {
 		switch a.Key {
 		case model.EV_KEY_TRANSACTION_ID:
@@ -113,10 +113,16 @@ func createJournalUpdateEvent(ev *events_pb2.Event) (event, error) {
 			i64, err = strconv.ParseInt(a.Value, 10, 32)
 			result.eventSeq = int32(i64)
 		case model.EV_KEY_ID:
-			dm.id = a.Value
+			dmProperties.id = a.Value
+			dmAuthorization.id = a.Value
 		case model.EV_KEY_JOURNAL_TITLE, model.EV_KEY_JOURNAL_DESCRIPTION_HASH:
-			dm.field = a.Key
-			dm.newValue = a.Value
+			result.dataManipulation = dmProperties
+			dmProperties.field = a.Key
+			dmProperties.newValue = a.Value
+		case model.EV_KEY_JOURNAL_IS_SIGNED:
+			b, err = strconv.ParseBool(a.Value)
+			result.dataManipulation = dmAuthorization
+			dmAuthorization.newIsSigned = b
 		}
 		if err != nil {
 			return nil, err
@@ -137,6 +143,19 @@ func (dm *dataManipulationJournalUpdateProperties) apply(tx *sqlx.Tx) error {
 	query := fmt.Sprintf("UPDATE journal SET %s = \"%s\" WHERE journalId = \"%s\"",
 		dm.field, dm.newValue, dm.id)
 	_, err := tx.Exec(query)
+	return err
+}
+
+type dataManipulationJournalUpdateAuthorization struct {
+	id          string
+	newIsSigned bool
+}
+
+var _ dataManipulation = new(dataManipulationJournalUpdateAuthorization)
+
+func (dm *dataManipulationJournalUpdateAuthorization) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec("UPDATE journal SET issigned = ? WHERE journalId = ?",
+		dm.newIsSigned, dm.id)
 	return err
 }
 

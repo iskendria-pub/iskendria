@@ -275,6 +275,8 @@ func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*upda
 		return nbce.checkJournalCreate(c.GetCommandJournalCreate())
 	case *model.Command_CommandJournalUpdateProperties:
 		return nbce.checkJournalUpdateProperties(c.GetCommandJournalUpdateProperties())
+	case *model.Command_CommandJournalUpdateAuthorization:
+		return nbce.checkJournalUpdateAuthorization(c.GetCommandJournalUpdateAuthorization())
 	case *model.Command_PersonCreate:
 		return nbce.checkPersonCreate(c.GetPersonCreate())
 	case *model.Command_CommandPersonUpdateProperties:
@@ -289,6 +291,9 @@ func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*upda
 }
 
 func (nbce *nonBootstrapCommandExecution) addBalanceDeduct(u *updater) {
+	if len(u.updates) == 0 {
+		return
+	}
 	// Balance deduction should happen first. If a balance increment update
 	// had come before the deduction with the price, the updates would conflict.
 	// Each update sets the balance to a pre-calculated value. Now this
@@ -301,7 +306,7 @@ func (nbce *nonBootstrapCommandExecution) addBalanceDeduct(u *updater) {
 	// This one may be duplicate, but them both will be identical because
 	// the timestamp comes from the client.
 	var updateModificationTime singleUpdate = &singleUpdatePersonModificationTime{
-		id: nbce.verifiedSignerId,
+		id:        nbce.verifiedSignerId,
 		timestamp: nbce.timestamp,
 	}
 	u.updates = append([]singleUpdate{deductUpdate, updateModificationTime}, u.updates...)
