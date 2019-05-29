@@ -26,6 +26,7 @@ const priceMajorCreatePerson int32 = 102
 const priceMajorChangePersonAuthorization int32 = 103
 const pricePersonEdit int32 = 105
 const priceEditorCreateJournal int32 = 114
+const priceEditorEditJournal int32 = 116
 
 var logger *log.Logger
 var blockchainAccess command.BlockchainAccess
@@ -82,10 +83,7 @@ func withNewPersonCreate(testFunc func(personCreate *command.PersonCreate, t *te
 }
 
 func withNewJournalCreate(r role, testFunc func(*command.Journal, int32, *testing.T), t *testing.T) {
-	journal := &command.Journal{
-		Title:           "The Journal",
-		DescriptionHash: "abcdef01",
-	}
+	journal := getOriginalCommandJournal()
 	var f func(*command.PersonCreate, *testing.T)
 	switch r {
 	case ROLE_MAJOR:
@@ -96,6 +94,13 @@ func withNewJournalCreate(r role, testFunc func(*command.Journal, int32, *testin
 		panic(fmt.Sprintf("Unknown role %d", r))
 	}
 	withNewPersonCreate(f, t)
+}
+
+func getOriginalCommandJournal() *command.Journal {
+	return &command.Journal{
+		Title:           "The Journal",
+		DescriptionHash: "abcdef01",
+	}
 }
 
 func checkCreatedDaoJournal(journal *dao.Journal, journalId string, editorId string, t *testing.T) {
@@ -266,7 +271,7 @@ func getBootstrap() *command.Bootstrap {
 		PriceEditorAssignManuscript:          113,
 		PriceEditorCreateJournal:             priceEditorCreateJournal,
 		PriceEditorCreateVolume:              115,
-		PriceEditorEditJournal:               116,
+		PriceEditorEditJournal:               priceEditorEditJournal,
 		PriceEditorAddColleague:              117,
 		PriceEditorAcceptDuty:                118,
 		Name:                                 majorName,
@@ -699,6 +704,14 @@ func doTestJournalCreate(journal *command.Journal, initialBalance int32, t *test
 	if err != nil {
 		t.Error()
 	}
+	checkCreatedDaoJournal(getTheOnlyDaoJournal(t), journalId, editorId, t)
+	checkCreatedStateJournal(getStateJournal(journalId, t), journalId, editorId, t)
+	expectedBalance := initialBalance - priceEditorCreateJournal
+	checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+}
+
+func getTheOnlyDaoJournal(t *testing.T) *dao.Journal {
 	journals, err := dao.GetAllJournals()
 	if err != nil {
 		t.Error(err)
@@ -707,8 +720,7 @@ func doTestJournalCreate(journal *command.Journal, initialBalance int32, t *test
 		t.Error(fmt.Sprintf("Expected to have exactly one journal, but got %d", len(journals)))
 	}
 	actualJournal := journals[0]
-	checkCreatedDaoJournal(actualJournal, journalId, editorId, t)
-	checkCreatedStateJournal(getStateJournal(journalId, t), journalId, editorId, t)
+	return actualJournal
 }
 
 func getStateJournal(journalId string, t *testing.T) *model.StateJournal {

@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const THE_SETTINGS_ID = 1
+const THE_SETTINGS_ID = "1"
 
 type event interface {
 	accept(context) error

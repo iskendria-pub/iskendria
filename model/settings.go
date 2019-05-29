@@ -9,7 +9,7 @@ import (
 // corresponding field name is obtained.
 var TableCreateSettings = `
 	CREATE TABLE settings (
-    id integer primary key not null,
+    id varchar primary key not null,
 	createdon integer not null,
 	modifiedon integer not null,
 	pricemajoreditsettings integer not null,

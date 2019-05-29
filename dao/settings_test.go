@@ -142,7 +142,7 @@ func TestGetSettings(t *testing.T) {
 		t.Error("With filled settings table, GetSettings() gave an error: " + err.Error())
 		return
 	}
-	if settings.Id != int32(THE_SETTINGS_ID) {
+	if settings.Id != THE_SETTINGS_ID {
 		t.Error("With filled settings table, id error")
 	}
 	if settings.CreatedOn != int64(10000) {

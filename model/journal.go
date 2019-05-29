@@ -36,12 +36,12 @@ const (
 )
 
 const (
-	EV_KEY_JOURNAL_ID       = "journalId"
-	EV_KEY_TITLE            = "title"
-	EV_KEY_IS_SIGNED        = "isSigned"
-	EV_KEY_DESCRIPTION_HASH = "descriptionHash"
-	EV_KEY_PERSON_ID        = "personId"
-	EV_KEY_EDITOR_STATE     = "editorState"
+	EV_KEY_JOURNAL_ID               = "journalId"
+	EV_KEY_JOURNAL_TITLE            = "title"
+	EV_KEY_JOURNAL_IS_SIGNED        = "isSigned"
+	EV_KEY_JOURNAL_DESCRIPTION_HASH = "descriptionHash"
+	EV_KEY_JOURNAL_PERSON_ID        = "personId"
+	EV_KEY_JOURNAL_EDITOR_STATE     = "editorState"
 )
 
 const journalAddressPrefix = "20"

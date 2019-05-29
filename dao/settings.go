@@ -12,7 +12,7 @@ import (
 )
 
 type Settings struct {
-	Id                                   int32
+	Id                                   string
 	CreatedOn                            int64 `db:"createdon"`
 	ModifiedOn                           int64 `db:"modifiedon"`
 	PriceMajorEditSettings               int32 `db:"pricemajoreditsettings"`
@@ -225,46 +225,7 @@ type dataManipulationSettingsUpdate struct {
 var _ dataManipulation = new(dataManipulationSettingsUpdate)
 
 func (dm *dataManipulationSettingsUpdate) apply(tx *sqlx.Tx) error {
-	_, err := tx.Exec(fmt.Sprintf("UPDATE settings SET %s = %d WHERE Id = %d",
+	_, err := tx.Exec(fmt.Sprintf("UPDATE settings SET %s = %d WHERE Id = %s",
 		dm.field, dm.newValue, THE_SETTINGS_ID))
-	return err
-}
-
-func createSettingsModificationTimeEvent(input *events_pb2.Event) (event, error) {
-	dm := new(dataManipulationSettingsModificationTime)
-	result := &dataManipulationEvent{
-		dataManipulation: dm,
-	}
-	var err error
-	var i64 int64
-	for _, a := range input.Attributes {
-		switch a.Key {
-		case model.EV_KEY_TRANSACTION_ID:
-			result.transactionId = a.Value
-		case model.EV_KEY_EVENT_SEQ:
-			i64, err = strconv.ParseInt(a.Value, 10, 32)
-			result.eventSeq = int32(i64)
-		case model.EV_KEY_TIMESTAMP:
-			i64, err = strconv.ParseInt(a.Value, 10, 64)
-			dm.timestamp = i64
-		default:
-			err = errors.New("createSettingsModificationTimeEvent: Unknown event attribute: " + a.Key)
-		}
-		if err != nil {
-			return nil, err
-		}
-	}
-	return result, nil
-}
-
-type dataManipulationSettingsModificationTime struct {
-	timestamp int64
-}
-
-var _ dataManipulation = new(dataManipulationSettingsModificationTime)
-
-func (dm *dataManipulationSettingsModificationTime) apply(tx *sqlx.Tx) error {
-	_, err := tx.Exec(fmt.Sprintf("UPDATE settings SET modifiedon = %d WHERE Id = %d",
-		dm.timestamp, THE_SETTINGS_ID))
 	return err
 }

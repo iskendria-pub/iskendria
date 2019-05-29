@@ -21,6 +21,8 @@ var AllEventTypes = []string{
 	model.AlexandriaPrefix + model.EV_TYPE_SETTINGS_UPDATE,
 	model.AlexandriaPrefix + model.EV_TYPE_SETTINGS_MODIFICATION_TIME,
 	model.AlexandriaPrefix + model.EV_TYPE_JOURNAL_CREATE,
+	model.AlexandriaPrefix + model.EV_TYPE_JOURNAL_UPDATE,
+	model.AlexandriaPrefix + model.EV_TYPE_JOURNAL_MODIFICATION_TIME,
 	model.AlexandriaPrefix + model.EV_TYPE_EDITOR_CREATE,
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_CREATE,
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_UPDATE,
@@ -95,6 +97,10 @@ func parseEvent(input *events_pb2.Event) (event, error) {
 		return createSettingsModificationTimeEvent(input)
 	case model.EV_TYPE_JOURNAL_CREATE:
 		return createJournalCreateEvent(input)
+	case model.EV_TYPE_JOURNAL_UPDATE:
+		return createJournalUpdateEvent(input)
+	case model.EV_TYPE_JOURNAL_MODIFICATION_TIME:
+		return createJournalModificationTimeEvent(input)
 	case model.EV_TYPE_EDITOR_CREATE:
 		return createEditorCreateEvent(input)
 	case model.EV_TYPE_PERSON_CREATE:

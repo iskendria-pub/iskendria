@@ -575,3 +575,51 @@ func TestJournalCreate(t *testing.T) {
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
 	withNewJournalCreate(ROLE_MAJOR, doTestJournalCreate, t)
 }
+
+func TestJournalUpdateProperties(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalCreate", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	f := func(journal *command.Journal, initialBalance int32, t *testing.T) {
+		doTestJournalCreate(journal, initialBalance, t)
+		updated := &command.Journal{
+			Title:           "Changed title",
+			DescriptionHash: "bcdef012",
+		}
+		journalId := getTheOnlyDaoJournal(t).JournalId
+		cmd := command.GetCommandJournalUpdateProperties(
+			journalId,
+			getOriginalCommandJournal(),
+			updated,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorEditJournal)
+		err := command.RunCommandForTest(cmd, "transactionIdJournalUpdateProperties", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		checkDaoJournalUpdatedProperties(getTheOnlyDaoJournal(t), t)
+		checkStateJournalUpdatedProperties(getStateJournal(journalId, t), t)
+		expectedBalance := initialBalance - priceEditorCreateJournal - priceEditorEditJournal
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withNewJournalCreate(ROLE_MAJOR, f, t)
+}
+
+func checkDaoJournalUpdatedProperties(journal *dao.Journal, t *testing.T) {
+	if journal.Title != "Changed title" {
+		t.Error("Title mismatch")
+	}
+	if journal.Descriptionhash != "bcdef012" {
+		t.Error("DescriptionHash mismatch")
+	}
+}
+
+func checkStateJournalUpdatedProperties(journal *model.StateJournal, t *testing.T) {
+	if journal.Title != "Changed title" {
+		t.Error("Title mismatch")
+	}
+	if journal.DescriptionHash != "bcdef012" {
+		t.Error("DescriptionHash mismatch")
+	}
+}

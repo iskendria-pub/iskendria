@@ -173,19 +173,12 @@ func GetCommandJournalEditorAcceptDuty(
 }
 
 func (nbce *nonBootstrapCommandExecution) checkJournalCreate(c *model.CommandJournalCreate) (*updater, error) {
-	if !model.IsJournalAddress(c.JournalId) {
-		return nil, errors.New("Journal id is not a journal address: " + c.JournalId)
+	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceEditorCreateJournal
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("PriceEditorCreateJournal", expectedPrice)
 	}
-	data, err := nbce.blockchainAccess.GetState([]string{c.JournalId})
-	if err != nil {
-		return nil, errors.New("Could not read journal address: " + c.JournalId)
-	}
-	err = nbce.unmarshalledState.add(data, []string{c.JournalId})
-	if err != nil {
+	if err := nbce.readAndCheckJournal(c.JournalId, ADDRESS_EMPTY); err != nil {
 		return nil, err
-	}
-	if nbce.unmarshalledState.getAddressState(c.JournalId) != ADDRESS_EMPTY {
-		return nil, errors.New("Journal already exists: " + c.JournalId)
 	}
 	if c.Title == "" {
 		return nil, errors.New("When creating a journal, the title is mandatory")
@@ -204,6 +197,39 @@ func (nbce *nonBootstrapCommandExecution) checkJournalCreate(c *model.CommandJou
 			},
 		},
 	}, nil
+}
+
+func (nbce *nonBootstrapCommandExecution) readAndCheckJournal(
+	journalId string, expectedAddressState addressState) error {
+	if !model.IsJournalAddress(journalId) {
+		return errors.New("Journal id is not a journal address: " + journalId)
+	}
+	data, err := nbce.blockchainAccess.GetState([]string{journalId})
+	if err != nil {
+		return errors.New("Could not read journal address: " + journalId)
+	}
+	err = nbce.unmarshalledState.add(data, []string{journalId})
+	if err != nil {
+		return err
+	}
+	if nbce.unmarshalledState.getAddressState(journalId) != expectedAddressState {
+		return reportUnexpectedJournalAddressState(expectedAddressState, journalId)
+	}
+	return nil
+}
+
+func reportUnexpectedJournalAddressState(expectedAddressState addressState, journalId string) error {
+	var msg string
+	switch expectedAddressState {
+	case ADDRESS_EMPTY:
+		msg = "Journal already exist: "
+	case ADDRESS_FILLED:
+		msg = "Journal does not exist: "
+	case ADDRESS_UNKNOWN:
+		msg = "Internal error, journal was not read: "
+	}
+	err := errors.New(msg + journalId)
+	return err
 }
 
 type singleUpdateJournalCreate struct {
@@ -250,11 +276,11 @@ func (u *singleUpdateJournalCreate) issueEvent(eventSeq int32, transactionId str
 				Value: u.journalCreate.JournalId,
 			},
 			{
-				Key:   model.EV_KEY_DESCRIPTION_HASH,
+				Key:   model.EV_KEY_JOURNAL_DESCRIPTION_HASH,
 				Value: u.journalCreate.DescriptionHash,
 			},
 			{
-				Key:   model.EV_KEY_TITLE,
+				Key:   model.EV_KEY_JOURNAL_TITLE,
 				Value: u.journalCreate.Title,
 			},
 		}, []byte{})
@@ -302,11 +328,11 @@ func (u *singleUpdateEditorCreate) issueEvent(eventSeq int32, transactionId stri
 				Value: u.journalId,
 			},
 			{
-				Key:   model.EV_KEY_PERSON_ID,
+				Key:   model.EV_KEY_JOURNAL_PERSON_ID,
 				Value: u.editorId,
 			},
 			{
-				Key:   model.EV_KEY_EDITOR_STATE,
+				Key:   model.EV_KEY_JOURNAL_EDITOR_STATE,
 				Value: model.GetEditorStateString(model.EditorState_editorAccepted),
 			},
 		}, []byte{})
@@ -314,7 +340,110 @@ func (u *singleUpdateEditorCreate) issueEvent(eventSeq int32, transactionId stri
 
 func (nbce *nonBootstrapCommandExecution) checkJournalUpdateProperties(c *model.CommandJournalUpdateProperties) (
 	*updater, error) {
-	return nil, nil
+	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceEditorEditJournal
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("PriceEditorEditJournal", expectedPrice)
+	}
+	if err := nbce.readAndCheckJournal(c.JournalId, ADDRESS_FILLED); err != nil {
+		return nil, err
+	}
+	if !nbce.signerIsEditor(c.JournalId, model.EditorState_editorAccepted) {
+		return nil, errors.New(fmt.Sprintf(
+			"You are not editor of journal %s, or you still have to accept editorship", c.JournalId))
+	}
+	oldJournal := nbce.unmarshalledState.journals[c.JournalId]
+	if c.TitleUpdate != nil && c.TitleUpdate.OldValue != oldJournal.Title {
+		return nil, errors.New(fmt.Sprintf("Title mismatch: expected %s, got %s",
+			c.TitleUpdate.OldValue, oldJournal.Title))
+	}
+	if c.DescriptionHashUpdate != nil && c.DescriptionHashUpdate.OldValue != oldJournal.DescriptionHash {
+		return nil, errors.New(fmt.Sprintf("DescriptionHash mismatch: expected %s, got %s",
+			c.DescriptionHashUpdate.OldValue, oldJournal.DescriptionHash))
+	}
+	singleUpdates := createSingleUpdatesJournalUpdateProperties(c, oldJournal, nbce.timestamp)
+	singleUpdates = nbce.addSingleUpdateJournalModificationTimeIfNeeded(singleUpdates, c.JournalId)
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           singleUpdates,
+	}, nil
+}
+
+func createSingleUpdatesJournalUpdateProperties(
+	c *model.CommandJournalUpdateProperties, oldJournal *model.StateJournal, timestamp int64) []singleUpdate {
+	result := []singleUpdate{}
+	if c.TitleUpdate != nil {
+		result = append(result, &singleUpdateJournalUpdateProperties{
+			newValue:   c.TitleUpdate.NewValue,
+			stateField: &oldJournal.Title,
+			eventKey:   model.EV_KEY_JOURNAL_TITLE,
+			journalId:  c.JournalId,
+			timestamp:  timestamp,
+		})
+	}
+	if c.DescriptionHashUpdate != nil {
+		result = append(result, &singleUpdateJournalUpdateProperties{
+			newValue:   c.DescriptionHashUpdate.NewValue,
+			stateField: &oldJournal.DescriptionHash,
+			eventKey:   model.EV_KEY_JOURNAL_DESCRIPTION_HASH,
+			journalId:  c.JournalId,
+			timestamp:  timestamp,
+		})
+	}
+	return result
+}
+
+type singleUpdateJournalUpdateProperties struct {
+	newValue   string
+	stateField *string
+	eventKey   string
+	journalId  string
+	timestamp  int64
+}
+
+var _ singleUpdate = new(singleUpdateJournalUpdateProperties)
+
+func (u *singleUpdateJournalUpdateProperties) updateState(*unmarshalledState) (writtenAddress string) {
+	*u.stateField = u.newValue
+	return u.journalId
+}
+
+func (u *singleUpdateJournalUpdateProperties) issueEvent(
+	eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_JOURNAL_UPDATE
+	return ba.AddEvent(
+		eventType,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_ID,
+				Value: u.journalId,
+			},
+			{
+				Key:   u.eventKey,
+				Value: u.newValue,
+			},
+		}, []byte{})
+}
+
+func (nbce *nonBootstrapCommandExecution) signerIsEditor(
+	journalId string, expectedEditorState model.EditorState) bool {
+	for _, e := range nbce.unmarshalledState.journals[journalId].EditorInfo {
+		if e.EditorId == nbce.verifiedSignerId && e.EditorState == expectedEditorState {
+			return true
+		}
+	}
+	return false
 }
 
 func (nbce *nonBootstrapCommandExecution) checkJournalUpdateAuthorization(c *model.CommandJournalUpdateAuthorization) (

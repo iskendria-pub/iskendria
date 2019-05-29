@@ -29,9 +29,9 @@ func createJournalCreateEvent(ev *events_pb2.Event) (event, error) {
 		case model.EV_KEY_TIMESTAMP:
 			i64, err = strconv.ParseInt(a.Value, 10, 64)
 			dm.timestamp = i64
-		case model.EV_KEY_TITLE:
+		case model.EV_KEY_JOURNAL_TITLE:
 			dm.title = a.Value
-		case model.EV_KEY_DESCRIPTION_HASH:
+		case model.EV_KEY_JOURNAL_DESCRIPTION_HASH:
 			dm.descriptionHash = a.Value
 		}
 		if err != nil {
@@ -72,9 +72,9 @@ func createEditorCreateEvent(ev *events_pb2.Event) (event, error) {
 			result.eventSeq = int32(i64)
 		case model.EV_KEY_JOURNAL_ID:
 			dm.journalId = a.Value
-		case model.EV_KEY_PERSON_ID:
+		case model.EV_KEY_JOURNAL_PERSON_ID:
 			dm.personId = a.Value
-		case model.EV_KEY_EDITOR_STATE:
+		case model.EV_KEY_JOURNAL_EDITOR_STATE:
 			dm.editorState = a.Value
 		}
 		if err != nil {
@@ -95,6 +95,48 @@ var _ dataManipulation = new(dataManipulationEditorCreate)
 func (dm *dataManipulationEditorCreate) apply(tx *sqlx.Tx) error {
 	_, err := tx.Exec(fmt.Sprintf("INSERT INTO editor VALUES (%s)", GetPlaceHolders(3)),
 		dm.journalId, dm.personId, model.GetEditorStateString(model.EditorState_editorAccepted))
+	return err
+}
+
+func createJournalUpdateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationJournalUpdateProperties{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_ID:
+			dm.id = a.Value
+		case model.EV_KEY_JOURNAL_TITLE, model.EV_KEY_JOURNAL_DESCRIPTION_HASH:
+			dm.field = a.Key
+			dm.newValue = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationJournalUpdateProperties struct {
+	id       string
+	field    string
+	newValue string
+}
+
+var _ dataManipulation = new(dataManipulationJournalUpdateProperties)
+
+func (dm *dataManipulationJournalUpdateProperties) apply(tx *sqlx.Tx) error {
+	query := fmt.Sprintf("UPDATE journal SET %s = \"%s\" WHERE journalId = \"%s\"",
+		dm.field, dm.newValue, dm.id)
+	_, err := tx.Exec(query)
 	return err
 }
 
