@@ -680,7 +680,7 @@ func doTestJournalCreate(journal *command.Journal, initialBalance int32, t *test
 }
 
 func getTheOnlyDaoJournal(t *testing.T) *dao.Journal {
-	journals, err := dao.GetAllJournals()
+	journals, err := dao.GetAllJournalsWithEditors()
 	if err != nil {
 		t.Error(err)
 	}

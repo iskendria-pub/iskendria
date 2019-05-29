@@ -660,3 +660,35 @@ func checkStateJournalUpdatedAuthorization(journal *model.StateJournal, t *testi
 		t.Error("Setting IsSigned of journal was not done")
 	}
 }
+
+func TestJournalEditorResign(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalUpdateAuthorization", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	f := func(journal *command.Journal, initialBalance int32, t *testing.T) {
+		doTestJournalCreate(journal, initialBalance, t)
+		journalId := getTheOnlyDaoJournal(t).JournalId
+		cmd := command.GetCommandJournalEditorResign(
+			journalId,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn())
+		err := command.RunCommandForTest(cmd, "transactionIdJournalEditorResign", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		daoJournalsWithEditors, err := dao.GetAllJournalsWithEditors()
+		if len(daoJournalsWithEditors) >= 1 {
+			t.Error("The editor was not removed")
+		}
+		checkStateJournalEditorResigned(getStateJournal(journalId, t), t)
+		expectedBalance := initialBalance - priceEditorCreateJournal - 0
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withNewJournalCreate(f, t)
+}
+
+func checkStateJournalEditorResigned(journal *model.StateJournal, t *testing.T) {
+	if len(journal.EditorInfo) >= 1 {
+		t.Error("Last editor was not removed")
+	}
+}

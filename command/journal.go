@@ -348,7 +348,7 @@ func (nbce *nonBootstrapCommandExecution) checkJournalUpdateProperties(c *model.
 	if err := nbce.readAndCheckJournal(c.JournalId, ADDRESS_FILLED); err != nil {
 		return nil, err
 	}
-	if !nbce.signerIsEditor(c.JournalId, model.EditorState_editorAccepted) {
+	if !nbce.signerIsEditor(c.JournalId, []model.EditorState{model.EditorState_editorAccepted}) {
 		return nil, errors.New(fmt.Sprintf(
 			"You are not editor of journal %s, or you still have to accept editorship", c.JournalId))
 	}
@@ -438,10 +438,12 @@ func (u *singleUpdateJournalUpdateProperties) issueEvent(
 }
 
 func (nbce *nonBootstrapCommandExecution) signerIsEditor(
-	journalId string, expectedEditorState model.EditorState) bool {
+	journalId string, allowedEditorStates []model.EditorState) bool {
 	for _, e := range nbce.unmarshalledState.journals[journalId].EditorInfo {
-		if e.EditorId == nbce.verifiedSignerId && e.EditorState == expectedEditorState {
-			return true
+		for _, allowedState := range allowedEditorStates {
+			if e.EditorId == nbce.verifiedSignerId && e.EditorState == allowedState {
+				return true
+			}
 		}
 	}
 	return false
@@ -517,7 +519,81 @@ func (u *singleUpdateJournalUpdateAuthorization) issueEvent(eventSeq int32, tran
 
 func (nbce *nonBootstrapCommandExecution) checkJournalEditorResign(c *model.CommandJournalEditorResign) (
 	*updater, error) {
-	return nil, nil
+	expectedPrice := int32(0)
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("<No price>", expectedPrice)
+	}
+	if err := nbce.readAndCheckJournal(c.JournalId, ADDRESS_FILLED); err != nil {
+		return nil, err
+	}
+	if !nbce.signerIsEditor(c.JournalId, []model.EditorState{
+		model.EditorState_editorProposed, model.EditorState_editorAccepted}) {
+		return nil, errors.New("You are not the editor of the journal")
+	}
+	updates := []singleUpdate{
+		&singleUpdateJournalEditorDelete{
+			journalId: c.JournalId,
+			editorId:  nbce.verifiedSignerId,
+			timestamp: nbce.timestamp,
+		},
+	}
+	updates = nbce.addSingleUpdateJournalModificationTimeIfNeeded(updates, c.JournalId)
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           updates,
+	}, nil
+}
+
+type singleUpdateJournalEditorDelete struct {
+	journalId string
+	editorId  string
+	timestamp int64
+}
+
+var _ singleUpdate = new(singleUpdateJournalEditorDelete)
+
+func (u *singleUpdateJournalEditorDelete) updateState(
+	state *unmarshalledState) (writtenAddress string) {
+	existingEditors := state.journals[u.journalId].EditorInfo
+	newEditors := make([]*model.EditorInfo, 0, len(existingEditors)-1)
+	for _, e := range existingEditors {
+		if e.EditorId != u.editorId {
+			newEditors = append(newEditors, &model.EditorInfo{
+				EditorId:    e.EditorId,
+				EditorState: e.EditorState,
+			})
+		}
+	}
+	state.journals[u.journalId].EditorInfo = newEditors
+	return u.journalId
+}
+
+func (u *singleUpdateJournalEditorDelete) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_EDITOR_DELETE
+	return ba.AddEvent(
+		eventType,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_JOURNAL_ID,
+				Value: u.journalId,
+			},
+			{
+				Key:   model.EV_KEY_JOURNAL_PERSON_ID,
+				Value: u.editorId,
+			},
+		}, []byte{})
 }
 
 func (nbce *nonBootstrapCommandExecution) checkJournalEditorInvite(c *model.CommandJournalEditorInvite) (

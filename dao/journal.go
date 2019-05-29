@@ -159,16 +159,55 @@ func (dm *dataManipulationJournalUpdateAuthorization) apply(tx *sqlx.Tx) error {
 	return err
 }
 
-func GetAllJournals() ([]*Journal, error) {
+func createEditorDeleteEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationEditorDelete{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_JOURNAL_ID:
+			dm.journalId = a.Value
+		case model.EV_KEY_JOURNAL_PERSON_ID:
+			dm.personId = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationEditorDelete struct {
+	journalId string
+	personId  string
+}
+
+var _ dataManipulation = new(dataManipulationEditorDelete)
+
+func (dm *dataManipulationEditorDelete) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec("DELETE FROM editor WHERE journalid = ? AND personid = ?",
+		dm.journalId, dm.personId)
+	return err
+}
+
+func GetAllJournalsWithEditors() ([]*Journal, error) {
 	tx, err := db.Beginx()
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = tx.Commit() }()
-	return doGetAllJournals(tx)
+	return doGetAllJournalsWithEditors(tx)
 }
 
-func doGetAllJournals(tx *sqlx.Tx) ([]*Journal, error) {
+func doGetAllJournalsWithEditors(tx *sqlx.Tx) ([]*Journal, error) {
 	journalEditorCombinations := []JournalEditorCombination{}
 	err := tx.Select(&journalEditorCombinations, getAllJournalsQuery())
 	if err != nil {

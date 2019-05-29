@@ -59,7 +59,7 @@ func handleJournals(w http.ResponseWriter, _ *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	journals, err := dao.GetAllJournals()
+	journals, err := dao.GetAllJournalsWithEditors()
 	if err != nil {
 		fmt.Println("Error reading journals from database: " + err.Error())
 		return

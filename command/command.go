@@ -277,6 +277,8 @@ func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*upda
 		return nbce.checkJournalUpdateProperties(c.GetCommandJournalUpdateProperties())
 	case *model.Command_CommandJournalUpdateAuthorization:
 		return nbce.checkJournalUpdateAuthorization(c.GetCommandJournalUpdateAuthorization())
+	case *model.Command_CommandJournalEditorResign:
+		return nbce.checkJournalEditorResign(c.GetCommandJournalEditorResign())
 	case *model.Command_PersonCreate:
 		return nbce.checkPersonCreate(c.GetPersonCreate())
 	case *model.Command_CommandPersonUpdateProperties:
@@ -291,13 +293,9 @@ func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*upda
 }
 
 func (nbce *nonBootstrapCommandExecution) addBalanceDeduct(u *updater) {
-	if len(u.updates) == 0 {
+	if len(u.updates) == 0 && nbce.price == int32(0) {
 		return
 	}
-	// Balance deduction should happen first. If a balance increment update
-	// had come before the deduction with the price, the updates would conflict.
-	// Each update sets the balance to a pre-calculated value. Now this
-	// conflict won't occur because incrementing the balance has price zero.
 	var deductUpdate singleUpdate = &singleUpdatePersonIncBalance{
 		personId:   nbce.verifiedSignerId,
 		newBalance: nbce.unmarshalledState.persons[nbce.verifiedSignerId].Balance - nbce.price,
@@ -309,5 +307,9 @@ func (nbce *nonBootstrapCommandExecution) addBalanceDeduct(u *updater) {
 		id:        nbce.verifiedSignerId,
 		timestamp: nbce.timestamp,
 	}
+	// Balance deduction should happen first. If a balance increment update
+	// had come before the deduction with the price, the updates would conflict.
+	// Each update sets the balance to a pre-calculated value. Now this
+	// conflict won't occur because incrementing the balance has price zero.
 	u.updates = append([]singleUpdate{deductUpdate, updateModificationTime}, u.updates...)
 }
