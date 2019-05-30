@@ -6,6 +6,7 @@ import (
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
 	"github.com/jmoiron/sqlx"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -198,26 +199,36 @@ func (dm *dataManipulationEditorDelete) apply(tx *sqlx.Tx) error {
 	return err
 }
 
-func GetAllJournalsWithEditors() ([]*Journal, error) {
+func GetAllJournals() ([]*Journal, error) {
 	tx, err := db.Beginx()
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = tx.Commit() }()
-	return doGetAllJournalsWithEditors(tx)
+	result, err := getAllJournalsWithEditors(tx)
+	if err != nil {
+		return nil, err
+	}
+	journalsWithoutEditors, err := getAllJournalsWithoutEditors(tx)
+	if err != nil {
+		return nil, err
+	}
+	result = append(result, journalsWithoutEditors...)
+	sortJournals(result)
+	return result, nil
 }
 
-func doGetAllJournalsWithEditors(tx *sqlx.Tx) ([]*Journal, error) {
+func getAllJournalsWithEditors(tx *sqlx.Tx) ([]*Journal, error) {
 	journalEditorCombinations := []JournalEditorCombination{}
-	err := tx.Select(&journalEditorCombinations, getAllJournalsQuery())
+	err := tx.Select(&journalEditorCombinations, getJournalEditorCombinationsQuery())
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Could not get all journals: %s", err.Error()))
+		return nil, errors.New(fmt.Sprintf("Could not get journal editor combinations: %s", err.Error()))
 	}
 	result := make([]*Journal, 0)
 	var currentJournal *Journal
 	for _, jec := range journalEditorCombinations {
 		if currentJournal == nil || currentJournal.JournalId != jec.JournalId {
-			currentJournal = toJournal(&jec)
+			currentJournal = journalEditorCombinationToJournal(&jec)
 			result = append(result, currentJournal)
 		} else {
 			currentJournal.AcceptedEditors = append(currentJournal.AcceptedEditors, &Editor{
@@ -255,7 +266,7 @@ type JournalEditorCombination struct {
 	PersonName      string
 }
 
-func getAllJournalsQuery() string {
+func getJournalEditorCombinationsQuery() string {
 	return strings.TrimSpace(fmt.Sprintf(`
 SELECT
   journal.journalid,
@@ -274,7 +285,7 @@ ORDER BY journal.title, journal.journalId, person.name, editor.personId
 `, model.GetEditorStateString(model.EditorState_editorAccepted)))
 }
 
-func toJournal(jec *JournalEditorCombination) *Journal {
+func journalEditorCombinationToJournal(jec *JournalEditorCombination) *Journal {
 	journal := new(Journal)
 	journal.JournalId = jec.JournalId
 	journal.CreatedOn = jec.CreatedOn
@@ -289,4 +300,65 @@ func toJournal(jec *JournalEditorCombination) *Journal {
 		},
 	}
 	return journal
+}
+
+func getAllJournalsWithoutEditors(tx *sqlx.Tx) ([]*Journal, error) {
+	journalsWithoutEditors := []JournalWithoutEditors{}
+	err := tx.Select(&journalsWithoutEditors, getJournalsWithoutEditorsQuery())
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Could not get journals without editors: %s", err.Error()))
+	}
+	result := make([]*Journal, 0, len(journalsWithoutEditors))
+	for _, j := range journalsWithoutEditors {
+		result = append(result, journalWithoutEditorsToJournal(&j))
+	}
+	return result, nil
+}
+
+func getJournalsWithoutEditorsQuery() string {
+	return strings.TrimSpace(fmt.Sprintf(`
+SELECT
+  journalid,
+  createdon,
+  modifiedon,
+  title,
+  issigned,
+  descriptionhash
+FROM journal
+WHERE journalId NOT IN (
+  SELECT journalId FROM editor
+  WHERE editorState = "%s"
+)`, model.GetEditorStateString(model.EditorState_editorAccepted)))
+}
+
+type JournalWithoutEditors struct {
+	JournalId       string
+	CreatedOn       int64
+	ModifiedOn      int64
+	Title           string
+	IsSigned        bool
+	Descriptionhash string
+}
+
+func journalWithoutEditorsToJournal(jwe *JournalWithoutEditors) *Journal {
+	return &Journal{
+		JournalId:       jwe.JournalId,
+		CreatedOn:       jwe.CreatedOn,
+		ModifiedOn:      jwe.ModifiedOn,
+		Title:           jwe.Title,
+		IsSigned:        jwe.IsSigned,
+		Descriptionhash: jwe.Descriptionhash,
+	}
+}
+
+func sortJournals(journals []*Journal) {
+	sort.Slice(journals, func(i, j int) bool {
+		if journals[i].Title < journals[j].Title {
+			return true
+		}
+		if journals[i].Title == journals[j].Title && journals[i].JournalId < journals[j].JournalId {
+			return true
+		}
+		return false
+	})
 }

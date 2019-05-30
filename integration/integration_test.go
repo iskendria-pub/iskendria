@@ -675,16 +675,19 @@ func TestJournalEditorResign(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		daoJournalsWithEditors, err := dao.GetAllJournalsWithEditors()
-		if len(daoJournalsWithEditors) >= 1 {
-			t.Error("The editor was not removed")
-		}
+		checkDaoJournalEditorResigned(getTheOnlyDaoJournal(t), t)
 		checkStateJournalEditorResigned(getStateJournal(journalId, t), t)
 		expectedBalance := initialBalance - priceEditorCreateJournal - 0
 		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewJournalCreate(f, t)
+}
+
+func checkDaoJournalEditorResigned(journal *dao.Journal, t *testing.T) {
+	if len(journal.AcceptedEditors) >= 1 {
+		t.Error("Last editor was not removed")
+	}
 }
 
 func checkStateJournalEditorResigned(journal *model.StateJournal, t *testing.T) {
