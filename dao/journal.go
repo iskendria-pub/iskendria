@@ -404,3 +404,44 @@ func sortJournals(journals []*Journal) {
 		return false
 	})
 }
+
+func GetJournal(journalId string) (*Journal, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, errors.New("Could not start database transaction")
+	}
+	defer func() { _ = tx.Commit() }()
+	jwe := &JournalWithoutEditors{}
+	err = tx.Get(jwe, "SELECT * FROM journal WHERE journalid = ?", journalId)
+	if err != nil {
+		return nil, err
+	}
+	journal := journalWithoutEditorsToJournal(jwe)
+	editors := []Editor{}
+	err = tx.Select(&editors, getEditorsOfSpecificJournalQuery(journalId))
+	if err != nil {
+		return nil, err
+	}
+	journal.AcceptedEditors = make([]*Editor, 0, len(editors))
+	for _, e := range editors {
+		journal.AcceptedEditors = append(journal.AcceptedEditors, &Editor{
+			PersonId:   e.PersonId,
+			PersonName: e.PersonName,
+		})
+	}
+	return journal, nil
+}
+
+func getEditorsOfSpecificJournalQuery(journalId string) string {
+	return strings.TrimSpace(fmt.Sprintf(`
+SELECT 
+  editor.personid AS personid,
+  person.name AS personname
+FROM editor, person
+WHERE
+  editor.journalid = "%s"
+  AND person.id = editor.personId
+  AND editor.editorstate = "%s"
+ORDER BY editor.personid
+`, journalId, model.GetEditorStateString(model.EditorState_editorAccepted)))
+}
