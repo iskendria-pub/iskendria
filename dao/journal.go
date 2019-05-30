@@ -95,7 +95,7 @@ var _ dataManipulation = new(dataManipulationEditorCreate)
 
 func (dm *dataManipulationEditorCreate) apply(tx *sqlx.Tx) error {
 	_, err := tx.Exec(fmt.Sprintf("INSERT INTO editor VALUES (%s)", GetPlaceHolders(3)),
-		dm.journalId, dm.personId, model.GetEditorStateString(model.EditorState_editorAccepted))
+		dm.journalId, dm.personId, dm.editorState)
 	return err
 }
 
@@ -196,6 +196,48 @@ var _ dataManipulation = new(dataManipulationEditorDelete)
 func (dm *dataManipulationEditorDelete) apply(tx *sqlx.Tx) error {
 	_, err := tx.Exec("DELETE FROM editor WHERE journalid = ? AND personid = ?",
 		dm.journalId, dm.personId)
+	return err
+}
+
+func createEditorUpdateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationEditorUpdate{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_JOURNAL_ID:
+			dm.journalId = a.Value
+		case model.EV_KEY_JOURNAL_PERSON_ID:
+			dm.personId = a.Value
+		case model.EV_KEY_JOURNAL_EDITOR_STATE:
+			dm.newEditorState = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationEditorUpdate struct {
+	journalId      string
+	personId       string
+	newEditorState string
+}
+
+var _ dataManipulation = new(dataManipulationEditorUpdate)
+
+func (dm *dataManipulationEditorUpdate) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec("UPDATE editor SET editorstate = ? WHERE journalid = ? AND personid = ?",
+		dm.newEditorState, dm.journalId, dm.personId)
 	return err
 }
 

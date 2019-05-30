@@ -105,6 +105,8 @@ func parseEvent(input *events_pb2.Event) (event, error) {
 		return createEditorCreateEvent(input)
 	case model.EV_TYPE_EDITOR_DELETE:
 		return createEditorDeleteEvent(input)
+	case model.EV_TYPE_EDITOR_UPDATE:
+		return createEditorUpdateEvent(input)
 	case model.EV_TYPE_PERSON_CREATE:
 		return createPersonCreateEvent(input)
 	case model.EV_TYPE_PERSON_UPDATE:

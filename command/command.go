@@ -279,6 +279,10 @@ func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*upda
 		return nbce.checkJournalUpdateAuthorization(c.GetCommandJournalUpdateAuthorization())
 	case *model.Command_CommandJournalEditorResign:
 		return nbce.checkJournalEditorResign(c.GetCommandJournalEditorResign())
+	case *model.Command_CommandJournalEditorInvite:
+		return nbce.checkJournalEditorInvite(c.GetCommandJournalEditorInvite())
+	case *model.Command_CommandJournalEditorAcceptDuty:
+		return nbce.checkJournalEditorAcceptDuty(c.GetCommandJournalEditorAcceptDuty())
 	case *model.Command_PersonCreate:
 		return nbce.checkPersonCreate(c.GetPersonCreate())
 	case *model.Command_CommandPersonUpdateProperties:

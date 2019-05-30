@@ -28,6 +28,8 @@ const priceMajorChangeJournalAuthorization = 104
 const pricePersonEdit int32 = 105
 const priceEditorCreateJournal int32 = 114
 const priceEditorEditJournal int32 = 116
+const priceEditorAddColleague int32 = 117
+const priceEditorAcceptDuty int32 = 118
 
 var logger *log.Logger
 var blockchainAccess command.BlockchainAccess
@@ -83,14 +85,14 @@ func withNewPersonCreate(testFunc func(personCreate *command.PersonCreate, t *te
 	withLoggedInWithNewKey(withNewPersonCreate, t)
 }
 
-func withNewJournalCreate(testFunc func(*command.Journal, int32, *testing.T), t *testing.T) {
+func withNewJournalCreate(testFunc func(*command.Journal, *command.PersonCreate, int32, *testing.T), t *testing.T) {
 	journal := getOriginalCommandJournal()
 	f := func(personCreate *command.PersonCreate, t *testing.T) {
 		doTestPersonCreate(personCreate, t)
 		initialBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson
 		checkStateBalanceOfKey(initialBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 		checkDaoBalanceOfKey(initialBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		testFunc(journal, initialBalance, t)
+		testFunc(journal, personCreate, initialBalance, t)
 	}
 	withNewPersonCreate(f, t)
 }
@@ -240,8 +242,8 @@ func getBootstrap() *command.Bootstrap {
 		PriceEditorCreateJournal:             priceEditorCreateJournal,
 		PriceEditorCreateVolume:              115,
 		PriceEditorEditJournal:               priceEditorEditJournal,
-		PriceEditorAddColleague:              117,
-		PriceEditorAcceptDuty:                118,
+		PriceEditorAddColleague:              priceEditorAddColleague,
+		PriceEditorAcceptDuty:                priceEditorAcceptDuty,
 		Name:                                 majorName,
 		Email:                                "brita@xxx.nl",
 	}
@@ -661,7 +663,7 @@ func getSettings(t *testing.T) *dao.Settings {
 	return settings
 }
 
-func doTestJournalCreate(journal *command.Journal, initialBalance int32, t *testing.T) {
+func doTestJournalCreate(journal *command.Journal, _ *command.PersonCreate, initialBalance int32, t *testing.T) {
 	editorId := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id
 	cmd, journalId := command.GetCommandJournalCreate(
 		journal,

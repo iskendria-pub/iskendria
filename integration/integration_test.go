@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"fmt"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
@@ -579,8 +580,8 @@ func TestJournalCreate(t *testing.T) {
 func TestJournalUpdateProperties(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestJournalUpdateProperties", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	f := func(journal *command.Journal, initialBalance int32, t *testing.T) {
-		doTestJournalCreate(journal, initialBalance, t)
+	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
+		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		updated := &command.Journal{
 			Title:           "Changed title",
 			DescriptionHash: "bcdef012",
@@ -627,8 +628,8 @@ func checkStateJournalUpdatedProperties(journal *model.StateJournal, t *testing.
 func TestJournalUpdateAuthorization(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestJournalUpdateAuthorization", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	f := func(journal *command.Journal, initialBalance int32, t *testing.T) {
-		doTestJournalCreate(journal, initialBalance, t)
+	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
+		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		journalId := getTheOnlyDaoJournal(t).JournalId
 		cmd := command.GetCommandJournalUpdateAuthorization(
 			journalId,
@@ -662,10 +663,10 @@ func checkStateJournalUpdatedAuthorization(journal *model.StateJournal, t *testi
 }
 
 func TestJournalEditorResign(t *testing.T) {
-	logger = log.New(os.Stdout, "integration.TestJournalUpdateAuthorization", log.Flags())
+	logger = log.New(os.Stdout, "integration.TestJournalEditorResign", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
-	f := func(journal *command.Journal, initialBalance int32, t *testing.T) {
-		doTestJournalCreate(journal, initialBalance, t)
+	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
+		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		journalId := getTheOnlyDaoJournal(t).JournalId
 		cmd := command.GetCommandJournalEditorResign(
 			journalId,
@@ -693,5 +694,90 @@ func checkDaoJournalEditorResigned(journal *dao.Journal, t *testing.T) {
 func checkStateJournalEditorResigned(journal *model.StateJournal, t *testing.T) {
 	if len(journal.EditorInfo) >= 1 {
 		t.Error("Last editor was not removed")
+	}
+}
+
+func TestJournalNewEditor(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalNewEditor", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
+		doTestJournalCreate(journal, personCreate, initialBalance, t)
+		journalId := getTheOnlyDaoJournal(t).JournalId
+		doTestJournalEditorInvite(journalId, personCreate, t, initialBalance-priceEditorCreateJournal)
+		err := cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile)
+		if err != nil {
+			t.Error("Could not login as newly proposed editor")
+		}
+		doTestJournalEditorAcceptDuty(journalId, t)
+	}
+	withNewJournalCreate(f, t)
+}
+
+func doTestJournalEditorAcceptDuty(journalId string, t *testing.T) {
+	cmd := command.GetCommandJournalEditorAcceptDuty(
+		journalId,
+		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+		cliAlexandria.LoggedIn(),
+		priceEditorAcceptDuty)
+	err := command.RunCommandForTest(cmd, "transactionIdEditorAcceptDuty", blockchainAccess)
+	if err != nil {
+		t.Error(err)
+	}
+	checkDaoJournalEditorAcceptedDuty(getTheOnlyDaoJournal(t), t)
+	checkStateJournalEditorStates(getStateJournal(journalId, t), 0, 2, t)
+	expectedBalance := SUFFICIENT_BALANCE - priceEditorAcceptDuty
+	checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+}
+
+func checkDaoJournalEditorAcceptedDuty(journal *dao.Journal, t *testing.T) {
+	if len(journal.AcceptedEditors) != 2 {
+		t.Error("Expected exactly two accepted editors")
+	}
+}
+
+func doTestJournalEditorInvite(journalId string, personCreate *command.PersonCreate, t *testing.T, initialBalance int32) {
+	cmd := command.GetCommandJournalEditorInvite(
+		journalId,
+		getPersonByKey(personCreate.PublicKey, t).Id,
+		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+		cliAlexandria.LoggedIn(),
+		priceEditorAddColleague)
+	err := command.RunCommandForTest(cmd, "transactionIdJournalEditorResign", blockchainAccess)
+	if err != nil {
+		t.Error(err)
+	}
+	checkDaoJournalEditorInvited(getTheOnlyDaoJournal(t), t)
+	checkStateJournalEditorStates(getStateJournal(journalId, t), 1, 1, t)
+	expectedBalance := initialBalance - priceEditorAddColleague
+	checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+}
+
+func checkDaoJournalEditorInvited(journal *dao.Journal, t *testing.T) {
+	if len(journal.AcceptedEditors) != 1 {
+		t.Error("New editor with proposed state should not be shown yet")
+	}
+}
+
+func checkStateJournalEditorStates(
+	journal *model.StateJournal, expectedNumProposed, expectedNumAccepted int, t *testing.T) {
+	numProposed := 0
+	numAccepted := 0
+	for _, e := range journal.EditorInfo {
+		switch e.EditorState {
+		case model.EditorState_editorProposed:
+			numProposed++
+		case model.EditorState_editorAccepted:
+			numAccepted++
+		}
+	}
+	if numProposed != expectedNumProposed {
+		t.Error(fmt.Sprintf("Expected %d proposed editors, got %d",
+			expectedNumProposed, numProposed))
+	}
+	if numAccepted != expectedNumAccepted {
+		t.Error(fmt.Sprintf("Expected %d accepted editors, got %d",
+			expectedNumAccepted, numAccepted))
 	}
 }
