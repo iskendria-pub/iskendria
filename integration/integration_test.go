@@ -668,7 +668,7 @@ func TestJournalEditorResign(t *testing.T) {
 	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
 		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		journalId := getTheOnlyDaoJournal(t).JournalId
-		cmd := command.GetCommandJournalEditorResign(
+		cmd := command.GetCommandEditorResign(
 			journalId,
 			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
 			cliAlexandria.LoggedIn())
@@ -714,7 +714,7 @@ func TestJournalNewEditor(t *testing.T) {
 }
 
 func doTestJournalEditorAcceptDuty(journalId string, t *testing.T) {
-	cmd := command.GetCommandJournalEditorAcceptDuty(
+	cmd := command.GetCommandEditorAcceptDuty(
 		journalId,
 		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
 		cliAlexandria.LoggedIn(),
@@ -737,7 +737,7 @@ func checkDaoJournalEditorAcceptedDuty(journal *dao.Journal, t *testing.T) {
 }
 
 func doTestJournalEditorInvite(journalId string, personCreate *command.PersonCreate, t *testing.T, initialBalance int32) {
-	cmd := command.GetCommandJournalEditorInvite(
+	cmd := command.GetCommandEditorInvite(
 		journalId,
 		getPersonByKey(personCreate.PublicKey, t).Id,
 		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,

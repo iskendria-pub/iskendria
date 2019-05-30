@@ -106,7 +106,7 @@ func GetCommandJournalUpdateAuthorization(
 	}
 }
 
-func GetCommandJournalEditorResign(
+func GetCommandEditorResign(
 	journalId string,
 	signer string,
 	cryptoIdentity *CryptoIdentity) *Command {
@@ -127,7 +127,7 @@ func GetCommandJournalEditorResign(
 	}
 }
 
-func GetCommandJournalEditorInvite(
+func GetCommandEditorInvite(
 	journalId,
 	editorId,
 	signer string,
@@ -151,7 +151,7 @@ func GetCommandJournalEditorInvite(
 	}
 }
 
-func GetCommandJournalEditorAcceptDuty(
+func GetCommandEditorAcceptDuty(
 	journalId string,
 	signer string,
 	cryptoIdentity *CryptoIdentity,
@@ -274,7 +274,7 @@ func (u *singleUpdateJournalCreate) issueEvent(eventSeq int32, transactionId str
 				Value: fmt.Sprintf("%d", eventSeq),
 			},
 			{
-				Key:   model.EV_KEY_JOURNAL_ID,
+				Key:   model.EV_KEY_ID,
 				Value: u.journalCreate.JournalId,
 			},
 			{
@@ -331,11 +331,11 @@ func (u *singleUpdateEditorCreate) issueEvent(eventSeq int32, transactionId stri
 				Value: u.journalId,
 			},
 			{
-				Key:   model.EV_KEY_JOURNAL_PERSON_ID,
+				Key:   model.EV_KEY_EDITOR_ID,
 				Value: u.editorId,
 			},
 			{
-				Key:   model.EV_KEY_JOURNAL_EDITOR_STATE,
+				Key:   model.EV_KEY_EDITOR_STATE,
 				Value: model.GetEditorStateString(u.editorState),
 			},
 		}, []byte{})
@@ -533,7 +533,7 @@ func (nbce *nonBootstrapCommandExecution) checkJournalEditorResign(c *model.Comm
 		return nil, errors.New("You are not the editor of the journal")
 	}
 	updates := []singleUpdate{
-		&singleUpdateJournalEditorDelete{
+		&singleUpdateEditorDelete{
 			journalId: c.JournalId,
 			editorId:  nbce.verifiedSignerId,
 			timestamp: nbce.timestamp,
@@ -546,15 +546,15 @@ func (nbce *nonBootstrapCommandExecution) checkJournalEditorResign(c *model.Comm
 	}, nil
 }
 
-type singleUpdateJournalEditorDelete struct {
+type singleUpdateEditorDelete struct {
 	journalId string
 	editorId  string
 	timestamp int64
 }
 
-var _ singleUpdate = new(singleUpdateJournalEditorDelete)
+var _ singleUpdate = new(singleUpdateEditorDelete)
 
-func (u *singleUpdateJournalEditorDelete) updateState(
+func (u *singleUpdateEditorDelete) updateState(
 	state *unmarshalledState) (writtenAddress string) {
 	existingEditors := state.journals[u.journalId].EditorInfo
 	newEditors := make([]*model.EditorInfo, 0, len(existingEditors)-1)
@@ -570,7 +570,7 @@ func (u *singleUpdateJournalEditorDelete) updateState(
 	return u.journalId
 }
 
-func (u *singleUpdateJournalEditorDelete) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+func (u *singleUpdateEditorDelete) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	eventType := model.AlexandriaPrefix + model.EV_TYPE_EDITOR_DELETE
 	return ba.AddEvent(
 		eventType,
@@ -592,7 +592,7 @@ func (u *singleUpdateJournalEditorDelete) issueEvent(eventSeq int32, transaction
 				Value: u.journalId,
 			},
 			{
-				Key:   model.EV_KEY_JOURNAL_PERSON_ID,
+				Key:   model.EV_KEY_EDITOR_ID,
 				Value: u.editorId,
 			},
 		}, []byte{})
@@ -648,7 +648,7 @@ func (nbce *nonBootstrapCommandExecution) checkJournalEditorAcceptDuty(c *model.
 		return nil, errors.New("You already accepted editorship, or you are no editor at all")
 	}
 	updates := []singleUpdate{
-		&singleUpdateJournalEditorAcceptDuty{
+		&singleUpdateEditorAcceptDuty{
 			journalId: c.JournalId,
 			editorId:  nbce.verifiedSignerId,
 			timestamp: nbce.timestamp,
@@ -661,15 +661,15 @@ func (nbce *nonBootstrapCommandExecution) checkJournalEditorAcceptDuty(c *model.
 	}, nil
 }
 
-type singleUpdateJournalEditorAcceptDuty struct {
+type singleUpdateEditorAcceptDuty struct {
 	journalId string
 	editorId  string
 	timestamp int64
 }
 
-var _ singleUpdate = new(singleUpdateJournalEditorAcceptDuty)
+var _ singleUpdate = new(singleUpdateEditorAcceptDuty)
 
-func (u *singleUpdateJournalEditorAcceptDuty) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdateEditorAcceptDuty) updateState(state *unmarshalledState) (writtenAddress string) {
 	journal := state.journals[u.journalId]
 	for _, e := range journal.EditorInfo {
 		if e.EditorId == u.editorId {
@@ -679,7 +679,7 @@ func (u *singleUpdateJournalEditorAcceptDuty) updateState(state *unmarshalledSta
 	return u.journalId
 }
 
-func (u *singleUpdateJournalEditorAcceptDuty) issueEvent(
+func (u *singleUpdateEditorAcceptDuty) issueEvent(
 	eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	eventType := model.AlexandriaPrefix + model.EV_TYPE_EDITOR_UPDATE
 	return ba.AddEvent(
@@ -702,11 +702,11 @@ func (u *singleUpdateJournalEditorAcceptDuty) issueEvent(
 				Value: u.journalId,
 			},
 			{
-				Key:   model.EV_KEY_JOURNAL_PERSON_ID,
+				Key:   model.EV_KEY_EDITOR_ID,
 				Value: u.editorId,
 			},
 			{
-				Key:   model.EV_KEY_JOURNAL_EDITOR_STATE,
+				Key:   model.EV_KEY_EDITOR_STATE,
 				Value: model.GetEditorStateString(model.EditorState_editorAccepted),
 			},
 		}, []byte{})

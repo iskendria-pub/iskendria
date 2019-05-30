@@ -25,7 +25,7 @@ func createJournalCreateEvent(ev *events_pb2.Event) (event, error) {
 		case model.EV_KEY_EVENT_SEQ:
 			i64, err = strconv.ParseInt(a.Value, 10, 32)
 			result.eventSeq = int32(i64)
-		case model.EV_KEY_JOURNAL_ID:
+		case model.EV_KEY_ID:
 			dm.journalId = a.Value
 		case model.EV_KEY_TIMESTAMP:
 			i64, err = strconv.ParseInt(a.Value, 10, 64)
@@ -73,9 +73,9 @@ func createEditorCreateEvent(ev *events_pb2.Event) (event, error) {
 			result.eventSeq = int32(i64)
 		case model.EV_KEY_JOURNAL_ID:
 			dm.journalId = a.Value
-		case model.EV_KEY_JOURNAL_PERSON_ID:
+		case model.EV_KEY_EDITOR_ID:
 			dm.personId = a.Value
-		case model.EV_KEY_JOURNAL_EDITOR_STATE:
+		case model.EV_KEY_EDITOR_STATE:
 			dm.editorState = a.Value
 		}
 		if err != nil {
@@ -176,7 +176,7 @@ func createEditorDeleteEvent(ev *events_pb2.Event) (event, error) {
 			result.eventSeq = int32(i64)
 		case model.EV_KEY_JOURNAL_ID:
 			dm.journalId = a.Value
-		case model.EV_KEY_JOURNAL_PERSON_ID:
+		case model.EV_KEY_EDITOR_ID:
 			dm.personId = a.Value
 		}
 		if err != nil {
@@ -215,9 +215,9 @@ func createEditorUpdateEvent(ev *events_pb2.Event) (event, error) {
 			result.eventSeq = int32(i64)
 		case model.EV_KEY_JOURNAL_ID:
 			dm.journalId = a.Value
-		case model.EV_KEY_JOURNAL_PERSON_ID:
+		case model.EV_KEY_EDITOR_ID:
 			dm.personId = a.Value
-		case model.EV_KEY_JOURNAL_EDITOR_STATE:
+		case model.EV_KEY_EDITOR_STATE:
 			dm.newEditorState = a.Value
 		}
 		if err != nil {
