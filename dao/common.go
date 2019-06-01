@@ -6,6 +6,7 @@ import (
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
 	"github.com/jmoiron/sqlx"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -314,4 +315,8 @@ func GetPlaceHolders(n int) string {
 		placeHolders[i] = "?"
 	}
 	return strings.Join(placeHolders, ", ")
+}
+
+func logAttribute(a *events_pb2.Event_Attribute, logger *log.Logger) {
+	logger.Printf("Attribute %s = %s\n", a.Key, a.Value)
 }

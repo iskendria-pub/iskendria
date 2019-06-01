@@ -53,14 +53,37 @@ func main() {
 				FullDescription:    "Welcome to the journal commands.",
 				OneLineDescription: "Journal",
 				Name:               "journal",
-				Handlers: []cli.Handler{
+				Handlers: append(cliAlexandria.CommonJournalHandlers,
 					&cli.StructRunnerHandler{
 						FullDescription:    "Welcome to the journal create dialog.",
 						OneLineDescription: "Create journal",
 						Name:               "createJournal",
 						Action:             journalCreate,
 					},
-				},
+					&cli.StructRunnerHandler{
+						FullDescription:              "Welcome to the journal update properties dialog",
+						OneLineDescription:           "Update journal properties",
+						Name:                         "updateProperties",
+						ReferenceValueGetter:         journalUpdatePropertiesReference,
+						ReferenceValueGetterArgNames: []string{"journal id"},
+						Action:                       journalUpdateProperties,
+					},
+					&cli.SingleLineHandler{
+						Name:     "proposeEditor",
+						Handler:  proposeEditor,
+						ArgNames: []string{"journal id", "editor person id"},
+					},
+					&cli.SingleLineHandler{
+						Name:     "acceptEditorship",
+						Handler:  acceptEditorship,
+						ArgNames: []string{"journal id"},
+					},
+					&cli.SingleLineHandler{
+						Name:     "resignAsEditor",
+						Handler:  resignAsEditor,
+						ArgNames: []string{"journal id"},
+					},
+				),
 			},
 		),
 	}
@@ -95,4 +118,68 @@ func journalCreate(outputter cli.Outputter, journal *command.Journal) {
 		return
 	}
 	outputter("The journalId of the created journal is: " + journalId + "\n")
+}
+
+func journalUpdatePropertiesReference(outputter cli.Outputter, journalId string) *command.Journal {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return nil
+	}
+	daoJournal, err := dao.GetJournal(journalId)
+	if err != nil {
+		outputter(fmt.Sprintf("Journal does not exist: %s, detailed error message: %s\n",
+			journalId, err.Error()))
+		return nil
+	}
+	originalJournalId = journalId
+	originalJournal = &command.Journal{
+		Title:           daoJournal.Title,
+		DescriptionHash: daoJournal.Descriptionhash,
+	}
+	return originalJournal
+}
+
+var originalJournalId string
+var originalJournal *command.Journal
+
+func journalUpdateProperties(outputter cli.Outputter, journal *command.Journal) {
+	theCommand := command.GetCommandJournalUpdateProperties(
+		originalJournalId,
+		originalJournal,
+		journal,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceEditorEditJournal)
+	if err := blockchain.SendCommand(theCommand, outputter); err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+	}
+}
+
+func proposeEditor(outputter cli.Outputter, journalId, editorId string) {
+	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+		return command.GetCommandEditorInvite(
+			journalId,
+			editorId,
+			cliAlexandria.LoggedInPerson.Id,
+			cliAlexandria.LoggedIn(),
+			cliAlexandria.Settings.PriceEditorAddColleague)
+	})
+}
+
+func acceptEditorship(outputter cli.Outputter, journalId string) {
+	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+		return command.GetCommandEditorAcceptDuty(
+			journalId,
+			cliAlexandria.LoggedInPerson.Id,
+			cliAlexandria.LoggedIn(),
+			cliAlexandria.Settings.PriceEditorAcceptDuty)
+	})
+}
+
+func resignAsEditor(outputter cli.Outputter, journalId string) {
+	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+		return command.GetCommandEditorResign(
+			journalId,
+			cliAlexandria.LoggedInPerson.Id,
+			cliAlexandria.LoggedIn())
+	})
 }

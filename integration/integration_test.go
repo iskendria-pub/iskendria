@@ -14,13 +14,13 @@ import (
 
 func TestBootstrap(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestBootstrap", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	withLoggedInWithNewKey(doTestBootstrap, t)
 }
 
 func TestPersonCreate(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonCreate", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(personCreate *command.PersonCreate, t *testing.T) {
 		doTestPersonCreate(personCreate, t)
 		checkStateBalanceOfKey(
@@ -37,7 +37,7 @@ func TestPersonCreate(t *testing.T) {
 
 func TestPersonUpdatePropertiesAsSelf(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdatePropertiesAsSelf", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
 		doTestPersonCreate(originalPersonCreate, t)
 		if err := cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile); err != nil {
@@ -189,7 +189,7 @@ func checkModifiedDaoPerson(person *dao.Person, expectedId, expectedPublicKey st
 
 func TestPersonUpdatePropertiesAsSMajor(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdatePropertiesAsMajor", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
 		doTestPersonCreate(originalPersonCreate, t)
 		doTestPersonUpdate(originalPersonCreate, t)
@@ -207,7 +207,7 @@ func TestPersonUpdatePropertiesAsSMajor(t *testing.T) {
 
 func TestPersonUpdateSetMajor(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdateSetMajor", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
 		doTestPersonUpdateSetMajor(originalPersonCreate, t)
 		expectedBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson - priceMajorChangePersonAuthorization
@@ -246,7 +246,7 @@ func doTestPersonUpdateSetMajor(originalPersonCreate *command.PersonCreate, t *t
 
 func TestPersonUpdateSetSigned(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdateSetSigned", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
 		doTestPersonUpdateSetSigned(originalPersonCreate, t)
 		expectedBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson - priceMajorChangePersonAuthorization
@@ -285,7 +285,7 @@ func doTestPersonUpdateSetSigned(originalPersonCreate *command.PersonCreate, t *
 
 func TestPersonUpdateUnsetMajor(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdateUnsetMajor", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(t *testing.T) {
 		doTestPersonUpdateUnsetMajor(t)
 		expectedBalance := SUFFICIENT_BALANCE - priceMajorChangePersonAuthorization
@@ -326,7 +326,7 @@ func doTestPersonUpdateUnsetMajor(t *testing.T) {
 
 func TestPersonUpdateUnsetSigned(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdateUnsetSigned", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(t *testing.T) {
 		doTestPersonUpdateUnsetSigned(t)
 		expectedBalance := SUFFICIENT_BALANCE - priceMajorChangePersonAuthorization
@@ -367,7 +367,7 @@ func doTestPersonUpdateUnsetSigned(t *testing.T) {
 
 func TestPersonUpdateIncBalance(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestPersonUpdateIncBalance", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	withLoggedInWithNewKey(doTestPersonUpdateIncBalance, t)
 }
 
@@ -398,7 +398,7 @@ func doTestPersonUpdateIncBalance(t *testing.T) {
 
 func TestSettingsUpdate(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestSettingsUpdate", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(t *testing.T) {
 		doTestSettingsUpdate(t)
 		expectedBalance := SUFFICIENT_BALANCE - priceMajorEditSettings
@@ -573,13 +573,13 @@ func checkUpdatedDaoSettings(updated *dao.Settings, t *testing.T) {
 
 func TestJournalCreate(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestJournalCreate", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	withNewJournalCreate(doTestJournalCreate, t)
 }
 
 func TestJournalUpdateProperties(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestJournalUpdateProperties", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
 		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		updated := &command.Journal{
@@ -627,7 +627,7 @@ func checkStateJournalUpdatedProperties(journal *model.StateJournal, t *testing.
 
 func TestJournalUpdateAuthorization(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestJournalUpdateAuthorization", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
 		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		journalId := getTheOnlyDaoJournal(t).JournalId
@@ -664,7 +664,7 @@ func checkStateJournalUpdatedAuthorization(journal *model.StateJournal, t *testi
 
 func TestJournalEditorResign(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestJournalEditorResign", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
 		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		journalId := getTheOnlyDaoJournal(t).JournalId
@@ -699,7 +699,7 @@ func checkStateJournalEditorResigned(journal *model.StateJournal, t *testing.T) 
 
 func TestJournalNewEditor(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestJournalNewEditor", log.Flags())
-	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent)
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
 		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		journalId := getTheOnlyDaoJournal(t).JournalId

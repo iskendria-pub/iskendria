@@ -68,6 +68,8 @@ func (ce *commandExecution) run() error {
 
 func (ce *commandExecution) doRun() error {
 	log.Println("Entering commandExecution.doRun...")
+	log.Printf("Transaction id is %s, signer = %s\n",
+		ce.transactionId, ce.signerKey)
 	defer log.Println("Left commandExecution.doRun")
 	log.Printf("Have model command: %s\n", ce.command.String())
 	u, err := ce.check()
@@ -297,7 +299,7 @@ func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*upda
 }
 
 func (nbce *nonBootstrapCommandExecution) addBalanceDeduct(u *updater) {
-	if len(u.updates) == 0 && nbce.price == int32(0) {
+	if len(u.updates) == 0 || nbce.price == int32(0) {
 		return
 	}
 	var deductUpdate singleUpdate = &singleUpdatePersonIncBalance{

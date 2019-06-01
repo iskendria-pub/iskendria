@@ -37,7 +37,7 @@ var blockchainAccess command.BlockchainAccess
 func withInitializedDao(testFunc func(t *testing.T), t *testing.T) {
 	dao.Init("testBootstrap.db", logger)
 	defer dao.ShutdownAndDelete(logger)
-	err := dao.StartFakeBlock("blockId", "")
+	err := dao.StartFakeBlock("blockId", "", logger)
 	if err != nil {
 		t.Error("Error starting fake block: " + err.Error())
 	}
@@ -127,10 +127,10 @@ func checkCreatedDaoJournal(journal *dao.Journal, journalId string, editorId str
 		t.Error("Length mismatch of accepted editors")
 	}
 	if journal.AcceptedEditors[0].PersonId != editorId {
-		t.Error("AcceptedEditor PersonId mismatch")
+		t.Error("Editor PersonId mismatch")
 	}
 	if journal.AcceptedEditors[0].PersonName != majorName {
-		t.Error(fmt.Sprintf("AcceptedEditor PersonName mismatch, expected %s, got %s",
+		t.Error(fmt.Sprintf("Editor PersonName mismatch, expected %s, got %s",
 			majorName, journal.AcceptedEditors[0].PersonName))
 	}
 }

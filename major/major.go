@@ -99,6 +99,23 @@ func main() {
 					},
 				),
 			},
+			&cli.Cli{
+				FullDescription:    "Welcome to the journal commands.",
+				OneLineDescription: "Journal",
+				Name:               "journal",
+				Handlers: append(cliAlexandria.CommonJournalHandlers,
+					&cli.SingleLineHandler{
+						Name:     "setSigned",
+						Handler:  journalSetSigned,
+						ArgNames: []string{"journal id"},
+					},
+					&cli.SingleLineHandler{
+						Name:     "unsetSigned",
+						Handler:  journalUnsetSigned,
+						ArgNames: []string{"journal id"},
+					},
+				),
+			},
 		),
 	}
 	if len(os.Args) >= 2 {
@@ -221,4 +238,23 @@ func personUpdateReference(outputter cli.Outputter, personId string) *dao.Person
 	cliAlexandria.OriginalPersonId = personId
 	cliAlexandria.OriginalPerson = dao.PersonToPersonUpdate(person)
 	return cliAlexandria.OriginalPerson
+}
+
+func journalSetSigned(outputter cli.Outputter, journalId string) {
+	journalChangeAuthorization(outputter, journalId, true)
+}
+
+func journalUnsetSigned(outputter cli.Outputter, journalId string) {
+	journalChangeAuthorization(outputter, journalId, false)
+}
+
+func journalChangeAuthorization(outputter cli.Outputter, journalId string, makeSigned bool) {
+	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+		return command.GetCommandJournalUpdateAuthorization(
+			journalId,
+			makeSigned,
+			cliAlexandria.LoggedInPerson.Id,
+			cliAlexandria.LoggedIn(),
+			cliAlexandria.Settings.PriceMajorChangeJournalAuthorization)
+	})
 }

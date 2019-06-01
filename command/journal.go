@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"log"
 	"sort"
 	"strconv"
 )
@@ -258,6 +259,7 @@ func (u *singleUpdateJournalCreate) updateState(state *unmarshalledState) string
 
 func (u *singleUpdateJournalCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	eventType := model.AlexandriaPrefix + model.EV_TYPE_JOURNAL_CREATE
+	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(
 		eventType,
 		[]processor.Attribute{
@@ -311,6 +313,7 @@ func (u *singleUpdateEditorCreate) updateState(state *unmarshalledState) string 
 
 func (u *singleUpdateEditorCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	eventType := model.AlexandriaPrefix + model.EV_TYPE_EDITOR_CREATE
+	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(
 		eventType,
 		[]processor.Attribute{
@@ -413,6 +416,7 @@ func (u *singleUpdateJournalUpdateProperties) updateState(*unmarshalledState) (w
 func (u *singleUpdateJournalUpdateProperties) issueEvent(
 	eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	eventType := model.AlexandriaPrefix + model.EV_TYPE_JOURNAL_UPDATE
+	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(
 		eventType,
 		[]processor.Attribute{
@@ -494,6 +498,7 @@ func (u *singleUpdateJournalUpdateAuthorization) updateState(state *unmarshalled
 
 func (u *singleUpdateJournalUpdateAuthorization) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	eventType := model.AlexandriaPrefix + model.EV_TYPE_JOURNAL_UPDATE
+	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(eventType,
 		[]processor.Attribute{
 			{
@@ -572,6 +577,7 @@ func (u *singleUpdateEditorDelete) updateState(
 
 func (u *singleUpdateEditorDelete) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	eventType := model.AlexandriaPrefix + model.EV_TYPE_EDITOR_DELETE
+	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(
 		eventType,
 		[]processor.Attribute{
@@ -682,32 +688,32 @@ func (u *singleUpdateEditorAcceptDuty) updateState(state *unmarshalledState) (wr
 func (u *singleUpdateEditorAcceptDuty) issueEvent(
 	eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	eventType := model.AlexandriaPrefix + model.EV_TYPE_EDITOR_UPDATE
-	return ba.AddEvent(
-		eventType,
-		[]processor.Attribute{
-			{
-				Key:   model.EV_KEY_TRANSACTION_ID,
-				Value: transactionId,
-			},
-			{
-				Key:   model.EV_KEY_EVENT_SEQ,
-				Value: fmt.Sprintf("%d", eventSeq),
-			},
-			{
-				Key:   model.EV_KEY_TIMESTAMP,
-				Value: fmt.Sprintf("%d", u.timestamp),
-			},
-			{
-				Key:   model.EV_KEY_JOURNAL_ID,
-				Value: u.journalId,
-			},
-			{
-				Key:   model.EV_KEY_EDITOR_ID,
-				Value: u.editorId,
-			},
-			{
-				Key:   model.EV_KEY_EDITOR_STATE,
-				Value: model.GetEditorStateString(model.EditorState_editorAccepted),
-			},
-		}, []byte{})
+	attributes := []processor.Attribute{
+		{
+			Key:   model.EV_KEY_TRANSACTION_ID,
+			Value: transactionId,
+		},
+		{
+			Key:   model.EV_KEY_EVENT_SEQ,
+			Value: fmt.Sprintf("%d", eventSeq),
+		},
+		{
+			Key:   model.EV_KEY_TIMESTAMP,
+			Value: fmt.Sprintf("%d", u.timestamp),
+		},
+		{
+			Key:   model.EV_KEY_JOURNAL_ID,
+			Value: u.journalId,
+		},
+		{
+			Key:   model.EV_KEY_EDITOR_ID,
+			Value: u.editorId,
+		},
+		{
+			Key:   model.EV_KEY_EDITOR_STATE,
+			Value: model.GetEditorStateString(model.EditorState_editorAccepted),
+		},
+	}
+	log.Println("Sending event of type: " + eventType)
+	return ba.AddEvent(eventType, attributes, []byte{})
 }

@@ -24,6 +24,8 @@ var AllEventTypes = []string{
 	model.AlexandriaPrefix + model.EV_TYPE_JOURNAL_UPDATE,
 	model.AlexandriaPrefix + model.EV_TYPE_JOURNAL_MODIFICATION_TIME,
 	model.AlexandriaPrefix + model.EV_TYPE_EDITOR_CREATE,
+	model.AlexandriaPrefix + model.EV_TYPE_EDITOR_UPDATE,
+	model.AlexandriaPrefix + model.EV_TYPE_EDITOR_DELETE,
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_CREATE,
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_UPDATE,
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_MODIFICATION_TIME,
@@ -71,19 +73,21 @@ func createTables(logger *log.Logger) {
 	}
 }
 
-func HandleEvent(input *events_pb2.Event) error {
-	ev, err := parseEvent(input)
+func HandleEvent(input *events_pb2.Event, logger *log.Logger) error {
+	ev, err := parseEvent(input, logger)
 	if err != nil {
 		return err
 	}
 	return ev.accept(theContext)
 }
 
-type EventHandler func(*events_pb2.Event) error
+type EventHandler func(*events_pb2.Event, *log.Logger) error
 
 var _ EventHandler = HandleEvent
 
-func parseEvent(input *events_pb2.Event) (event, error) {
+func parseEvent(input *events_pb2.Event, logger *log.Logger) (event, error) {
+	logEvent(input, logger)
+	defer logger.Printf("Done parsing event of type %s\n", input.EventType)
 	switch simplifyEventType(input.EventType) {
 	case model.SAWTOOTH_BLOCK_COMMIT:
 		return createSawtoothBlockCommitEvent(input)
@@ -96,17 +100,17 @@ func parseEvent(input *events_pb2.Event) (event, error) {
 	case model.EV_TYPE_SETTINGS_MODIFICATION_TIME:
 		return createSettingsModificationTimeEvent(input)
 	case model.EV_TYPE_JOURNAL_CREATE:
-		return createJournalCreateEvent(input)
+		return createJournalCreateEvent(input, logger)
 	case model.EV_TYPE_JOURNAL_UPDATE:
 		return createJournalUpdateEvent(input)
 	case model.EV_TYPE_JOURNAL_MODIFICATION_TIME:
 		return createJournalModificationTimeEvent(input)
 	case model.EV_TYPE_EDITOR_CREATE:
-		return createEditorCreateEvent(input)
+		return createEditorCreateEvent(input, logger)
 	case model.EV_TYPE_EDITOR_DELETE:
-		return createEditorDeleteEvent(input)
+		return createEditorDeleteEvent(input, logger)
 	case model.EV_TYPE_EDITOR_UPDATE:
-		return createEditorUpdateEvent(input)
+		return createEditorUpdateEvent(input, logger)
 	case model.EV_TYPE_PERSON_CREATE:
 		return createPersonCreateEvent(input)
 	case model.EV_TYPE_PERSON_UPDATE:
@@ -116,6 +120,21 @@ func parseEvent(input *events_pb2.Event) (event, error) {
 	default:
 		return nil, errors.New("Unknown event type: " + input.EventType)
 	}
+}
+
+func logEvent(ev *events_pb2.Event, logger *log.Logger) {
+	var transactionId string
+	var eventSeq string
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			eventSeq = a.Value
+		}
+	}
+	logger.Printf("Parsing event with type %s, transactionId = %s, eventSeq = %s\n",
+		ev.EventType, transactionId, eventSeq)
 }
 
 func simplifyEventType(orig string) string {

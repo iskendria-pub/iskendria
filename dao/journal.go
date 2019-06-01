@@ -6,12 +6,13 @@ import (
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
 	"github.com/jmoiron/sqlx"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
 )
 
-func createJournalCreateEvent(ev *events_pb2.Event) (event, error) {
+func createJournalCreateEvent(ev *events_pb2.Event, logger *log.Logger) (event, error) {
 	dm := &dataManipulationJournalCreate{}
 	result := &dataManipulationEvent{
 		dataManipulation: dm,
@@ -19,6 +20,7 @@ func createJournalCreateEvent(ev *events_pb2.Event) (event, error) {
 	var err error
 	var i64 int64
 	for _, a := range ev.Attributes {
+		logAttribute(a, logger)
 		switch a.Key {
 		case model.EV_KEY_TRANSACTION_ID:
 			result.transactionId = a.Value
@@ -57,7 +59,7 @@ func (dm *dataManipulationJournalCreate) apply(tx *sqlx.Tx) error {
 	return err
 }
 
-func createEditorCreateEvent(ev *events_pb2.Event) (event, error) {
+func createEditorCreateEvent(ev *events_pb2.Event, logger *log.Logger) (event, error) {
 	dm := &dataManipulationEditorCreate{}
 	result := &dataManipulationEvent{
 		dataManipulation: dm,
@@ -65,6 +67,7 @@ func createEditorCreateEvent(ev *events_pb2.Event) (event, error) {
 	var err error
 	var i64 int64
 	for _, a := range ev.Attributes {
+		logAttribute(a, logger)
 		switch a.Key {
 		case model.EV_KEY_TRANSACTION_ID:
 			result.transactionId = a.Value
@@ -160,7 +163,7 @@ func (dm *dataManipulationJournalUpdateAuthorization) apply(tx *sqlx.Tx) error {
 	return err
 }
 
-func createEditorDeleteEvent(ev *events_pb2.Event) (event, error) {
+func createEditorDeleteEvent(ev *events_pb2.Event, logger *log.Logger) (event, error) {
 	dm := &dataManipulationEditorDelete{}
 	result := &dataManipulationEvent{
 		dataManipulation: dm,
@@ -168,6 +171,7 @@ func createEditorDeleteEvent(ev *events_pb2.Event) (event, error) {
 	var err error
 	var i64 int64
 	for _, a := range ev.Attributes {
+		logAttribute(a, logger)
 		switch a.Key {
 		case model.EV_KEY_TRANSACTION_ID:
 			result.transactionId = a.Value
@@ -199,7 +203,7 @@ func (dm *dataManipulationEditorDelete) apply(tx *sqlx.Tx) error {
 	return err
 }
 
-func createEditorUpdateEvent(ev *events_pb2.Event) (event, error) {
+func createEditorUpdateEvent(ev *events_pb2.Event, logger *log.Logger) (event, error) {
 	dm := &dataManipulationEditorUpdate{}
 	result := &dataManipulationEvent{
 		dataManipulation: dm,
@@ -207,6 +211,7 @@ func createEditorUpdateEvent(ev *events_pb2.Event) (event, error) {
 	var err error
 	var i64 int64
 	for _, a := range ev.Attributes {
+		logAttribute(a, logger)
 		switch a.Key {
 		case model.EV_KEY_TRANSACTION_ID:
 			result.transactionId = a.Value
@@ -241,17 +246,24 @@ func (dm *dataManipulationEditorUpdate) apply(tx *sqlx.Tx) error {
 	return err
 }
 
+/*
+Get all journals ordered by Title, journals with the same
+title being sorted by journal id. Only editors with the
+accepted state are included. This function is for use
+by the portal tool, which should not show editors with
+the proposed state.
+*/
 func GetAllJournals() ([]*Journal, error) {
 	tx, err := db.Beginx()
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = tx.Commit() }()
-	result, err := getAllJournalsWithEditors(tx)
+	result, err := getAllJournalsHavingEditors(tx)
 	if err != nil {
 		return nil, err
 	}
-	journalsWithoutEditors, err := getAllJournalsWithoutEditors(tx)
+	journalsWithoutEditors, err := getAllJournalsNotHavingEditors(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +272,7 @@ func GetAllJournals() ([]*Journal, error) {
 	return result, nil
 }
 
-func getAllJournalsWithEditors(tx *sqlx.Tx) ([]*Journal, error) {
+func getAllJournalsHavingEditors(tx *sqlx.Tx) ([]*Journal, error) {
 	journalEditorCombinations := []JournalEditorCombination{}
 	err := tx.Select(&journalEditorCombinations, getJournalEditorCombinationsQuery())
 	if err != nil {
@@ -344,20 +356,20 @@ func journalEditorCombinationToJournal(jec *JournalEditorCombination) *Journal {
 	return journal
 }
 
-func getAllJournalsWithoutEditors(tx *sqlx.Tx) ([]*Journal, error) {
-	journalsWithoutEditors := []JournalWithoutEditors{}
-	err := tx.Select(&journalsWithoutEditors, getJournalsWithoutEditorsQuery())
+func getAllJournalsNotHavingEditors(tx *sqlx.Tx) ([]*Journal, error) {
+	journalsWithoutEditors := []JournalExcludingEditors{}
+	err := tx.Select(&journalsWithoutEditors, getJournalsNotHavingEditorsQuery())
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Could not get journals without editors: %s", err.Error()))
 	}
 	result := make([]*Journal, 0, len(journalsWithoutEditors))
 	for _, j := range journalsWithoutEditors {
-		result = append(result, journalWithoutEditorsToJournal(&j))
+		result = append(result, journalExcludingEditorsToJournal(&j))
 	}
 	return result, nil
 }
 
-func getJournalsWithoutEditorsQuery() string {
+func getJournalsNotHavingEditorsQuery() string {
 	return strings.TrimSpace(fmt.Sprintf(`
 SELECT
   journalid,
@@ -373,7 +385,7 @@ WHERE journalId NOT IN (
 )`, model.GetEditorStateString(model.EditorState_editorAccepted)))
 }
 
-type JournalWithoutEditors struct {
+type JournalExcludingEditors struct {
 	JournalId       string
 	CreatedOn       int64
 	ModifiedOn      int64
@@ -382,7 +394,7 @@ type JournalWithoutEditors struct {
 	Descriptionhash string
 }
 
-func journalWithoutEditorsToJournal(jwe *JournalWithoutEditors) *Journal {
+func journalExcludingEditorsToJournal(jwe *JournalExcludingEditors) *Journal {
 	return &Journal{
 		JournalId:       jwe.JournalId,
 		CreatedOn:       jwe.CreatedOn,
@@ -405,20 +417,24 @@ func sortJournals(journals []*Journal) {
 	})
 }
 
+/*
+Get a specific journal with its accepted editors. This function
+is for use by the portal tool, which should not show proposed
+editors.
+*/
 func GetJournal(journalId string) (*Journal, error) {
 	tx, err := db.Beginx()
 	if err != nil {
 		return nil, errors.New("Could not start database transaction")
 	}
 	defer func() { _ = tx.Commit() }()
-	jwe := &JournalWithoutEditors{}
-	err = tx.Get(jwe, "SELECT * FROM journal WHERE journalid = ?", journalId)
+	jwe, err := getJournalExcludingEditors(journalId, tx)
 	if err != nil {
 		return nil, err
 	}
-	journal := journalWithoutEditorsToJournal(jwe)
+	journal := journalExcludingEditorsToJournal(jwe)
 	editors := []Editor{}
-	err = tx.Select(&editors, getEditorsOfSpecificJournalQuery(journalId))
+	err = tx.Select(&editors, getAcceptedEditorsOfSpecificJournalQuery(journalId))
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +448,16 @@ func GetJournal(journalId string) (*Journal, error) {
 	return journal, nil
 }
 
-func getEditorsOfSpecificJournalQuery(journalId string) string {
+func getJournalExcludingEditors(journalId string, tx *sqlx.Tx) (*JournalExcludingEditors, error) {
+	result := &JournalExcludingEditors{}
+	err := tx.Get(result, "SELECT * FROM journal WHERE journalid = ?", journalId)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func getAcceptedEditorsOfSpecificJournalQuery(journalId string) string {
 	return strings.TrimSpace(fmt.Sprintf(`
 SELECT 
   editor.personid AS personid,
@@ -444,4 +469,77 @@ WHERE
   AND editor.editorstate = "%s"
 ORDER BY editor.personid
 `, journalId, model.GetEditorStateString(model.EditorState_editorAccepted)))
+}
+
+type JournalIncludingProposedEditors struct {
+	JournalId       string
+	CreatedOn       int64
+	ModifiedOn      int64
+	Title           string
+	IsSigned        bool
+	Descriptionhash string
+	AllEditors      []*EditorWithState
+}
+
+type EditorWithState struct {
+	PersonId    string
+	PersonName  string
+	EditorState string
+}
+
+/*
+Get journal and include both accepted and proposed editors. This
+function is for use by the client tool and the major tool.
+*/
+func GetJournalIncludingProposedEditors(journalId string) (*JournalIncludingProposedEditors, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, errors.New("Could not start database transaction")
+	}
+	defer func() { _ = tx.Commit() }()
+	jwe, err := getJournalExcludingEditors(journalId, tx)
+	if err != nil {
+		return nil, err
+	}
+	journal := journalExcludingEditorsToJournalIncludingProposedEditors(jwe)
+	editors := []EditorWithState{}
+	err = tx.Select(&editors, getEditorsOfSpecificJournalIncludingEditorStateQuery(journalId))
+	if err != nil {
+		return nil, err
+	}
+	journal.AllEditors = make([]*EditorWithState, 0, len(editors))
+	for _, e := range editors {
+		journal.AllEditors = append(journal.AllEditors, &EditorWithState{
+			PersonId:    e.PersonId,
+			PersonName:  e.PersonName,
+			EditorState: e.EditorState,
+		})
+	}
+	return journal, nil
+}
+
+func journalExcludingEditorsToJournalIncludingProposedEditors(
+	jwe *JournalExcludingEditors) *JournalIncludingProposedEditors {
+	return &JournalIncludingProposedEditors{
+		JournalId:       jwe.JournalId,
+		CreatedOn:       jwe.CreatedOn,
+		ModifiedOn:      jwe.ModifiedOn,
+		Title:           jwe.Title,
+		IsSigned:        jwe.IsSigned,
+		Descriptionhash: jwe.Descriptionhash,
+	}
+}
+
+func getEditorsOfSpecificJournalIncludingEditorStateQuery(journalId string) string {
+	return strings.TrimSpace(fmt.Sprintf(`
+SELECT 
+  editor.personid AS personid,
+  editor.editorstate AS editorstate,
+  person.name AS personname
+FROM editor, person
+WHERE
+  editor.journalid = "%s"
+  AND person.id = editor.personId
+ORDER BY editor.personid
+`, journalId))
 }

@@ -59,7 +59,7 @@ func RequestEventStream(eventHandler dao.EventHandler, fname, tag string) {
 	withSawtoothZmqConnection(eventRequester, firstBlock)
 }
 
-func handleEvents(eventHandler dao.EventHandler, connection *messaging.ZmqConnection, _ *log.Logger) error {
+func handleEvents(eventHandler dao.EventHandler, connection *messaging.ZmqConnection, logger *log.Logger) error {
 	EventStreamStatusChannel <- &EventStreamStatus{
 		StatusCode: EVENT_STREAM_STATUS_RUNNING,
 		Msg:        "Requesting events from blockchain...",
@@ -75,7 +75,7 @@ func handleEvents(eventHandler dao.EventHandler, connection *messaging.ZmqConnec
 		if err != nil {
 			return err
 		}
-		err = handleEventsMessage(message, eventHandler)
+		err = handleEventsMessage(message, eventHandler, logger)
 		if err != nil {
 			return err
 		}
@@ -176,7 +176,7 @@ func sendCloseSubscriptionRequest(connection *messaging.ZmqConnection) {
 	}
 }
 
-func handleEventsMessage(message *validator_pb2.Message, eventHandler dao.EventHandler) error {
+func handleEventsMessage(message *validator_pb2.Message, eventHandler dao.EventHandler, logger *log.Logger) error {
 	if message.MessageType != validator_pb2.Message_CLIENT_EVENTS {
 		return errors.New("Received message is not requested for")
 	}
@@ -186,7 +186,7 @@ func handleEventsMessage(message *validator_pb2.Message, eventHandler dao.EventH
 		return err
 	}
 	for _, event := range event_list.Events {
-		err = eventHandler(event)
+		err = eventHandler(event, logger)
 		if err != nil {
 			return err
 		}

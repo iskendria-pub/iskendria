@@ -7,6 +7,7 @@ import (
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/processor_pb2"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"log"
 )
 
 var _ processor_pb2.TpProcessRequest
@@ -30,12 +31,14 @@ const (
 type blockchainStub struct {
 	data         map[string][]byte
 	eventHandler EventHandler
+	logger       *log.Logger
 }
 
-func NewBlockchainStub(eventHandler EventHandler) BlockchainAccess {
+func NewBlockchainStub(eventHandler EventHandler, logger *log.Logger) BlockchainAccess {
 	return &blockchainStub{
 		data:         make(map[string][]byte),
 		eventHandler: eventHandler,
+		logger:       logger,
 	}
 }
 
@@ -71,10 +74,10 @@ func (bs *blockchainStub) AddEvent(eventType string, attributes []processor.Attr
 		EventType:  eventType,
 		Attributes: eventAddtributes,
 		Data:       eventData,
-	})
+	}, bs.logger)
 }
 
-type EventHandler func(*events_pb2.Event) error
+type EventHandler func(*events_pb2.Event, *log.Logger) error
 
 var _ EventHandler = dao.HandleEvent
 

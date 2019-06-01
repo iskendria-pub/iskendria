@@ -12,9 +12,12 @@ import (
 )
 
 var editorsTemplate = `
-{{define "editors"}}
-{{range .}}<a href="/person/{{.PersonId}}">{{.PersonName}}</a>{{end}}
-{{end}}
+{{- define "editors" -}}
+{{- range $index, $element := . -}}
+{{- if $index -}}, {{end -}}
+<a href="/person/{{.PersonId}}">{{.PersonName}}</a>
+{{- end -}}
+{{- end -}}
 `
 
 var journalsTemplate = `
@@ -41,7 +44,16 @@ var journalTemplate = `
 <body>
   <h1>Alexandria</h1>
   <h2>{{.Title}}</h2>
-  <div>{{template "editors" .AcceptedEditors}}</div>
+  <table>
+    <tr>
+      <td>Id:</td>
+      <td>{{.JournalId}}</td>
+    </tr>
+    <tr>
+      <td>Editors:</td>
+      <td><div>{{template "editors" .AcceptedEditors}}</div></td>
+    </tr>
+  </table>
 </body>
 `
 

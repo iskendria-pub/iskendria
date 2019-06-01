@@ -65,7 +65,7 @@ func applyEventsHappy(events []*events_pb2.Event, personId string, t *testing.T)
 	Init(dbFile, logger)
 	defer ShutdownAndDelete(logger)
 	for _, ev := range events {
-		if err := HandleEvent(ev); err != nil {
+		if err := HandleEvent(ev, logger); err != nil {
 			t.Error(fmt.Sprintf("Error handling event: error %s, event %v", err, ev))
 		}
 	}
