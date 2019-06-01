@@ -1,4 +1,4 @@
-(function (d, axios) {
+function linkUploadForm(theHash, d, axios) {
     "use strict";
     var inputFile = d.querySelector("#inputFile");
     var divNotification = d.querySelector("#alert");
@@ -16,7 +16,7 @@
     function upload(file) {
         var formData = new FormData()
         formData.append("file", file)
-        post("/upload", formData)
+        post("/upload/" + theHash, formData)
             .then(onResponse)
             .catch(onResponse);
     }
@@ -29,4 +29,4 @@
             divNotification.classList.remove(className);
         }, 3000);
     }
-})(document, axios)
+}

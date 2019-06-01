@@ -41,15 +41,16 @@ var journalsTemplate = `
 var uploadTemplate = `
 {{define "upload"}}
     <form action="/upload" method="post" enctype="multipart/form-data" class="uploadForm">
-        <input class="uploadForm__input" type="file" name="file" id="inputFile">
         <label class="uploadForm__label" for="inputFile">
-            Select a file
+            Not available, you can upload
         </label>
+        <input class="uploadForm__input" type="file" name="file" id="inputFile">
     </form>
     <div class="notification" id="alert"></div>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="/public/api.js"></script>
     <script src="/public/app.js"></script>
+    <script>linkUploadForm({{.}}, document, axios)</script>
 {{end}}
 `
 
@@ -70,8 +71,12 @@ var journalTemplate = `
       <td>Editors:</td>
       <td><div>{{template "editors" .AcceptedEditors}}</div></td>
     </tr>
+    <tr>
+      <td>Description:</td>
+      <td>{{if .IsUploadNeeded}}{{template "upload" .DescriptionHash}}{{else}}{{.Description}}{{end}}</td>
+    </tr>
   </table>
-  {{template "upload"}}
+  {{if .HasDescriptionError}}<div class="error">{{.DescriptionError}}<br/>{{end}}
 </body>
 `
 
@@ -90,13 +95,14 @@ func initialize(dbLogger *log.Logger) {
 			_ = cliAlexandria.ReadEventStreamStatus()
 		}
 	}()
+	initDocuments()
 }
 
 func runHttpServer() {
 	r := mux.NewRouter()
 	r.HandleFunc("/index.html", handleJournals)
 	r.HandleFunc("/journal/{id}", handleJournal)
-	r.HandleFunc("/upload", UploadFile)
+	r.HandleFunc("/upload/{theHash}", uploadFile)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	http.Handle("/", r)
 	err := http.ListenAndServe(":8080", nil)
@@ -145,16 +151,55 @@ func handleJournal(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("Error reading journal from database: " + err.Error()))
 		return
 	}
-	err = parsedJournalTemplate.Execute(w, journal)
+	err = parsedJournalTemplate.Execute(w, journalToJournalView(journal))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("Error executing template: " + err.Error()))
 	}
 }
 
-func UploadFile(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Entering UploadFile...\n")
-	defer log.Printf("Leaving UploadFile\n")
+func journalToJournalView(journal *dao.Journal) *JournalView {
+	result := &JournalView{
+		JournalId:       journal.JournalId,
+		Title:           journal.Title,
+		DescriptionHash: journal.Descriptionhash,
+		AcceptedEditors: journal.AcceptedEditors,
+	}
+	if journal.Descriptionhash == "" {
+		return result
+	}
+	description, isAvailable, err := theDocuments.searchDescription(journal.Descriptionhash)
+	if err != nil {
+		result.IsUploadNeeded = true
+		result.HasDescriptionError = true
+		result.DescriptionError = err.Error()
+		return result
+	}
+	if !isAvailable {
+		result.IsUploadNeeded = true
+		return result
+	}
+	result.Description = description
+	return result
+}
+
+type JournalView struct {
+	JournalId           string
+	Title               string
+	DescriptionHash     string
+	AcceptedEditors     []*dao.Editor
+	IsUploadNeeded      bool
+	Description         string
+	HasDescriptionError bool
+	DescriptionError    string
+}
+
+func uploadFile(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering uploadFile...\n")
+	defer log.Printf("Leaving uploadFile\n")
+	vars := mux.Vars(r)
+	theHash := vars["theHash"]
+	log.Printf("The hash is: " + theHash)
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
 		return
@@ -166,22 +211,10 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = file.Close() }()
-
-	/*
-		mimeType := handle.Header.Get("Content-Type")
-		switch mimeType {
-		case "image/jpeg":
-			saveFile(w, file, handle)
-		case "image/png":
-			saveFile(w, file, handle)
-		default:
-			jsonResponse(w, http.StatusBadRequest, "The format file is not valid.")
-		}
-	*/
-	saveFile(w, file, handle)
+	saveFile(theHash, w, file, handle)
 }
 
-func saveFile(w http.ResponseWriter, file multipart.File, handle *multipart.FileHeader) {
+func saveFile(theHash string, w http.ResponseWriter, file multipart.File, handle *multipart.FileHeader) {
 	log.Printf("Entering saveFile...\n")
 	defer log.Printf("Leaving saveFile\n")
 	log.Printf("File is %s", handle.Filename)
@@ -190,13 +223,13 @@ func saveFile(w http.ResponseWriter, file multipart.File, handle *multipart.File
 		_, _ = fmt.Fprintf(w, "%v", err)
 		return
 	}
-
-	err = ioutil.WriteFile("./uploaded", data, 0666)
+	err = theDocuments.Save(theHash, data)
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = fmt.Fprintf(w, "%v", err)
 		return
 	}
-	jsonResponse(w, http.StatusCreated, "File uploaded successfully!.")
+	jsonResponse(w, http.StatusCreated, "File uploaded successfully!")
 }
 
 func jsonResponse(w http.ResponseWriter, code int, message string) {
