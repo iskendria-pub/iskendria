@@ -6,7 +6,9 @@ import (
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"html/template"
+	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 )
@@ -36,6 +38,21 @@ var journalsTemplate = `
 </body>
 `
 
+var uploadTemplate = `
+{{define "upload"}}
+    <form action="/upload" method="post" enctype="multipart/form-data" class="uploadForm">
+        <input class="uploadForm__input" type="file" name="file" id="inputFile">
+        <label class="uploadForm__label" for="inputFile">
+            Select a file
+        </label>
+    </form>
+    <div class="notification" id="alert"></div>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="/public/api.js"></script>
+    <script src="/public/app.js"></script>
+{{end}}
+`
+
 var journalTemplate = `
 <head>
   <title>Alexandria</title>
@@ -54,6 +71,7 @@ var journalTemplate = `
       <td><div>{{template "editors" .AcceptedEditors}}</div></td>
     </tr>
   </table>
+  {{template "upload"}}
 </body>
 `
 
@@ -78,6 +96,7 @@ func runHttpServer() {
 	r := mux.NewRouter()
 	r.HandleFunc("/index.html", handleJournals)
 	r.HandleFunc("/journal/{id}", handleJournal)
+	r.HandleFunc("/upload", UploadFile)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	http.Handle("/", r)
 	err := http.ListenAndServe(":8080", nil)
@@ -86,52 +105,102 @@ func runHttpServer() {
 	}
 }
 
+func parseTemplates(name string, parsedItems ...string) *template.Template {
+	tmpl := template.New("journalsTemplate")
+	var err error
+	for _, parsedItem := range parsedItems {
+		tmpl, err = tmpl.Parse(parsedItem)
+		if err != nil {
+			fmt.Println("Error parsing " + parsedItem)
+			panic(err)
+		}
+	}
+	return tmpl
+}
+
+var parsedJournalsTemplate = parseTemplates("journalsTemplate", editorsTemplate, journalsTemplate)
+
 func handleJournals(w http.ResponseWriter, _ *http.Request) {
-	tmpl, err := template.New("journalsTemplate").Parse(editorsTemplate)
-	if err != nil {
-		fmt.Println("Error parsing editorsTemplate")
-		fmt.Println(err)
-		return
-	}
-	tmpl, err = tmpl.Parse(journalsTemplate)
-	if err != nil {
-		fmt.Println("Error parsing journalsTemplate")
-		fmt.Println(err)
-		return
-	}
 	journals, err := dao.GetAllJournals()
 	if err != nil {
-		fmt.Println("Error reading journals from database: " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(("Error reading journals from database: " + err.Error())))
 		return
 	}
-	err = tmpl.Execute(w, journals)
+	err = parsedJournalsTemplate.Execute(w, journals)
 	if err != nil {
-		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("Error executing template: " + err.Error()))
 	}
 }
+
+var parsedJournalTemplate = parseTemplates("journalTemplate", editorsTemplate, uploadTemplate, journalTemplate)
 
 func handleJournal(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	journalId := vars["id"]
-	tmpl, err := template.New("journalsTemplate").Parse(editorsTemplate)
-	if err != nil {
-		fmt.Println("Error parsing editorsTemplate")
-		fmt.Println(err)
-		return
-	}
-	tmpl, err = tmpl.Parse(journalTemplate)
-	if err != nil {
-		fmt.Println("Error parsing journalTemplate")
-		fmt.Println(err)
-		return
-	}
 	journal, err := dao.GetJournal(journalId)
 	if err != nil {
-		fmt.Println("Error reading journal from database: " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("Error reading journal from database: " + err.Error()))
 		return
 	}
-	err = tmpl.Execute(w, journal)
+	err = parsedJournalTemplate.Execute(w, journal)
 	if err != nil {
-		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("Error executing template: " + err.Error()))
 	}
+}
+
+func UploadFile(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering UploadFile...\n")
+	defer log.Printf("Leaving UploadFile\n")
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
+		return
+	}
+
+	file, handle, err := r.FormFile("file")
+	if err != nil {
+		_, _ = fmt.Fprintf(w, "%v", err)
+		return
+	}
+	defer func() { _ = file.Close() }()
+
+	/*
+		mimeType := handle.Header.Get("Content-Type")
+		switch mimeType {
+		case "image/jpeg":
+			saveFile(w, file, handle)
+		case "image/png":
+			saveFile(w, file, handle)
+		default:
+			jsonResponse(w, http.StatusBadRequest, "The format file is not valid.")
+		}
+	*/
+	saveFile(w, file, handle)
+}
+
+func saveFile(w http.ResponseWriter, file multipart.File, handle *multipart.FileHeader) {
+	log.Printf("Entering saveFile...\n")
+	defer log.Printf("Leaving saveFile\n")
+	log.Printf("File is %s", handle.Filename)
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		_, _ = fmt.Fprintf(w, "%v", err)
+		return
+	}
+
+	err = ioutil.WriteFile("./uploaded", data, 0666)
+	if err != nil {
+		_, _ = fmt.Fprintf(w, "%v", err)
+		return
+	}
+	jsonResponse(w, http.StatusCreated, "File uploaded successfully!.")
+}
+
+func jsonResponse(w http.ResponseWriter, code int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_, _ = fmt.Fprint(w, message)
 }
