@@ -40,20 +40,22 @@ var journalsTemplate = `
 
 var uploadTemplate = `
 {{define "upload"}}
-    <form action="/upload" method="post" enctype="multipart/form-data" class="uploadForm">
-        <label class="uploadForm__label" for="inputFile">
-            Not available, you can upload
-        </label>
+    <form enctype="multipart/form-data" class="uploadForm" id="{{.}}">
+        <label class="uploadForm__label" for="inputFile">Upload description file:</label>
         <input class="uploadForm__input" type="file" name="file" id="inputFile">
     </form>
-    <div class="notification" id="alert"></div>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <script src="/public/api.js"></script>
-    <script src="/public/app.js"></script>
-    <script>linkUploadForm({{.}}, document, axios)</script>
 {{end}}
 `
-
+var verifyTemplate = `
+{{define "verify"}}
+  <table id={{.}}>
+    <tr>
+      <td>Verify description:</td>
+      <td><button type="button" id="verifyButton">Verify</button></td>
+    <tr>
+  </table>
+{{end}}
+`
 var journalTemplate = `
 <head>
   <title>Alexandria</title>
@@ -73,10 +75,28 @@ var journalTemplate = `
     </tr>
     <tr>
       <td>Description:</td>
-      <td>{{if .IsUploadNeeded}}{{template "upload" .DescriptionHash}}{{else}}{{.Description}}{{end}}</td>
+      <td>{{.Description}}</td>
     </tr>
   </table>
-  {{if .HasDescriptionError}}<div class="error">{{.DescriptionError}}<br/>{{end}}
+  {{template "upload" "uploadForm"}}
+  {{template "verify" "verify"}}
+  <div class="notification" id="alert"></div>
+
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="/public/app.js"></script>
+  <script>
+    var context = {
+      inputFileControl: document.querySelector("#inputFile"),
+      verifyButtonControl: document.querySelector("#verifyButton"),
+      uploadFormControl: document.querySelector("#uploadForm"),
+      verifyControl: document.querySelector("#verify"),
+      alertControl: document.querySelector('#alert'),
+      hasInitialDescriptionError: {{.HasDescriptionError}},
+      initialDescriptionError: {{.DescriptionError}},
+      initialIsUploadNeeded: {{.IsUploadNeeded}}
+    }
+    linkUploadForm({{.DescriptionHash}}, context)
+  </script>
 </body>
 `
 
@@ -103,6 +123,7 @@ func runHttpServer() {
 	r.HandleFunc("/index.html", handleJournals)
 	r.HandleFunc("/journal/{id}", handleJournal)
 	r.HandleFunc("/upload/{theHash}", uploadFile)
+	r.HandleFunc("/verify/{theHash}", verify)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	http.Handle("/", r)
 	err := http.ListenAndServe(":8080", nil)
@@ -112,9 +133,11 @@ func runHttpServer() {
 }
 
 func parseTemplates(name string, parsedItems ...string) *template.Template {
-	tmpl := template.New("journalsTemplate")
+	log.Printf("Entering parseTemplates for name: %s\n", name)
+	tmpl := template.New(name)
 	var err error
 	for _, parsedItem := range parsedItems {
+		log.Printf("Parsing called template: %s\n", parsedItem)
 		tmpl, err = tmpl.Parse(parsedItem)
 		if err != nil {
 			fmt.Println("Error parsing " + parsedItem)
@@ -140,7 +163,8 @@ func handleJournals(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-var parsedJournalTemplate = parseTemplates("journalTemplate", editorsTemplate, uploadTemplate, journalTemplate)
+var parsedJournalTemplate = parseTemplates("journalTemplate",
+	editorsTemplate, uploadTemplate, verifyTemplate, journalTemplate)
 
 func handleJournal(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -236,4 +260,28 @@ func jsonResponse(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_, _ = fmt.Fprint(w, message)
+}
+
+func verify(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	theHash := vars["theHash"]
+	log.Printf("The hash is: " + theHash)
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
+		return
+	}
+	if theHash == "" {
+		jsonResponse(w, http.StatusOK, "No description on blockchain, nothing to verify")
+		return
+	}
+	_, isAvailable, err := theDocuments.searchDescription(theHash)
+	if err != nil {
+		jsonResponse(w, http.StatusNotFound, "Verification failed")
+		return
+	}
+	if !isAvailable {
+		jsonResponse(w, http.StatusNotFound, "Description was not uploaded")
+		return
+	}
+	jsonResponse(w, http.StatusOK, "Verified!")
 }
