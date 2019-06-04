@@ -1,10 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"gitlab.bbinfra.net/3estack/alexandria/portal/components/manageDocument"
+	"gitlab.bbinfra.net/3estack/alexandria/portal/util"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -38,30 +41,13 @@ var journalsTemplate = `
 </body>
 `
 
-var uploadTemplate = `
-{{define "upload"}}
-    <form enctype="multipart/form-data" class="uploadForm" id="{{.}}">
-        <label class="uploadForm__label" for="inputFile">Upload description file:</label>
-        <input class="uploadForm__input" type="file" name="file" id="inputFile">
-    </form>
-{{end}}
-`
-var verifyTemplate = `
-{{define "verify"}}
-  <table id={{.}}>
-    <tr>
-      <td>Verify description:</td>
-      <td><button type="button" id="verifyButton">Verify</button></td>
-    <tr>
-  </table>
-{{end}}
-`
 var journalTemplate = `
 <head>
   <title>Alexandria</title>
   <link rel="stylesheet" href="/public/alexandria.css"/>
 </head>
 <body>
+  {{with .JournalView}}
   <h1>Alexandria</h1>
   <h2>{{.Title}}</h2>
   <table>
@@ -75,30 +61,15 @@ var journalTemplate = `
     </tr>
     <tr>
       <td>Description:</td>
-      <td>{{.Description}}</td>
+      <td id="descriptionId">{{.InitialDescription}}</td>
     </tr>
   </table>
-  {{template "upload" "uploadForm"}}
-  {{template "verify" "verify"}}
-  <div class="notification" id="alert"></div>
-
-  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-  <script src="/public/app.js"></script>
-  <script>
-    var context = {
-      inputFileControl: document.querySelector("#inputFile"),
-      verifyButtonControl: document.querySelector("#verifyButton"),
-      uploadFormControl: document.querySelector("#uploadForm"),
-      verifyControl: document.querySelector("#verify"),
-      alertControl: document.querySelector('#alert'),
-      hasInitialDescriptionError: {{.HasDescriptionError}},
-      initialDescriptionError: {{.DescriptionError}},
-      initialIsUploadNeeded: {{.IsUploadNeeded}}
-    }
-    linkUploadForm({{.DescriptionHash}}, context)
-  </script>
+  {{end}}
+  {{template "manageDocument" .ManageDocument}}
 </body>
 `
+
+const manageDocumentsJsUrl = "/manageDocument/manageDocument.js"
 
 func main() {
 	dbLogger := log.New(os.Stdout, "db", log.Flags())
@@ -125,6 +96,8 @@ func runHttpServer() {
 	r.HandleFunc("/upload/{theHash}", uploadFile)
 	r.HandleFunc("/verify/{theHash}", verify)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
+	r.PathPrefix("/manageDocument/").Handler(
+		http.StripPrefix("/manageDocument/", http.FileServer(http.Dir("./components/manageDocument"))))
 	http.Handle("/", r)
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
@@ -132,22 +105,7 @@ func runHttpServer() {
 	}
 }
 
-func parseTemplates(name string, parsedItems ...string) *template.Template {
-	log.Printf("Entering parseTemplates for name: %s\n", name)
-	tmpl := template.New(name)
-	var err error
-	for _, parsedItem := range parsedItems {
-		log.Printf("Parsing called template: %s\n", parsedItem)
-		tmpl, err = tmpl.Parse(parsedItem)
-		if err != nil {
-			fmt.Println("Error parsing " + parsedItem)
-			panic(err)
-		}
-	}
-	return tmpl
-}
-
-var parsedJournalsTemplate = parseTemplates("journalsTemplate", editorsTemplate, journalsTemplate)
+var parsedJournalsTemplate = util.ParseTemplates("journalsTemplate", editorsTemplate, journalsTemplate)
 
 func handleJournals(w http.ResponseWriter, _ *http.Request) {
 	journals, err := dao.GetAllJournals()
@@ -163,8 +121,20 @@ func handleJournals(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-var parsedJournalTemplate = parseTemplates("journalTemplate",
-	editorsTemplate, uploadTemplate, verifyTemplate, journalTemplate)
+var parsedJournalTemplate = parseJournalTemplate()
+
+func parseJournalTemplate() *template.Template {
+	result := manageDocument.ParseManageDocumentTemplate("journalTemplate")
+	result, err := result.Parse(editorsTemplate)
+	if err != nil {
+		panic(err)
+	}
+	result, err = result.Parse(journalTemplate)
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
 
 func handleJournal(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -175,47 +145,54 @@ func handleJournal(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("Error reading journal from database: " + err.Error()))
 		return
 	}
-	err = parsedJournalTemplate.Execute(w, journalToJournalView(journal))
+	err = parsedJournalTemplate.Execute(w, journalToJournalContext(journal))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("Error executing template: " + err.Error()))
 	}
 }
 
-func journalToJournalView(journal *dao.Journal) *JournalView {
-	result := &JournalView{
-		JournalId:       journal.JournalId,
-		Title:           journal.Title,
-		DescriptionHash: journal.Descriptionhash,
-		AcceptedEditors: journal.AcceptedEditors,
+func journalToJournalContext(journal *dao.Journal) *JournalContext {
+	result := &JournalContext{
+		JournalView: JournalView{
+			JournalId:       journal.JournalId,
+			Title:           journal.Title,
+			AcceptedEditors: journal.AcceptedEditors,
+		},
+		ManageDocument: manageDocument.ManageDocumentContext{
+			DescriptionHash:      journal.Descriptionhash,
+			JsUrl:                manageDocumentsJsUrl,
+			DescriptionControlId: "descriptionId",
+		},
 	}
 	if journal.Descriptionhash == "" {
 		return result
 	}
 	description, isAvailable, err := theDocuments.searchDescription(journal.Descriptionhash)
 	if err != nil {
-		result.IsUploadNeeded = true
-		result.HasDescriptionError = true
-		result.DescriptionError = err.Error()
+		result.ManageDocument.InitialIsUploadNeeded = true
+		result.ManageDocument.HasInitialDescriptionError = true
+		result.ManageDocument.InitialDescriptionError = err.Error()
 		return result
 	}
 	if !isAvailable {
-		result.IsUploadNeeded = true
+		result.ManageDocument.InitialIsUploadNeeded = true
 		return result
 	}
-	result.Description = description
+	result.JournalView.InitialDescription = description
 	return result
 }
 
+type JournalContext struct {
+	JournalView    JournalView
+	ManageDocument manageDocument.ManageDocumentContext
+}
+
 type JournalView struct {
-	JournalId           string
-	Title               string
-	DescriptionHash     string
-	AcceptedEditors     []*dao.Editor
-	IsUploadNeeded      bool
-	Description         string
-	HasDescriptionError bool
-	DescriptionError    string
+	JournalId          string
+	Title              string
+	AcceptedEditors    []*dao.Editor
+	InitialDescription string
 }
 
 func uploadFile(w http.ResponseWriter, r *http.Request) {
@@ -244,6 +221,7 @@ func saveFile(theHash string, w http.ResponseWriter, file multipart.File, handle
 	log.Printf("File is %s", handle.Filename)
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = fmt.Fprintf(w, "%v", err)
 		return
 	}
@@ -253,7 +231,16 @@ func saveFile(theHash string, w http.ResponseWriter, file multipart.File, handle
 		_, _ = fmt.Fprintf(w, "%v", err)
 		return
 	}
-	jsonResponse(w, http.StatusCreated, "File uploaded successfully!")
+	result, err := json.Marshal(&manageDocument.SaveFileSuccessResponse{
+		Text:    string(data),
+		Message: "File uploaded successfully!",
+	})
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprintf(w, "%v", err)
+		return
+	}
+	jsonResponse(w, http.StatusCreated, string(result))
 }
 
 func jsonResponse(w http.ResponseWriter, code int, message string) {
@@ -280,7 +267,7 @@ func verify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !isAvailable {
-		jsonResponse(w, http.StatusNotFound, "Description was not uploaded")
+		jsonResponse(w, http.StatusNotFound, "Description was not present, you have to upload it again")
 		return
 	}
 	jsonResponse(w, http.StatusOK, "Verified!")
