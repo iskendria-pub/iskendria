@@ -471,6 +471,30 @@ ORDER BY editor.personid
 `, journalId, model.GetEditorStateString(model.EditorState_editorAccepted)))
 }
 
+func VerifyJournalDescription(journalId string, data []byte) error {
+	tx, err := db.Beginx()
+	if err != nil {
+		return errors.New("Could not start database transaction")
+	}
+	defer func() { _ = tx.Commit() }()
+	jwe, err := getJournalExcludingEditors(journalId, tx)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Could not get journal with journalId %s, error is %s",
+			journalId, err.Error()))
+	}
+	if jwe.Descriptionhash == "" {
+		if len(data) == 0 {
+			return nil
+		}
+		return errors.New("Verification failed. There is no description on the blockchain")
+	}
+	hashOfData := model.HashBytes(data)
+	if jwe.Descriptionhash != hashOfData {
+		return errors.New("Verification failed")
+	}
+	return nil
+}
+
 type JournalIncludingProposedEditors struct {
 	JournalId       string
 	CreatedOn       int64

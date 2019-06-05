@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -37,18 +39,21 @@ func (d *documents) init() {
 	}
 }
 
-func (d *documents) searchDescription(theHash string) (string, bool, error) {
+func (d *documents) searchDescription(theHash string) ([]byte, bool, error) {
+	if theHash == "" {
+		return []byte{}, true, nil
+	}
 	d.mux.Lock()
 	defer d.mux.Unlock()
 	_, err := os.Stat(d.getPath(theHash))
 	switch {
 	case err == nil:
-		result, readErr := readDocumentFile(d.getPath(theHash))
+		result, readErr := d.readAndCheck(theHash)
 		return result, true, readErr
 	case os.IsNotExist(err):
-		return "", false, nil
+		return []byte{}, false, nil
 	default:
-		return "", false, err
+		return []byte{}, false, err
 	}
 }
 
@@ -56,14 +61,25 @@ func (d *documents) getPath(theHash string) string {
 	return d.path + "/" + theHash
 }
 
-func readDocumentFile(fname string) (string, error) {
+func (d *documents) readAndCheck(theHash string) ([]byte, error) {
+	fname := d.getPath(theHash)
 	resultBytes, err := ioutil.ReadFile(fname)
 	if err != nil {
-		return "", err
+		return []byte{}, err
 	}
-	return string(resultBytes), nil
+	if model.HashBytes(resultBytes) != theHash {
+		err := os.Remove(fname)
+		if err != nil {
+			panic(err)
+		}
+		return []byte{}, errors.New("Removed document because of hash mismatch, hash: " + theHash)
+	}
+	return resultBytes, nil
 }
 
-func (d *documents) Save(theHash string, data []byte) error {
+func (d *documents) save(theHash string, data []byte) error {
+	if model.HashBytes(data) != theHash {
+		return errors.New("Uploaded file does not have hash " + theHash)
+	}
 	return ioutil.WriteFile(d.getPath(theHash), data, 0644)
 }

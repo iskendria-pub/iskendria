@@ -26,9 +26,8 @@ func GetCommandJournalCreate(
 			Timestamp: model.GetCurrentTime(),
 			Body: &model.Command_CommandJournalCreate{
 				CommandJournalCreate: &model.CommandJournalCreate{
-					JournalId:       journalId,
-					Title:           jc.Title,
-					DescriptionHash: jc.DescriptionHash,
+					JournalId: journalId,
+					Title:     jc.Title,
 				},
 			},
 		},
@@ -36,8 +35,7 @@ func GetCommandJournalCreate(
 }
 
 type Journal struct {
-	Title           string
-	DescriptionHash string
+	Title string
 }
 
 func GetCommandJournalUpdateProperties(
@@ -73,14 +71,63 @@ func getModelCommandJournalUpdateProperties(journalId string, orig, updated *Jou
 		}
 		result.TitleUpdate = theUpdate
 	}
-	if orig.DescriptionHash != updated.DescriptionHash {
-		theUpdate := &model.StringUpdate{
-			OldValue: orig.DescriptionHash,
-			NewValue: updated.DescriptionHash,
-		}
-		result.DescriptionHashUpdate = theUpdate
-	}
 	return result
+}
+
+func GetCommandJournalUpdateDescription(
+	journalId string,
+	origDescriptionHash string,
+	updatedDescription []byte,
+	signer string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
+	updatedDescriptionHash := model.HashBytes(updatedDescription)
+	return &Command{
+		InputAddresses:  []string{journalId, signer, model.GetSettingsAddress()},
+		OutputAddresses: []string{journalId, signer},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signer,
+			Price:     price,
+			Timestamp: model.GetCurrentTime(),
+			Body: &model.Command_CommandJournalUpdateProperties{
+				CommandJournalUpdateProperties: &model.CommandJournalUpdateProperties{
+					JournalId: journalId,
+					DescriptionHashUpdate: &model.StringUpdate{
+						OldValue: origDescriptionHash,
+						NewValue: updatedDescriptionHash,
+					},
+				},
+			},
+		},
+	}
+}
+
+func GetCommandJournalOmitDescription(
+	journalId string,
+	origDescriptionHash string,
+	signer string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
+	return &Command{
+		InputAddresses:  []string{journalId, signer, model.GetSettingsAddress()},
+		OutputAddresses: []string{journalId, signer},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signer,
+			Price:     price,
+			Timestamp: model.GetCurrentTime(),
+			Body: &model.Command_CommandJournalUpdateProperties{
+				CommandJournalUpdateProperties: &model.CommandJournalUpdateProperties{
+					JournalId: journalId,
+					DescriptionHashUpdate: &model.StringUpdate{
+						OldValue: origDescriptionHash,
+						NewValue: "",
+					},
+				},
+			},
+		},
+	}
 }
 
 func GetCommandJournalUpdateAuthorization(

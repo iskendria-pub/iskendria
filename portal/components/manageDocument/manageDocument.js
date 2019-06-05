@@ -1,6 +1,7 @@
 function linkManageDocument(context) {
     "use strict";
-    var theHash = context.descriptionHash;
+    console.log("Running linkManageDocument");
+    var journalId = context.journalId;
     var uploadTriggerControl = document.querySelector("#uploadTrigger");
     var verifyTriggerControl = document.querySelector("#verifyTrigger");
     var uploadControlControl = document.querySelector("#uploadControl");
@@ -37,11 +38,13 @@ function linkManageDocument(context) {
     }
 
     function upload(file) {
+        var url = "/" + context.updateUrlComponent +  "/" + journalId;
+        console.log("Doing upload with url: " + url);
         var formData = new FormData();
         formData.append("file", file);
-        post("/upload/" + theHash, formData)
-            .then(onUploadResponse)
-            .catch(onUploadResponse);
+        post(url, formData)
+            .then(onResponse)
+            .catch(onResponse);
     }
 
     function post(url, data) {
@@ -53,14 +56,14 @@ function linkManageDocument(context) {
             });
     }
 
-    function onUploadResponse(response) {
+    function onResponse(response) {
         if(response.status >= 400) {
             showResponse("error", response.data);
         } else {
             var theResponse = response.data;
             showResponse("success", theResponse.Message);
-            setUploadNeeded(false);
-            descriptionControl.innerHTML = theResponse.Text;
+            descriptionControl.innerHTML = theResponse.Description;
+            setUploadNeeded(theResponse.UploadNeeded)
         }
     }
 
@@ -72,17 +75,11 @@ function linkManageDocument(context) {
     }
 
     function verify() {
-        post("/verify/" + theHash)
-            .then(onVerifyResponse)
-            .catch(onVerifyResponse)
-    }
-
-    function onVerifyResponse(response) {
-        if(response.status >= 400) {
-            showResponse("error", response.data);
-            setUploadNeeded(true)
-        } else {
-            showResponse("success", response.data);
-        }
+        var request = {
+            Description: descriptionControl.innerHTML
+        };
+        post("/" + context.verifyUrlComponent + "/" + journalId, JSON.stringify(request))
+            .then(onResponse)
+            .catch(onResponse);
     }
 }

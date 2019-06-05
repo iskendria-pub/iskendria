@@ -583,8 +583,7 @@ func TestJournalUpdateProperties(t *testing.T) {
 	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
 		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		updated := &command.Journal{
-			Title:           "Changed title",
-			DescriptionHash: "bcdef012",
+			Title: "Changed title",
 		}
 		journalId := getTheOnlyDaoJournal(t).JournalId
 		cmd := command.GetCommandJournalUpdateProperties(
@@ -611,17 +610,11 @@ func checkDaoJournalUpdatedProperties(journal *dao.Journal, t *testing.T) {
 	if journal.Title != "Changed title" {
 		t.Error("Title mismatch")
 	}
-	if journal.Descriptionhash != "bcdef012" {
-		t.Error("DescriptionHash mismatch")
-	}
 }
 
 func checkStateJournalUpdatedProperties(journal *model.StateJournal, t *testing.T) {
 	if journal.Title != "Changed title" {
 		t.Error("Title mismatch")
-	}
-	if journal.DescriptionHash != "bcdef012" {
-		t.Error("DescriptionHash mismatch")
 	}
 }
 
@@ -780,4 +773,30 @@ func checkStateJournalEditorStates(
 		t.Error(fmt.Sprintf("Expected %d accepted editors, got %d",
 			expectedNumAccepted, numAccepted))
 	}
+}
+
+func TestJournalUpdateDescription(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalUpdateDescription", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
+		doTestJournalCreate(journal, personCreate, initialBalance, t)
+		journalId := getTheOnlyDaoJournal(t).JournalId
+		description := []byte("This is the description")
+		cmd := command.GetCommandJournalUpdateDescription(
+			journalId,
+			"",
+			description,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorEditJournal)
+		err := command.RunCommandForTest(cmd, "transactionIdUpdateDescription", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		err = dao.VerifyJournalDescription(journalId, description)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	withNewJournalCreate(f, t)
 }

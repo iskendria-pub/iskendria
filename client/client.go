@@ -7,6 +7,7 @@ import (
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -67,6 +68,26 @@ func main() {
 						ReferenceValueGetter:         journalUpdatePropertiesReference,
 						ReferenceValueGetterArgNames: []string{"journal id"},
 						Action:                       journalUpdateProperties,
+					},
+					&cli.SingleLineHandler{
+						Name:     "updateDescription",
+						Handler:  updateDescription,
+						ArgNames: []string{"journal id", "description file"},
+					},
+					&cli.SingleLineHandler{
+						Name:     "removeDescription",
+						Handler:  removeDescription,
+						ArgNames: []string{"journal id"},
+					},
+					&cli.SingleLineHandler{
+						Name:     "verifyDescription",
+						Handler:  verifyDescription,
+						ArgNames: []string{"journal id", "description file"},
+					},
+					&cli.SingleLineHandler{
+						Name:     "verifyDescriptionOmitted",
+						Handler:  verifyDescriptionOmitted,
+						ArgNames: []string{"journalId"},
 					},
 					&cli.SingleLineHandler{
 						Name:     "proposeEditor",
@@ -132,8 +153,7 @@ func journalUpdatePropertiesReference(outputter cli.Outputter, journalId string)
 	}
 	originalJournalId = journalId
 	originalJournal = &command.Journal{
-		Title:           daoJournal.Title,
-		DescriptionHash: daoJournal.Descriptionhash,
+		Title: daoJournal.Title,
 	}
 	return originalJournal
 }
@@ -152,6 +172,79 @@ func journalUpdateProperties(outputter cli.Outputter, journal *command.Journal) 
 	if err := blockchain.SendCommand(theCommand, outputter); err != nil {
 		outputter(cliAlexandria.ToIoError(err))
 	}
+}
+
+func updateDescription(outputter cli.Outputter, journalId, descriptionFileName string) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	data, err := ioutil.ReadFile(descriptionFileName)
+	if err != nil {
+		outputter(cliAlexandria.ToIoError(err) + "\n")
+		return
+	}
+	origJournal, err := dao.GetJournal(journalId)
+	if err != nil {
+		outputter(fmt.Sprintf("Journal does not exist, journalId = %s, detailed error = %s\n",
+			journalId, err.Error()))
+		return
+	}
+	theCommand := command.GetCommandJournalUpdateDescription(
+		journalId,
+		origJournal.Descriptionhash,
+		data,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceEditorEditJournal)
+	err = blockchain.SendCommand(theCommand, outputter)
+	if err != nil {
+		outputter("Error sending command to blockchain: " + err.Error() + "\n")
+	}
+}
+
+func removeDescription(outputter cli.Outputter, journalId string) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	origJournal, err := dao.GetJournal(journalId)
+	if err != nil {
+		outputter(fmt.Sprintf("Journal does not exist, journalId = %s, detailed error = %s\n",
+			journalId, err.Error()))
+		return
+	}
+	theCommand := command.GetCommandJournalOmitDescription(
+		journalId,
+		origJournal.Descriptionhash,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceEditorEditJournal)
+	err = blockchain.SendCommand(theCommand, outputter)
+	if err != nil {
+		outputter("Error sending command to blockchain: " + err.Error() + "\n")
+	}
+}
+
+func verifyDescription(outputter cli.Outputter, journalId, descriptionFileName string) {
+	data, err := ioutil.ReadFile(descriptionFileName)
+	if err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+		return
+	}
+	err = dao.VerifyJournalDescription(journalId, data)
+	if err != nil {
+		outputter("Verification failed: " + err.Error() + "\n")
+		return
+	}
+	outputter("Verified\n")
+}
+
+func verifyDescriptionOmitted(outputter cli.Outputter, journalId string) {
+	err := dao.VerifyJournalDescription(journalId, []byte{})
+	if err != nil {
+		outputter("Verification failed: " + err.Error() + "\n")
+		return
+	}
+	outputter("Verified\n")
 }
 
 func proposeEditor(outputter cli.Outputter, journalId, editorId string) {

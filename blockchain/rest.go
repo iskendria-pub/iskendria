@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"bytes"
-	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -121,9 +120,7 @@ func SendCommand(c *command.Command, outputter cli.Outputter) error {
 		return err
 	}
 	context := signing.CreateContext(c.CryptoIdentity.PrivateKey.GetAlgorithmName())
-	hasher := sha512.New()
-	hasher.Write(payloadBytes)
-	payloadSha512 := strings.ToLower(hex.EncodeToString(hasher.Sum(nil)))
+	payloadSha512 := model.HashBytes(payloadBytes)
 	rawTransactionHeader := &transaction_pb2.TransactionHeader{
 		SignerPublicKey:  c.CryptoIdentity.PublicKey.AsHex(),
 		FamilyName:       model.FamilyName,

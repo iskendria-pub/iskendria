@@ -7,7 +7,7 @@ import (
 
 var uploadTemplate = `
 {{define "upload"}}
-    <form enctype="multipart/form-data" class="uploadForm" id="uploadControl">
+    <form enctype="multipart/form-data" class="uploadForm" id="uploadControl" hidden>
         <label class="uploadForm__label" for="uploadTrigger">Upload description file:</label>
         <input class="uploadForm__input" type="file" name="file" id="uploadTrigger">
     </form>
@@ -15,10 +15,10 @@ var uploadTemplate = `
 `
 var verifyTemplate = `
 {{define "verify"}}
-  <table id="verifyControl">
+  <table id="verifyControl" hidden>
     <tr>
       <td>Verify description:</td>
-      <td><button type="button" id="verifyTrigger">Verify</button></td>
+      <td><button type="button" id="verifyTrigger">Verify and refresh</button></td>
     <tr>
   </table>
 {{end}}
@@ -33,14 +33,18 @@ var manageDocumentTemplate = `
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <script src="{{.JsUrl}}"></script>
   <script>
+    console.log("Going to initialize the context");
     var context = {
-      descriptionHash: {{.DescriptionHash}},
+      journalId: {{.JournalId}},
       hasInitialDescriptionError: {{.HasInitialDescriptionError}},
       initialDescriptionError: {{.InitialDescriptionError}},
       initialIsUploadNeeded: {{.InitialIsUploadNeeded}},
-      descriptionControlId: {{.DescriptionControlId}}
-    }
-    linkManageDocument(context)
+      descriptionControlId: {{.DescriptionControlId}},
+      updateUrlComponent: {{.UpdateUrlComponent}},
+      verifyUrlComponent: {{.VerifyUrlComponent}}
+    };
+    console.log("Initialized the context");
+    linkManageDocument(context);
   </script>
 </div>
 {{end}}
@@ -52,15 +56,22 @@ func ParseManageDocumentTemplate(name string) *template.Template {
 }
 
 type ManageDocumentContext struct {
-	DescriptionHash            string
+	JournalId                  string
 	HasInitialDescriptionError bool
 	InitialDescriptionError    string
 	InitialIsUploadNeeded      bool
 	JsUrl                      string
 	DescriptionControlId       string
+	UpdateUrlComponent         string
+	VerifyUrlComponent         string
 }
 
-type SaveFileSuccessResponse struct {
-	Text    string
-	Message string
+type PortalResponse struct {
+	Description  string
+	Message      string
+	UploadNeeded bool
+}
+
+type PortalRequest struct {
+	Description string
 }

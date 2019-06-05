@@ -93,8 +93,8 @@ func runHttpServer() {
 	r := mux.NewRouter()
 	r.HandleFunc("/index.html", handleJournals)
 	r.HandleFunc("/journal/{id}", handleJournal)
-	r.HandleFunc("/upload/{theHash}", uploadFile)
-	r.HandleFunc("/verify/{theHash}", verify)
+	r.HandleFunc("/update/{journalId}", uploadFile)
+	r.HandleFunc("/verifyAndRefresh/{journalId}", verifyAndRefresh)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	r.PathPrefix("/manageDocument/").Handler(
 		http.StripPrefix("/manageDocument/", http.FileServer(http.Dir("./components/manageDocument"))))
@@ -160,9 +160,11 @@ func journalToJournalContext(journal *dao.Journal) *JournalContext {
 			AcceptedEditors: journal.AcceptedEditors,
 		},
 		ManageDocument: manageDocument.ManageDocumentContext{
-			DescriptionHash:      journal.Descriptionhash,
+			JournalId:            journal.JournalId,
 			JsUrl:                manageDocumentsJsUrl,
 			DescriptionControlId: "descriptionId",
+			UpdateUrlComponent:   "update",
+			VerifyUrlComponent:   "verifyAndRefresh",
 		},
 	}
 	if journal.Descriptionhash == "" {
@@ -179,7 +181,7 @@ func journalToJournalContext(journal *dao.Journal) *JournalContext {
 		result.ManageDocument.InitialIsUploadNeeded = true
 		return result
 	}
-	result.JournalView.InitialDescription = description
+	result.JournalView.InitialDescription = string(description)
 	return result
 }
 
@@ -198,21 +200,47 @@ type JournalView struct {
 func uploadFile(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Entering uploadFile...\n")
 	defer log.Printf("Leaving uploadFile\n")
-	vars := mux.Vars(r)
-	theHash := vars["theHash"]
-	log.Printf("The hash is: " + theHash)
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
 		return
 	}
-
-	file, handle, err := r.FormFile("file")
+	vars := mux.Vars(r)
+	journalId := vars["journalId"]
+	log.Printf("Uploading file for journal id " + journalId)
+	journal, err := dao.GetJournal(journalId)
 	if err != nil {
-		_, _ = fmt.Fprintf(w, "%v", err)
+		jsonResponse(w, http.StatusNotFound, fmt.Sprintf("Journal not found: %s", journalId))
 		return
 	}
+	theHash := journal.Descriptionhash
+	if !checkNoCorrectDescriptionOverwritten(journalId, theHash, w) {
+		return
+	}
+	file, handle, err := r.FormFile("file")
 	defer func() { _ = file.Close() }()
 	saveFile(theHash, w, file, handle)
+}
+
+func checkNoCorrectDescriptionOverwritten(
+	journalId,
+	theHash string,
+	w http.ResponseWriter) bool {
+	log.Printf("The hash of the description is: " + theHash)
+	var hasOldDescription = true
+	var oldDescription = []byte{}
+	var err error
+	if theHash != "" {
+		oldDescription, hasOldDescription, err = theDocuments.searchDescription(theHash)
+		if err != nil {
+			jsonResponse(w, http.StatusInternalServerError, err.Error())
+			return false
+		}
+	}
+	if hasOldDescription && dao.VerifyJournalDescription(journalId, oldDescription) == nil {
+		jsonResponse(w, http.StatusForbidden, "The correct description was present already, do not overwrite")
+		return false
+	}
+	return true
 }
 
 func saveFile(theHash string, w http.ResponseWriter, file multipart.File, handle *multipart.FileHeader) {
@@ -221,26 +249,18 @@ func saveFile(theHash string, w http.ResponseWriter, file multipart.File, handle
 	log.Printf("File is %s", handle.Filename)
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = fmt.Fprintf(w, "%v", err)
+		jsonResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	err = theDocuments.Save(theHash, data)
+	err = theDocuments.save(theHash, data)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = fmt.Fprintf(w, "%v", err)
+		jsonResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	result, err := json.Marshal(&manageDocument.SaveFileSuccessResponse{
-		Text:    string(data),
-		Message: "File uploaded successfully!",
+	jsonSuccessResponse(w, &manageDocument.PortalResponse{
+		Description: string(data),
+		Message:     "File uploaded successfully!",
 	})
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = fmt.Fprintf(w, "%v", err)
-		return
-	}
-	jsonResponse(w, http.StatusCreated, string(result))
 }
 
 func jsonResponse(w http.ResponseWriter, code int, message string) {
@@ -249,26 +269,64 @@ func jsonResponse(w http.ResponseWriter, code int, message string) {
 	_, _ = fmt.Fprint(w, message)
 }
 
-func verify(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	theHash := vars["theHash"]
-	log.Printf("The hash is: " + theHash)
+func jsonSuccessResponse(w http.ResponseWriter, jsonMessage *manageDocument.PortalResponse) {
+	body, err := json.Marshal(jsonMessage)
+	if err != nil {
+		panic(err)
+	}
+	jsonResponse(w, http.StatusOK, string(body))
+}
+
+func verifyAndRefresh(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
 		return
 	}
-	if theHash == "" {
-		jsonResponse(w, http.StatusOK, "No description on blockchain, nothing to verify")
-		return
-	}
-	_, isAvailable, err := theDocuments.searchDescription(theHash)
+	vars := mux.Vars(r)
+	journalId := vars["journalId"]
+	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		jsonResponse(w, http.StatusNotFound, "Verification failed")
+		jsonResponse(w, http.StatusBadRequest, fmt.Sprintf(
+			"Could not read body of POST request: %s", err.Error()))
 		return
 	}
-	if !isAvailable {
-		jsonResponse(w, http.StatusNotFound, "Description was not present, you have to upload it again")
+	defer func() { _ = r.Body.Close() }()
+	request := &manageDocument.PortalRequest{}
+	err = json.Unmarshal(body, request)
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, fmt.Sprintf(
+			"Could not parse body of POST request as PortalRequest: %s", err.Error()))
 		return
 	}
-	jsonResponse(w, http.StatusOK, "Verified!")
+	if err = dao.VerifyJournalDescription(journalId, []byte(request.Description)); err == nil {
+		jsonSuccessResponse(w, &manageDocument.PortalResponse{
+			Description: request.Description,
+			Message:     "Verification successful, description was correct",
+		})
+		return
+	}
+	journal, err := dao.GetJournal(journalId)
+	if err != nil {
+		jsonResponse(w, http.StatusNotFound, fmt.Sprintf("Journal not found: %s, detailed message is: %s",
+			journalId, err))
+		return
+	}
+	theHash := journal.Descriptionhash
+	log.Printf("The hash is: " + theHash)
+	updatedDescription, hasUpdatedDescription, err := theDocuments.searchDescription(theHash)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if hasUpdatedDescription {
+		jsonSuccessResponse(w, &manageDocument.PortalResponse{
+			Description: string(updatedDescription),
+			Message:     "Updated the description",
+		})
+		return
+	}
+	jsonSuccessResponse(w, &manageDocument.PortalResponse{
+		Message:      "Please upload the description",
+		UploadNeeded: true,
+	})
 }

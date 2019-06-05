@@ -53,6 +53,13 @@ func getAddressPrefixFromAddress(address string) string {
 	return address[6:8]
 }
 
+func HashBytes(bytes []byte) string {
+	hasher := sha512.New()
+	hasher.Write(bytes)
+	result := strings.ToLower(hex.EncodeToString(hasher.Sum(nil)))
+	return result
+}
+
 func GetCurrentTime() int64 {
 	now := time.Now()
 	return now.Unix()

@@ -99,8 +99,7 @@ func withNewJournalCreate(testFunc func(*command.Journal, *command.PersonCreate,
 
 func getOriginalCommandJournal() *command.Journal {
 	return &command.Journal{
-		Title:           "The Journal",
-		DescriptionHash: "abcdef01",
+		Title: "The Journal",
 	}
 }
 
@@ -120,7 +119,7 @@ func checkCreatedDaoJournal(journal *dao.Journal, journalId string, editorId str
 	if journal.IsSigned != false {
 		t.Error("IsSigned mismatch")
 	}
-	if journal.Descriptionhash != "abcdef01" {
+	if journal.Descriptionhash != "" {
 		t.Error("DescriptionHash mismatch")
 	}
 	if len(journal.AcceptedEditors) != 1 {
@@ -151,7 +150,7 @@ func checkCreatedStateJournal(journal *model.StateJournal, journalId, editorId s
 	if util.Abs(journal.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
 		t.Error("CreatedOn mismatch")
 	}
-	if journal.DescriptionHash != "abcdef01" {
+	if journal.DescriptionHash != "" {
 		t.Error("DescriptionHash mismatch")
 	}
 	if len(journal.EditorInfo) != 1 {
