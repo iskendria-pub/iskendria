@@ -6,6 +6,7 @@
 *.log
 cli/trycli/trycli
 client/client
+client/*.txt
 command/tmp
 dao/tmp
 generate/command/command/command
@@ -16,5 +17,7 @@ generate/util/util
 major/inputScript
 major/major
 portal/portal
+portal/*.txt
+portal/documents
 processor/processor
 temp
