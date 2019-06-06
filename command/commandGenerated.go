@@ -512,16 +512,6 @@ func createModelCommandPersonUpdateProperties(
 		result.EmailUpdate = theUpdate
 	}
 
-	if updated.BiographyHash != orig.BiographyHash {
-		oldValue := orig.BiographyHash
-		newValue := updated.BiographyHash
-		theUpdate := &model.StringUpdate{
-			OldValue: oldValue,
-			NewValue: newValue,
-		}
-		result.BiographyHashUpdate = theUpdate
-	}
-
 	if updated.Organization != orig.Organization {
 		oldValue := orig.Organization
 		newValue := updated.Organization

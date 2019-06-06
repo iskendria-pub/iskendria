@@ -91,7 +91,6 @@ func getNewDaoPersonUpdate(newPublicKey string) *dao.PersonUpdate {
 	result.PublicKey = newPublicKey
 	result.Name = "Peter"
 	result.Email = "peter@gmail.com"
-	result.BiographyHash = "01234567"
 	result.Organization = "Peter's Toko"
 	result.Telephone = "088-3456789"
 	result.Address = "Insulindeweg"
@@ -120,9 +119,6 @@ func checkModifiedStatePerson(person *model.StatePerson, expectedPersonId, expec
 	}
 	if person.IsSigned != false {
 		t.Error("IsSigned mismatch")
-	}
-	if person.BiographyHash != "01234567" {
-		t.Error("BiographyHash mismatch")
 	}
 	if person.Organization != "Peter's Toko" {
 		t.Error("Organization mismatch")
@@ -164,9 +160,6 @@ func checkModifiedDaoPerson(person *dao.Person, expectedId, expectedPublicKey st
 	if person.IsSigned != false {
 		t.Error("IsSigned mismatch")
 	}
-	if person.BiographyHash != "01234567" {
-		t.Error("BiographyHash mismatch")
-	}
 	if person.Organization != "Peter's Toko" {
 		t.Error("Organization mismatch")
 	}
@@ -203,6 +196,46 @@ func TestPersonUpdatePropertiesAsSMajor(t *testing.T) {
 			t)
 	}
 	withNewPersonCreate(f, t)
+}
+
+func TestPersonBiography(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestPersonUpdatePropertiesAsMajor", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(t *testing.T) {
+		doTestBootstrap(t)
+		personId := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id
+		biography := []byte("This is my biography")
+		cmd := command.GetCommandPersonUpdateBiography(
+			personId,
+			"",
+			biography,
+			personId,
+			cliAlexandria.LoggedIn(),
+			pricePersonEdit)
+		err := command.RunCommandForTest(cmd, "transactionIdPersonSetBiography", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		err = dao.VerifyPersonBiography(personId, biography)
+		if err != nil {
+			t.Error(err)
+		}
+		cmd = command.GetCommandPersonOmitBiography(
+			personId,
+			model.HashBytes(biography),
+			personId,
+			cliAlexandria.LoggedIn(),
+			pricePersonEdit)
+		err = command.RunCommandForTest(cmd, "transactionIdPersonRemoveBiography", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		err = dao.VerifyPersonBiography(personId, []byte{})
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	withLoggedInWithNewKey(f, t)
 }
 
 func TestPersonUpdateSetMajor(t *testing.T) {
@@ -775,7 +808,7 @@ func checkStateJournalEditorStates(
 	}
 }
 
-func TestJournalUpdateDescription(t *testing.T) {
+func TestJournalDescription(t *testing.T) {
 	logger = log.New(os.Stdout, "integration.TestJournalUpdateDescription", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
@@ -794,6 +827,20 @@ func TestJournalUpdateDescription(t *testing.T) {
 			t.Error(err)
 		}
 		err = dao.VerifyJournalDescription(journalId, description)
+		if err != nil {
+			t.Error(err)
+		}
+		cmd = command.GetCommandJournalOmitDescription(
+			journalId,
+			getTheOnlyDaoJournal(t).Descriptionhash,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorEditJournal)
+		err = command.RunCommandForTest(cmd, "transactionIdRemoveDescription", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		err = dao.VerifyJournalDescription(journalId, []byte{})
 		if err != nil {
 			t.Error(err)
 		}

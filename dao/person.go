@@ -56,31 +56,48 @@ func GetPersonById(id string) (*Person, error) {
 }
 
 type PersonUpdate struct {
-	PublicKey     string
-	Name          string
-	Email         string
-	BiographyHash string
-	Organization  string
-	Telephone     string
-	Address       string
-	PostalCode    string
-	Country       string
-	ExtraInfo     string
+	PublicKey    string
+	Name         string
+	Email        string
+	Organization string
+	Telephone    string
+	Address      string
+	PostalCode   string
+	Country      string
+	ExtraInfo    string
 }
 
 func PersonToPersonUpdate(p *Person) *PersonUpdate {
 	return &PersonUpdate{
-		PublicKey:     p.PublicKey,
-		Name:          p.Name,
-		Email:         p.Email,
-		BiographyHash: p.BiographyHash,
-		Organization:  p.Organization,
-		Telephone:     p.Telephone,
-		Address:       p.Address,
-		PostalCode:    p.PostalCode,
-		Country:       p.Country,
-		ExtraInfo:     p.ExtraInfo,
+		PublicKey:    p.PublicKey,
+		Name:         p.Name,
+		Email:        p.Email,
+		Organization: p.Organization,
+		Telephone:    p.Telephone,
+		Address:      p.Address,
+		PostalCode:   p.PostalCode,
+		Country:      p.Country,
+		ExtraInfo:    p.ExtraInfo,
 	}
+}
+
+func VerifyPersonBiography(personId string, data []byte) error {
+	person, err := GetPersonById(personId)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Could not get person with personId %s, error is %s",
+			personId, err.Error()))
+	}
+	if person.BiographyHash == "" {
+		if len(data) == 0 {
+			return nil
+		}
+		return errors.New("Verification failed. There is no biography on the blockchain")
+	}
+	hashOfData := model.HashBytes(data)
+	if person.BiographyHash != hashOfData {
+		return errors.New("Verification failed")
+	}
+	return nil
 }
 
 func createPersonCreateEvent(event *events_pb2.Event) (event, error) {

@@ -64,6 +64,62 @@ func GetPersonUpdatePropertiesCommand(
 	}
 }
 
+func GetCommandPersonUpdateBiography(
+	personId string,
+	origBiographyHash string,
+	updatedBiography []byte,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
+	updatedDescriptionHash := model.HashBytes(updatedBiography)
+	return &Command{
+		InputAddresses:  []string{model.GetSettingsAddress(), personId, signerId},
+		OutputAddresses: []string{personId, signerId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
+			Price:     price,
+			Timestamp: model.GetCurrentTime(),
+			Body: &model.Command_CommandPersonUpdateProperties{
+				CommandPersonUpdateProperties: &model.CommandPersonUpdateProperties{
+					PersonId: personId,
+					BiographyHashUpdate: &model.StringUpdate{
+						OldValue: origBiographyHash,
+						NewValue: updatedDescriptionHash,
+					},
+				},
+			},
+		},
+	}
+}
+
+func GetCommandPersonOmitBiography(
+	personId string,
+	origBiographyHash string,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
+	return &Command{
+		InputAddresses:  []string{model.GetSettingsAddress(), personId, signerId},
+		OutputAddresses: []string{personId, signerId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
+			Price:     price,
+			Timestamp: model.GetCurrentTime(),
+			Body: &model.Command_CommandPersonUpdateProperties{
+				CommandPersonUpdateProperties: &model.CommandPersonUpdateProperties{
+					PersonId: personId,
+					BiographyHashUpdate: &model.StringUpdate{
+						OldValue: origBiographyHash,
+						NewValue: "",
+					},
+				},
+			},
+		},
+	}
+}
+
 func GetPersonUpdateSetMajorCommand(
 	personId,
 	signerId string,

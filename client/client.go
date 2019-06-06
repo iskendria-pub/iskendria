@@ -48,6 +48,33 @@ func main() {
 						ReferenceValueGetterArgNames: []string{},
 						Action:                       cliAlexandria.PersonUpdate,
 					},
+					&cli.Cli{
+						FullDescription:    "Welcome to the person biography commands",
+						OneLineDescription: "Update/Verify/Remove biography",
+						Name:               "biography",
+						Handlers: []cli.Handler{
+							&cli.SingleLineHandler{
+								Name:     "updateBiography",
+								Handler:  personUpdateBiography,
+								ArgNames: []string{"biography filename"},
+							},
+							&cli.SingleLineHandler{
+								Name:     "removeBiography",
+								Handler:  personRemoveBiography,
+								ArgNames: []string{},
+							},
+							&cli.SingleLineHandler{
+								Name:     "verifyBiography",
+								Handler:  personVerifyBiography,
+								ArgNames: []string{"biography filename"},
+							},
+							&cli.SingleLineHandler{
+								Name:     "verifyBiographyOmitted",
+								Handler:  personVerifyBiographyOmitted,
+								ArgNames: []string{},
+							},
+						},
+					},
 				),
 			},
 			&cli.Cli{
@@ -69,25 +96,32 @@ func main() {
 						ReferenceValueGetterArgNames: []string{"journal id"},
 						Action:                       journalUpdateProperties,
 					},
-					&cli.SingleLineHandler{
-						Name:     "updateDescription",
-						Handler:  updateDescription,
-						ArgNames: []string{"journal id", "description file"},
-					},
-					&cli.SingleLineHandler{
-						Name:     "removeDescription",
-						Handler:  removeDescription,
-						ArgNames: []string{"journal id"},
-					},
-					&cli.SingleLineHandler{
-						Name:     "verifyDescription",
-						Handler:  verifyDescription,
-						ArgNames: []string{"journal id", "description file"},
-					},
-					&cli.SingleLineHandler{
-						Name:     "verifyDescriptionOmitted",
-						Handler:  verifyDescriptionOmitted,
-						ArgNames: []string{"journalId"},
+					&cli.Cli{
+						FullDescription:    "Welcome to the journal description commands",
+						OneLineDescription: "Update/Verify/Remove description",
+						Name:               "description",
+						Handlers: []cli.Handler{
+							&cli.SingleLineHandler{
+								Name:     "updateDescription",
+								Handler:  journalUpdateDescription,
+								ArgNames: []string{"journal id", "description file"},
+							},
+							&cli.SingleLineHandler{
+								Name:     "removeDescription",
+								Handler:  journalRemoveDescription,
+								ArgNames: []string{"journal id"},
+							},
+							&cli.SingleLineHandler{
+								Name:     "verifyDescription",
+								Handler:  journalVerifyDescription,
+								ArgNames: []string{"journal id", "description file"},
+							},
+							&cli.SingleLineHandler{
+								Name:     "verifyDescriptionOmitted",
+								Handler:  journalVerifyDescriptionOmitted,
+								ArgNames: []string{"journalId"},
+							},
+						},
 					},
 					&cli.SingleLineHandler{
 						Name:     "proposeEditor",
@@ -123,6 +157,73 @@ func personUpdateReference(outputter cli.Outputter) *dao.PersonUpdate {
 	cliAlexandria.OriginalPersonId = cliAlexandria.LoggedInPerson.Id
 	cliAlexandria.OriginalPerson = dao.PersonToPersonUpdate(cliAlexandria.LoggedInPerson)
 	return cliAlexandria.OriginalPerson
+}
+
+func personUpdateBiography(outputter cli.Outputter, biographyFileName string) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	data, err := ioutil.ReadFile(biographyFileName)
+	if err != nil {
+		outputter(cliAlexandria.ToIoError(err) + "\n")
+		return
+	}
+	theCommand := command.GetCommandPersonUpdateBiography(
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedInPerson.BiographyHash,
+		data,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PricePersonEdit)
+	err = blockchain.SendCommand(theCommand, outputter)
+	if err != nil {
+		outputter("Error sending command to blockchain: " + err.Error() + "\n")
+	}
+}
+
+func personRemoveBiography(outputter cli.Outputter) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	theCommand := command.GetCommandPersonOmitBiography(
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedInPerson.BiographyHash,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PricePersonEdit)
+	err := blockchain.SendCommand(theCommand, outputter)
+	if err != nil {
+		outputter("Error sending command to blockchain: " + err.Error() + "\n")
+	}
+}
+
+func personVerifyBiography(outputter cli.Outputter, biographyFileName string) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	data, err := ioutil.ReadFile(biographyFileName)
+	if err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+		return
+	}
+	err = dao.VerifyPersonBiography(cliAlexandria.LoggedInPerson.Id, data)
+	if err != nil {
+		outputter("Verification failed: " + err.Error() + "\n")
+		return
+	}
+	outputter("Verified\n")
+}
+
+func personVerifyBiographyOmitted(outputter cli.Outputter) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	err := dao.VerifyPersonBiography(cliAlexandria.LoggedInPerson.Id, []byte{})
+	if err != nil {
+		outputter("Verification failed: " + err.Error() + "\n")
+		return
+	}
+	outputter("Verified\n")
 }
 
 func journalCreate(outputter cli.Outputter, journal *command.Journal) {
@@ -174,7 +275,7 @@ func journalUpdateProperties(outputter cli.Outputter, journal *command.Journal) 
 	}
 }
 
-func updateDescription(outputter cli.Outputter, journalId, descriptionFileName string) {
+func journalUpdateDescription(outputter cli.Outputter, journalId, descriptionFileName string) {
 	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
@@ -202,7 +303,7 @@ func updateDescription(outputter cli.Outputter, journalId, descriptionFileName s
 	}
 }
 
-func removeDescription(outputter cli.Outputter, journalId string) {
+func journalRemoveDescription(outputter cli.Outputter, journalId string) {
 	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
@@ -224,7 +325,7 @@ func removeDescription(outputter cli.Outputter, journalId string) {
 	}
 }
 
-func verifyDescription(outputter cli.Outputter, journalId, descriptionFileName string) {
+func journalVerifyDescription(outputter cli.Outputter, journalId, descriptionFileName string) {
 	data, err := ioutil.ReadFile(descriptionFileName)
 	if err != nil {
 		outputter(cliAlexandria.ToIoError(err))
@@ -238,7 +339,7 @@ func verifyDescription(outputter cli.Outputter, journalId, descriptionFileName s
 	outputter("Verified\n")
 }
 
-func verifyDescriptionOmitted(outputter cli.Outputter, journalId string) {
+func journalVerifyDescriptionOmitted(outputter cli.Outputter, journalId string) {
 	err := dao.VerifyJournalDescription(journalId, []byte{})
 	if err != nil {
 		outputter("Verification failed: " + err.Error() + "\n")
