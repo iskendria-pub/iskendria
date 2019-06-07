@@ -34,7 +34,7 @@ var journalsTemplate = `
   <h1>Alexandria</h1>
   {{range .}}
   <div class="journal">
-    <div class="title"><a href="/journal/{{.JournalId}}">{{.Title}}</a></div>
+    <div class="title"><a href="/journal/{{.JournalId}}" {{if not .IsSigned}}class="muted"{{end}}>{{.Title}}</a></div>
     <div class="editors">{{template "editors" .AcceptedEditors}}</div>
   </div>
   {{end}}
