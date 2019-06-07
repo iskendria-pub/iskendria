@@ -14,3 +14,7 @@
 .error {
     color: red
 }
+
+a.muted {
+    color: gray;
+}

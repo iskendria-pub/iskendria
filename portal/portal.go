@@ -20,7 +20,7 @@ var editorsTemplate = `
 {{- define "editors" -}}
 {{- range $index, $element := . -}}
 {{- if $index -}}, {{end -}}
-<a href="/person/{{.PersonId}}">{{.PersonName}}</a>
+<a href="/person/{{.PersonId}}" {{if not .PersonIsSigned}}class="muted"{{end}}>{{.PersonName}}</a>
 {{- end -}}
 {{- end -}}
 `

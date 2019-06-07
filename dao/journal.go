@@ -286,8 +286,9 @@ func getAllJournalsHavingEditors(tx *sqlx.Tx) ([]*Journal, error) {
 			result = append(result, currentJournal)
 		} else {
 			currentJournal.AcceptedEditors = append(currentJournal.AcceptedEditors, &Editor{
-				PersonId:   jec.PersonId,
-				PersonName: jec.PersonName,
+				PersonId:       jec.PersonId,
+				PersonName:     jec.PersonName,
+				PersonIsSigned: jec.PersonIsSigned,
 			})
 		}
 	}
@@ -305,8 +306,9 @@ type Journal struct {
 }
 
 type Editor struct {
-	PersonId   string
-	PersonName string
+	PersonId       string
+	PersonName     string
+	PersonIsSigned bool
 }
 
 type JournalEditorCombination struct {
@@ -318,6 +320,7 @@ type JournalEditorCombination struct {
 	Descriptionhash string
 	PersonId        string
 	PersonName      string
+	PersonIsSigned  bool
 }
 
 func getJournalEditorCombinationsQuery() string {
@@ -330,7 +333,8 @@ SELECT
   journal.issigned,
   journal.descriptionhash,
   editor.personid,
-  person.name AS personname
+  person.name AS personname,
+  person.issigned AS personissigned
 FROM journal, editor, person
 WHERE editor.journalid = journal.journalid
   AND editor.editorState = "%s"
@@ -349,8 +353,9 @@ func journalEditorCombinationToJournal(jec *JournalEditorCombination) *Journal {
 	journal.Descriptionhash = jec.Descriptionhash
 	journal.AcceptedEditors = []*Editor{
 		{
-			PersonId:   jec.PersonId,
-			PersonName: jec.PersonName,
+			PersonId:       jec.PersonId,
+			PersonName:     jec.PersonName,
+			PersonIsSigned: jec.PersonIsSigned,
 		},
 	}
 	return journal
@@ -441,8 +446,9 @@ func GetJournal(journalId string) (*Journal, error) {
 	journal.AcceptedEditors = make([]*Editor, 0, len(editors))
 	for _, e := range editors {
 		journal.AcceptedEditors = append(journal.AcceptedEditors, &Editor{
-			PersonId:   e.PersonId,
-			PersonName: e.PersonName,
+			PersonId:       e.PersonId,
+			PersonName:     e.PersonName,
+			PersonIsSigned: e.PersonIsSigned,
 		})
 	}
 	return journal, nil
@@ -461,7 +467,8 @@ func getAcceptedEditorsOfSpecificJournalQuery(journalId string) string {
 	return strings.TrimSpace(fmt.Sprintf(`
 SELECT 
   editor.personid AS personid,
-  person.name AS personname
+  person.name AS personname,
+  person.issigned AS personissigned
 FROM editor, person
 WHERE
   editor.journalid = "%s"
@@ -506,9 +513,10 @@ type JournalIncludingProposedEditors struct {
 }
 
 type EditorWithState struct {
-	PersonId    string
-	PersonName  string
-	EditorState string
+	PersonId       string
+	PersonName     string
+	PersonIsSigned bool
+	EditorState    string
 }
 
 /*
@@ -534,9 +542,10 @@ func GetJournalIncludingProposedEditors(journalId string) (*JournalIncludingProp
 	journal.AllEditors = make([]*EditorWithState, 0, len(editors))
 	for _, e := range editors {
 		journal.AllEditors = append(journal.AllEditors, &EditorWithState{
-			PersonId:    e.PersonId,
-			PersonName:  e.PersonName,
-			EditorState: e.EditorState,
+			PersonId:       e.PersonId,
+			PersonName:     e.PersonName,
+			PersonIsSigned: e.PersonIsSigned,
+			EditorState:    e.EditorState,
 		})
 	}
 	return journal, nil
@@ -559,7 +568,8 @@ func getEditorsOfSpecificJournalIncludingEditorStateQuery(journalId string) stri
 SELECT 
   editor.personid AS personid,
   editor.editorstate AS editorstate,
-  person.name AS personname
+  person.name AS personname,
+  person.issigned AS personissigned
 FROM editor, person
 WHERE
   editor.journalid = "%s"

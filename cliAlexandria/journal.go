@@ -37,15 +37,21 @@ func getEditorsWithState(
 	for _, e := range journal.AllEditors {
 		if e.EditorState == editorState {
 			editors = append(editors, &dao.Editor{
-				PersonId:   e.PersonId,
-				PersonName: e.PersonName,
+				PersonId:       e.PersonId,
+				PersonName:     e.PersonName,
+				PersonIsSigned: e.PersonIsSigned,
 			})
 		}
 	}
-	result := cli.NewTable(len(editors), 2)
+	result := cli.NewTable(len(editors), 3)
 	for i := range editors {
+		signedString := "not signed"
+		if editors[i].PersonIsSigned {
+			signedString = "signed"
+		}
 		result.Set(i, 0, editors[i].PersonName)
 		result.Set(i, 1, editors[i].PersonId)
+		result.Set(i, 2, signedString)
 	}
 	return result
 }
