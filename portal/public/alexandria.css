@@ -6,3 +6,11 @@
 .editors {
     padding-left: 20px;
 }
+
+.success {
+    color: green
+}
+
+.error {
+    color: red
+}

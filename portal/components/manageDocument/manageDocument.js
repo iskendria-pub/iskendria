@@ -1,7 +1,7 @@
 function linkManageDocument(context) {
     "use strict";
     console.log("Running linkManageDocument");
-    var journalId = context.journalId;
+    var subjectId = context.subjectId;
     var uploadTriggerControl = document.querySelector("#uploadTrigger");
     var verifyTriggerControl = document.querySelector("#verifyTrigger");
     var uploadControlControl = document.querySelector("#uploadControl");
@@ -38,7 +38,7 @@ function linkManageDocument(context) {
     }
 
     function upload(file) {
-        var url = "/" + context.updateUrlComponent +  "/" + journalId;
+        var url = "/" + context.updateUrlComponent +  "/" + subjectId;
         console.log("Doing upload with url: " + url);
         var formData = new FormData();
         formData.append("file", file);
@@ -61,7 +61,11 @@ function linkManageDocument(context) {
             showResponse("error", response.data);
         } else {
             var theResponse = response.data;
-            showResponse("success", theResponse.Message);
+            var responseClass = "success"
+            if(theResponse.IsWarning) {
+                responseClass = "error"
+            }
+            showResponse(responseClass, theResponse.Message);
             descriptionControl.innerHTML = theResponse.Description;
             setUploadNeeded(theResponse.UploadNeeded)
         }
@@ -78,7 +82,7 @@ function linkManageDocument(context) {
         var request = {
             Description: descriptionControl.innerHTML
         };
-        post("/" + context.verifyUrlComponent + "/" + journalId, JSON.stringify(request))
+        post("/" + context.verifyUrlComponent + "/" + subjectId, JSON.stringify(request))
             .then(onResponse)
             .catch(onResponse);
     }

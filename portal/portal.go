@@ -59,11 +59,77 @@ var journalTemplate = `
       <td>Editors:</td>
       <td><div>{{template "editors" .AcceptedEditors}}</div></td>
     </tr>
-    <tr>
-      <td>Description:</td>
-      <td id="descriptionId">{{.InitialDescription}}</td>
-    </tr>
   </table>
+  <h2>Description</h2>
+  <div id="descriptionId">{{.InitialDescription}}</div>
+  <p>
+  {{end}}
+  {{template "manageDocument" .ManageDocument}}
+</body>
+`
+
+var personTemplate = `
+<head>
+  <title>Alexandria</title>
+  <link rel="stylesheet" href="/public/alexandria.css"/>
+</head>
+<body>
+  {{with .PersonView}}
+  <h1>Alexandria</h1>
+  <h2>{{.Name}}</h2>
+   <table>
+     <tr>
+       <td>PersonId:</td>
+       <td>{{.Id}}</td> 
+     </tr>
+     <tr>
+       <td>Public key:</td>
+       <td>{{.PublicKey}}</td> 
+     </tr>
+     <tr>
+       <td>Email:</td>
+       <td>{{.Email}}</td> 
+     </tr>
+     <tr>
+       <td>Is major:</td>
+       <td>{{.IsMajor}}</td> 
+     </tr>
+     <tr>
+       <td>Is signed:</td>
+       <td>{{.IsSigned}}</td> 
+     </tr>
+     <tr>
+       <td>Balance:</td>
+       <td>{{.Balance}}</td> 
+     </tr>
+     <tr>
+       <td>Organization:</td>
+       <td>{{.Organization}}</td> 
+     </tr>
+     <tr>
+       <td>Telephone:</td>
+       <td>{{.Telephone}}</td> 
+     </tr>
+     <tr>
+       <td>Address:</td>
+       <td>{{.Address}}</td> 
+     </tr>
+     <tr>
+       <td>PostalCode:</td>
+       <td>{{.PostalCode}}</td> 
+     </tr>
+     <tr>
+       <td>Country:</td>
+       <td>{{.Country}}</td> 
+     </tr>
+     <tr>
+       <td>Extra info:</td>
+       <td>{{.ExtraInfo}}</td> 
+     </tr>
+  </table>
+  <h2>Biography</h2>
+  <div id="biographyId">{{.InitialBiography}}</div>
+  <p>
   {{end}}
   {{template "manageDocument" .ManageDocument}}
 </body>
@@ -93,8 +159,11 @@ func runHttpServer() {
 	r := mux.NewRouter()
 	r.HandleFunc("/index.html", handleJournals)
 	r.HandleFunc("/journal/{id}", handleJournal)
-	r.HandleFunc("/update/{journalId}", uploadFile)
-	r.HandleFunc("/verifyAndRefresh/{journalId}", verifyAndRefresh)
+	r.HandleFunc("/journalUpdate/{journalId}", journalUpdate)
+	r.HandleFunc("/journalVerifyAndRefresh/{journalId}", journalVerifyAndRefresh)
+	r.HandleFunc("/person/{id}", handlePerson)
+	r.HandleFunc("/personUpdate/{id}", personUpdate)
+	r.HandleFunc("/personVerifyAndRefresh/{id}", personVerifyAndRefresh)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	r.PathPrefix("/manageDocument/").Handler(
 		http.StripPrefix("/manageDocument/", http.FileServer(http.Dir("./components/manageDocument"))))
@@ -121,17 +190,17 @@ func handleJournals(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-var parsedJournalTemplate = parseJournalTemplate()
+var parsedJournalTemplate = parseTemplatesWithManageDocument(
+	"journalTemplate", editorsTemplate, journalTemplate)
 
-func parseJournalTemplate() *template.Template {
-	result := manageDocument.ParseManageDocumentTemplate("journalTemplate")
-	result, err := result.Parse(editorsTemplate)
-	if err != nil {
-		panic(err)
-	}
-	result, err = result.Parse(journalTemplate)
-	if err != nil {
-		panic(err)
+func parseTemplatesWithManageDocument(name string, templatesToAdd ...string) *template.Template {
+	result := manageDocument.ParseManageDocumentTemplate(name)
+	for _, toAdd := range templatesToAdd {
+		var err error
+		result, err = result.Parse(toAdd)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return result
 }
@@ -160,11 +229,12 @@ func journalToJournalContext(journal *dao.Journal) *JournalContext {
 			AcceptedEditors: journal.AcceptedEditors,
 		},
 		ManageDocument: manageDocument.ManageDocumentContext{
-			JournalId:            journal.JournalId,
+			SubjectId:            journal.JournalId,
 			JsUrl:                manageDocumentsJsUrl,
 			DescriptionControlId: "descriptionId",
-			UpdateUrlComponent:   "update",
-			VerifyUrlComponent:   "verifyAndRefresh",
+			UpdateUrlComponent:   "journalUpdate",
+			VerifyUrlComponent:   "journalVerifyAndRefresh",
+			SubjectWord:          "description",
 		},
 	}
 	if journal.Descriptionhash == "" {
@@ -197,9 +267,9 @@ type JournalView struct {
 	InitialDescription string
 }
 
-func uploadFile(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Entering uploadFile...\n")
-	defer log.Printf("Leaving uploadFile\n")
+func journalUpdate(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering journalUpdate...\n")
+	defer log.Printf("Leaving journalUpdate\n")
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
 		return
@@ -213,7 +283,7 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	theHash := journal.Descriptionhash
-	if !checkNoCorrectDescriptionOverwritten(journalId, theHash, w) {
+	if !checkNoJournalCorrectDescriptionOverwritten(journalId, theHash, w) {
 		return
 	}
 	file, handle, err := r.FormFile("file")
@@ -221,10 +291,19 @@ func uploadFile(w http.ResponseWriter, r *http.Request) {
 	saveFile(theHash, w, file, handle)
 }
 
-func checkNoCorrectDescriptionOverwritten(
+func checkNoJournalCorrectDescriptionOverwritten(
 	journalId,
 	theHash string,
 	w http.ResponseWriter) bool {
+	return checkNoDescriptionOverwritten(theHash, w, func(oldDescription []byte) error {
+		return dao.VerifyJournalDescription(journalId, oldDescription)
+	})
+}
+
+func checkNoDescriptionOverwritten(
+	theHash string,
+	w http.ResponseWriter,
+	verifyDescriptionFunc func([]byte) error) bool {
 	log.Printf("The hash of the description is: " + theHash)
 	var hasOldDescription = true
 	var oldDescription = []byte{}
@@ -236,7 +315,7 @@ func checkNoCorrectDescriptionOverwritten(
 			return false
 		}
 	}
-	if hasOldDescription && dao.VerifyJournalDescription(journalId, oldDescription) == nil {
+	if hasOldDescription && verifyDescriptionFunc(oldDescription) == nil {
 		jsonResponse(w, http.StatusForbidden, "The correct description was present already, do not overwrite")
 		return false
 	}
@@ -277,7 +356,7 @@ func jsonSuccessResponse(w http.ResponseWriter, jsonMessage *manageDocument.Port
 	jsonResponse(w, http.StatusOK, string(body))
 }
 
-func verifyAndRefresh(w http.ResponseWriter, r *http.Request) {
+func journalVerifyAndRefresh(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
 		return
@@ -305,10 +384,11 @@ func verifyAndRefresh(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	log.Printf("Verification failed, setting up upload\n")
 	journal, err := dao.GetJournal(journalId)
 	if err != nil {
-		jsonResponse(w, http.StatusNotFound, fmt.Sprintf("Journal not found: %s, detailed message is: %s",
-			journalId, err))
+		jsonResponse(w, http.StatusNotFound, fmt.Sprintf(
+			"Journal not found: %s, detailed message is: %s", journalId, err))
 		return
 	}
 	theHash := journal.Descriptionhash
@@ -328,5 +408,184 @@ func verifyAndRefresh(w http.ResponseWriter, r *http.Request) {
 	jsonSuccessResponse(w, &manageDocument.PortalResponse{
 		Message:      "Please upload the description",
 		UploadNeeded: true,
+		IsWarning:    true,
+	})
+}
+
+func handlePerson(w http.ResponseWriter, r *http.Request) {
+	log.Println("Entering handlePerson...")
+	defer log.Println("Left handlePerson")
+	vars := mux.Vars(r)
+	personId := vars["id"]
+	person, err := dao.GetPersonById(personId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("Error reading journal from database: " + err.Error()))
+		return
+	}
+	err = parsedPersonTemplate.Execute(w, personToPersonContext(person))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("Error executing template: " + err.Error()))
+	}
+}
+
+var parsedPersonTemplate = parseTemplatesWithManageDocument("personTemplate", personTemplate)
+
+func personToPersonContext(person *dao.Person) *PersonContext {
+	result := &PersonContext{
+		PersonView: PersonView{
+			Id:           person.Id,
+			PublicKey:    person.PublicKey,
+			Name:         person.Name,
+			Email:        person.Email,
+			IsMajor:      person.IsMajor,
+			IsSigned:     person.IsSigned,
+			Balance:      person.Balance,
+			Organization: person.Organization,
+			Telephone:    person.Telephone,
+			Address:      person.Address,
+			PostalCode:   person.PostalCode,
+			Country:      person.Country,
+			ExtraInfo:    person.ExtraInfo,
+		},
+		ManageDocument: manageDocument.ManageDocumentContext{
+			SubjectId:            person.Id,
+			JsUrl:                manageDocumentsJsUrl,
+			DescriptionControlId: "biographyId",
+			UpdateUrlComponent:   "personUpdate",
+			VerifyUrlComponent:   "personVerifyAndRefresh",
+			SubjectWord:          "biography",
+		},
+	}
+	if person.BiographyHash == "" {
+		return result
+	}
+	description, isAvailable, err := theDocuments.searchDescription(person.BiographyHash)
+	if err != nil {
+		result.ManageDocument.InitialIsUploadNeeded = true
+		result.ManageDocument.HasInitialDescriptionError = true
+		result.ManageDocument.InitialDescriptionError = err.Error()
+		return result
+	}
+	if !isAvailable {
+		result.ManageDocument.InitialIsUploadNeeded = true
+		return result
+	}
+	result.PersonView.InitialBiography = string(description)
+	return result
+}
+
+type PersonContext struct {
+	PersonView     PersonView
+	ManageDocument manageDocument.ManageDocumentContext
+}
+
+type PersonView struct {
+	Id               string
+	PublicKey        string
+	Name             string
+	Email            string
+	IsMajor          bool
+	IsSigned         bool
+	Balance          int32
+	InitialBiography string
+	Organization     string
+	Telephone        string
+	Address          string
+	PostalCode       string
+	Country          string
+	ExtraInfo        string
+}
+
+func personUpdate(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering personUpdate...\n")
+	defer log.Printf("Leaving personUpdate\n")
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
+		return
+	}
+	vars := mux.Vars(r)
+	id := vars["id"]
+	log.Printf("Uploading file for person id " + id)
+	person, err := dao.GetPersonById(id)
+	if err != nil {
+		jsonResponse(w, http.StatusNotFound, fmt.Sprintf("Person not found: %s", id))
+		return
+	}
+	theHash := person.BiographyHash
+	if !checkNoPersonCorrectDescriptionOverwritten(id, theHash, w) {
+		return
+	}
+	file, handle, err := r.FormFile("file")
+	defer func() { _ = file.Close() }()
+	saveFile(theHash, w, file, handle)
+}
+
+func checkNoPersonCorrectDescriptionOverwritten(
+	personId,
+	theHash string,
+	w http.ResponseWriter) bool {
+	return checkNoDescriptionOverwritten(theHash, w, func(oldDescription []byte) error {
+		return dao.VerifyPersonBiography(personId, oldDescription)
+	})
+}
+
+func personVerifyAndRefresh(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering personVerifyAndRefresh...\n")
+	defer log.Printf("Left personVerifyAndRefresh\n")
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
+		return
+	}
+	vars := mux.Vars(r)
+	id := vars["id"]
+	log.Printf("Have id: %s\n", id)
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, fmt.Sprintf(
+			"Could not read body of POST request: %s", err.Error()))
+		return
+	}
+	defer func() { _ = r.Body.Close() }()
+	request := &manageDocument.PortalRequest{}
+	err = json.Unmarshal(body, request)
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, fmt.Sprintf(
+			"Could not parse body of POST request as PortalRequest: %s", err.Error()))
+		return
+	}
+	if err = dao.VerifyPersonBiography(id, []byte(request.Description)); err == nil {
+		jsonSuccessResponse(w, &manageDocument.PortalResponse{
+			Description: request.Description,
+			Message:     "Verification successful, biography was correct",
+		})
+		return
+	}
+	log.Printf("Verification failed, setting up upload\n")
+	person, err := dao.GetPersonById(id)
+	if err != nil {
+		jsonResponse(w, http.StatusNotFound, fmt.Sprintf("Person not found: %s, detailed message is: %s",
+			id, err))
+		return
+	}
+	theHash := person.BiographyHash
+	log.Printf("The hash is: " + theHash)
+	updatedBiography, hasUpdatedBiography, err := theDocuments.searchDescription(theHash)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if hasUpdatedBiography {
+		jsonSuccessResponse(w, &manageDocument.PortalResponse{
+			Description: string(updatedBiography),
+			Message:     "Updated the biography",
+		})
+		return
+	}
+	jsonSuccessResponse(w, &manageDocument.PortalResponse{
+		Message:      "Please upload the biography",
+		UploadNeeded: true,
+		IsWarning:    true,
 	})
 }
