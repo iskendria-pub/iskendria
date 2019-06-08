@@ -65,3 +65,32 @@ func GetEditorStateString(value EditorState) string {
 	}
 	panic(fmt.Sprintf("Unknown editor state: %d", value))
 }
+
+var TableCreateVolume = `
+CREATE TABLE volume (
+    volumeid VARCHAR not null,
+	createdon integer not null,
+    journalid VARCHAR not null,
+    issue VARCHAR not null,
+    PRIMARY KEY (volumeid),
+    FOREIGN KEY (journalid) REFERENCES journal(journalid)
+)
+`
+
+const EV_TYPE_VOLUME_CREATE = "evVolumeCreate"
+
+const (
+	EV_KEY_VOLUME_ISSUE = "issue"
+)
+
+func CreateVolumeAddress() string {
+	var theUuid uuid.UUID = uuid.New()
+	uuidDigest := hexdigestOfUuid(theUuid)
+	return Namespace + volumeAddressPrefix + uuidDigest[:62]
+}
+
+const volumeAddressPrefix = "28"
+
+func IsVolumeAddress(address string) bool {
+	return getAddressPrefixFromAddress(address) == volumeAddressPrefix
+}

@@ -27,6 +27,7 @@ const priceMajorChangePersonAuthorization int32 = 103
 const priceMajorChangeJournalAuthorization = 104
 const pricePersonEdit int32 = 105
 const priceEditorCreateJournal int32 = 114
+const priceEditorCreateVolume int32 = 115
 const priceEditorEditJournal int32 = 116
 const priceEditorAddColleague int32 = 117
 const priceEditorAcceptDuty int32 = 118
@@ -239,7 +240,7 @@ func getBootstrap() *command.Bootstrap {
 		PriceEditorPublishManuscript:         112,
 		PriceEditorAssignManuscript:          113,
 		PriceEditorCreateJournal:             priceEditorCreateJournal,
-		PriceEditorCreateVolume:              115,
+		PriceEditorCreateVolume:              priceEditorCreateVolume,
 		PriceEditorEditJournal:               priceEditorEditJournal,
 		PriceEditorAddColleague:              priceEditorAddColleague,
 		PriceEditorAcceptDuty:                priceEditorAcceptDuty,
@@ -255,19 +256,19 @@ func checkBootstrapStateSettings(settings *model.StateSettings, t *testing.T) {
 	if util.Abs(settings.ModifiedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
 		t.Error("ModifiedOn mismatch")
 	}
-	if settings.PriceList.PriceMajorEditSettings != 101 {
+	if settings.PriceList.PriceMajorEditSettings != priceMajorEditSettings {
 		t.Error("PriceMajorEditSettings mismatch")
 	}
 	if settings.PriceList.PriceMajorCreatePerson != priceMajorCreatePerson {
 		t.Error("PriceMajorCreatePerson mismatch")
 	}
-	if settings.PriceList.PriceMajorChangePersonAuthorization != 103 {
+	if settings.PriceList.PriceMajorChangePersonAuthorization != priceMajorChangePersonAuthorization {
 		t.Error("PriceMajorChangePersonAuthorization mismatch")
 	}
-	if settings.PriceList.PriceMajorChangeJournalAuthorization != 104 {
+	if settings.PriceList.PriceMajorChangeJournalAuthorization != priceMajorChangeJournalAuthorization {
 		t.Error("PriceMajorChangeJournalAuthorization mismatch")
 	}
-	if settings.PriceList.PricePersonEdit != 105 {
+	if settings.PriceList.PricePersonEdit != pricePersonEdit {
 		t.Error("PricePersonEdit mismatch")
 	}
 	if settings.PriceList.PriceAuthorSubmitNewManuscript != 106 {
@@ -294,37 +295,37 @@ func checkBootstrapStateSettings(settings *model.StateSettings, t *testing.T) {
 	if settings.PriceList.PriceEditorAssignManuscript != 113 {
 		t.Error("PriceEditorAssignManuscript mismatch")
 	}
-	if settings.PriceList.PriceEditorCreateJournal != 114 {
+	if settings.PriceList.PriceEditorCreateJournal != priceEditorCreateJournal {
 		t.Error("PriceEditorCreateJournal mismatch")
 	}
-	if settings.PriceList.PriceEditorCreateVolume != 115 {
+	if settings.PriceList.PriceEditorCreateVolume != priceEditorCreateVolume {
 		t.Error("PriceEditorCreateVolume mismatch")
 	}
-	if settings.PriceList.PriceEditorEditJournal != 116 {
+	if settings.PriceList.PriceEditorEditJournal != priceEditorEditJournal {
 		t.Error("PriceEditorEditJournal mismatch")
 	}
-	if settings.PriceList.PriceEditorAddColleague != 117 {
+	if settings.PriceList.PriceEditorAddColleague != priceEditorAddColleague {
 		t.Error("PriceEditorAddColleague mismatch")
 	}
-	if settings.PriceList.PriceEditorAcceptDuty != 118 {
+	if settings.PriceList.PriceEditorAcceptDuty != priceEditorAcceptDuty {
 		t.Error("PriceEditorAcceptDuty mismatch")
 	}
 }
 
 func checkBootstrapDaoSettings(settings *dao.Settings, t *testing.T) {
-	if settings.PriceMajorEditSettings != 101 {
+	if settings.PriceMajorEditSettings != priceMajorEditSettings {
 		t.Error("PriceMajorEditSettings mismatch")
 	}
 	if settings.PriceMajorCreatePerson != priceMajorCreatePerson {
 		t.Error("PriceMajorCreatePerson mismatch")
 	}
-	if settings.PriceMajorChangePersonAuthorization != 103 {
+	if settings.PriceMajorChangePersonAuthorization != priceMajorChangePersonAuthorization {
 		t.Error("PriceMajorChangePersonAuthorization mismatch")
 	}
-	if settings.PriceMajorChangeJournalAuthorization != 104 {
+	if settings.PriceMajorChangeJournalAuthorization != priceMajorChangeJournalAuthorization {
 		t.Error("PriceMajorChangeJournalAuthorization mismatch")
 	}
-	if settings.PricePersonEdit != 105 {
+	if settings.PricePersonEdit != pricePersonEdit {
 		t.Error("PricePersonEdit mismatch")
 	}
 	if settings.PriceAuthorSubmitNewManuscript != 106 {
@@ -351,19 +352,19 @@ func checkBootstrapDaoSettings(settings *dao.Settings, t *testing.T) {
 	if settings.PriceEditorAssignManuscript != 113 {
 		t.Error("PriceEditorAssignManuscript mismatch")
 	}
-	if settings.PriceEditorCreateJournal != 114 {
+	if settings.PriceEditorCreateJournal != priceEditorCreateJournal {
 		t.Error("PriceEditorCreateJournal mismatch")
 	}
-	if settings.PriceEditorCreateVolume != 115 {
+	if settings.PriceEditorCreateVolume != priceEditorCreateVolume {
 		t.Error("PriceEditorCreateVolume mismatch")
 	}
-	if settings.PriceEditorEditJournal != 116 {
+	if settings.PriceEditorEditJournal != priceEditorEditJournal {
 		t.Error("PriceEditorEditJournal mismatch")
 	}
-	if settings.PriceEditorAddColleague != 117 {
+	if settings.PriceEditorAddColleague != priceEditorAddColleague {
 		t.Error("PriceEditorAddColleague mismatch")
 	}
-	if settings.PriceEditorAcceptDuty != 118 {
+	if settings.PriceEditorAcceptDuty != priceEditorAcceptDuty {
 		t.Error("PriceEditorAcceptDuty mismatch")
 	}
 }

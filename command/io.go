@@ -86,6 +86,7 @@ type unmarshalledState struct {
 	settings       *model.StateSettings
 	persons        map[string]*model.StatePerson
 	journals       map[string]*model.StateJournal
+	volumes        map[string]*model.StateVolume
 }
 
 func newUnmarshalledState() *unmarshalledState {
@@ -94,6 +95,7 @@ func newUnmarshalledState() *unmarshalledState {
 		settings:       nil,
 		persons:        make(map[string]*model.StatePerson),
 		journals:       make(map[string]*model.StateJournal),
+		volumes:        make(map[string]*model.StateVolume),
 	}
 }
 
@@ -114,6 +116,11 @@ func (us *unmarshalledState) getAddressState(address string) addressState {
 		}
 	case model.IsJournalAddress(address):
 		_, found := us.journals[address]
+		if found {
+			return ADDRESS_FILLED
+		}
+	case model.IsVolumeAddress(address):
+		_, found := us.volumes[address]
 		if found {
 			return ADDRESS_FILLED
 		}
@@ -146,6 +153,8 @@ func (us *unmarshalledState) addAvailable(address string, contents []byte) error
 		err = us.addPerson(address, contents)
 	case model.IsJournalAddress(address):
 		err = us.addJournal(address, contents)
+	case model.IsVolumeAddress(address):
+		err = us.addVolume(address, contents)
 	}
 	return err
 }
@@ -180,6 +189,16 @@ func (us *unmarshalledState) addJournal(journalId string, contents []byte) error
 	return nil
 }
 
+func (us *unmarshalledState) addVolume(volumeId string, contents []byte) error {
+	volume := &model.StateVolume{}
+	err := proto.Unmarshal(contents, volume)
+	if err != nil {
+		return err
+	}
+	us.volumes[volumeId] = volume
+	return nil
+}
+
 func (us *unmarshalledState) read(addresses []string) (map[string][]byte, error) {
 	result := make(map[string][]byte)
 	var err error
@@ -191,6 +210,8 @@ func (us *unmarshalledState) read(addresses []string) (map[string][]byte, error)
 			err = us.readPerson(address, result)
 		case model.IsJournalAddress(address):
 			err = us.readJournal(address, result)
+		case model.IsVolumeAddress(address):
+			err = us.readVolume(address, result)
 		}
 		if err != nil {
 			return result, err
@@ -214,6 +235,15 @@ func (us *unmarshalledState) readJournal(journalId string, result map[string][]b
 		return err
 	}
 	result[journalId] = marshalled
+	return nil
+}
+
+func (us *unmarshalledState) readVolume(volumeId string, result map[string][]byte) error {
+	marshalled, err := proto.Marshal(us.volumes[volumeId])
+	if err != nil {
+		return err
+	}
+	result[volumeId] = marshalled
 	return nil
 }
 

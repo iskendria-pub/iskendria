@@ -764,3 +764,120 @@ func (u *singleUpdateEditorAcceptDuty) issueEvent(
 	log.Println("Sending event of type: " + eventType)
 	return ba.AddEvent(eventType, attributes, []byte{})
 }
+
+type Volume struct {
+	JournalId string
+	Issue     string
+}
+
+func GetCommandVolumeCreate(
+	v *Volume,
+	signer string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) (*Command, string) {
+	volumeId := model.CreateVolumeAddress()
+	return &Command{
+		InputAddresses:  []string{model.GetSettingsAddress(), signer, volumeId, v.JournalId},
+		OutputAddresses: []string{signer, volumeId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signer,
+			Price:     price,
+			Timestamp: model.GetCurrentTime(),
+			Body: &model.Command_CommandVolumeCreate{
+				CommandVolumeCreate: &model.CommandVolumeCreate{
+					VolumeId:  volumeId,
+					JournalId: v.JournalId,
+					Issue:     v.Issue,
+				},
+			},
+		},
+	}, volumeId
+}
+
+func (nbce *nonBootstrapCommandExecution) checkVolumeCreate(c *model.CommandVolumeCreate) (*updater, error) {
+	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceEditorCreateVolume
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("PriceEditorCreateVolume", expectedPrice)
+	}
+	if err := nbce.readAndCheckJournal(c.JournalId, ADDRESS_FILLED); err != nil {
+		return nil, err
+	}
+	if !model.IsVolumeAddress(c.VolumeId) {
+		return nil, errors.New("Volume id is not a volume address: " + c.VolumeId)
+	}
+	data, err := nbce.blockchainAccess.GetState([]string{c.VolumeId})
+	if err != nil {
+		return nil, errors.New("Could not read volume address: " + c.VolumeId)
+	}
+	err = nbce.unmarshalledState.add(data, []string{c.VolumeId})
+	if err != nil {
+		return nil, err
+	}
+	if nbce.unmarshalledState.getAddressState(c.VolumeId) != ADDRESS_EMPTY {
+		return nil, errors.New("Volume already exists: " + c.VolumeId)
+	}
+	if c.Issue == "" {
+		return nil, errors.New("Volume issue string should be filled but was empty")
+	}
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates: []singleUpdate{
+			&singleUpdateVolumeCreate{
+				volumeId:  c.VolumeId,
+				journalId: c.JournalId,
+				issue:     c.Issue,
+				timestamp: nbce.timestamp,
+			},
+		},
+	}, nil
+}
+
+type singleUpdateVolumeCreate struct {
+	volumeId  string
+	journalId string
+	issue     string
+	timestamp int64
+}
+
+var _ singleUpdate = new(singleUpdateVolumeCreate)
+
+func (u *singleUpdateVolumeCreate) updateState(state *unmarshalledState) (writtenAddress string) {
+	state.volumes[u.volumeId] = &model.StateVolume{
+		Id:        u.volumeId,
+		CreatedOn: u.timestamp,
+		JournalId: u.journalId,
+		Issue:     u.issue,
+	}
+	return u.volumeId
+}
+
+func (u *singleUpdateVolumeCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(model.AlexandriaPrefix+model.EV_TYPE_VOLUME_CREATE,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_ID,
+				Value: u.volumeId,
+			},
+			{
+				Key:   model.EV_KEY_JOURNAL_ID,
+				Value: u.journalId,
+			},
+			{
+				Key:   model.EV_KEY_VOLUME_ISSUE,
+				Value: u.issue,
+			},
+		}, []byte{})
+}

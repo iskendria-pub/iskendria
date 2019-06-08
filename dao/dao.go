@@ -26,6 +26,7 @@ var AllEventTypes = []string{
 	model.AlexandriaPrefix + model.EV_TYPE_EDITOR_CREATE,
 	model.AlexandriaPrefix + model.EV_TYPE_EDITOR_UPDATE,
 	model.AlexandriaPrefix + model.EV_TYPE_EDITOR_DELETE,
+	model.AlexandriaPrefix + model.EV_TYPE_VOLUME_CREATE,
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_CREATE,
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_UPDATE,
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_MODIFICATION_TIME,
@@ -63,6 +64,7 @@ func createTables(logger *log.Logger) {
 		model.TableCreatePerson,
 		model.TableCreateJournal,
 		model.TableCreateEditor,
+		model.TableCreateVolume,
 	}
 	for _, stmt := range tableCreateStatements {
 		_, err := db.Exec(stmt)
@@ -113,6 +115,8 @@ func parseEvent(input *events_pb2.Event, logger *log.Logger) (event, error) {
 		return createEditorUpdateEvent(input, logger)
 	case model.EV_TYPE_PERSON_CREATE:
 		return createPersonCreateEvent(input)
+	case model.EV_TYPE_VOLUME_CREATE:
+		return createVolumeCreateEvent(input)
 	case model.EV_TYPE_PERSON_UPDATE:
 		return createPersonUpdateEvent(input)
 	case model.EV_TYPE_PERSON_MODIFICATION_TIME:

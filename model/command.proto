@@ -18,10 +18,11 @@ message Command {
         CommandJournalEditorAcceptDuty commandJournalEditorAcceptDuty = 8;
         CommandJournalEditorInvite commandJournalEditorInvite = 9;
         CommandJournalEditorResign commandJournalEditorResign = 10;
-        CommandSettingsUpdate commandSettingsUpdate = 11;
-        CommandPersonCreate personCreate = 12;
-        CommandPersonUpdateProperties commandPersonUpdateProperties = 13;
-        CommandPersonUpdateAuthorization commandUpdateAuthorization = 14;
-        CommandPersonUpdateBalanceIncrement commandPersonUpdateBalanceIncrement = 15;
+        CommandVolumeCreate commandVolumeCreate = 11;
+        CommandSettingsUpdate commandSettingsUpdate = 12;
+        CommandPersonCreate personCreate = 13;
+        CommandPersonUpdateProperties commandPersonUpdateProperties = 14;
+        CommandPersonUpdateAuthorization commandUpdateAuthorization = 15;
+        CommandPersonUpdateBalanceIncrement commandPersonUpdateBalanceIncrement = 16;
     }
 }

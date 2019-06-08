@@ -53,3 +53,16 @@ message CommandJournalEditorInvite {
 message CommandJournalEditorAcceptDuty {
     string journalId = 1;
 }
+
+message StateVolume {
+    string id = 1;
+    int64 createdOn = 2;
+    string journalId = 3;
+    string issue = 4;
+}
+
+message CommandVolumeCreate {
+    string volumeId = 1;
+    string journalId = 2;
+    string issue = 3;
+}

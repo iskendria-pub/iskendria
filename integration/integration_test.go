@@ -2,6 +2,7 @@ package integration
 
 import (
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/command"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
@@ -846,4 +847,87 @@ func TestJournalDescription(t *testing.T) {
 		}
 	}
 	withNewJournalCreate(f, t)
+}
+
+func TestCreateVolume(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalUpdateDescription", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(journal *command.Journal, personCreate *command.PersonCreate, initialBalance int32, t *testing.T) {
+		doTestJournalCreate(journal, personCreate, initialBalance, t)
+		journalId := getTheOnlyDaoJournal(t).JournalId
+		vol := &command.Volume{
+			JournalId: journalId,
+			Issue:     "My issue",
+		}
+		cmd, volumeId := command.GetCommandVolumeCreate(
+			vol,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorCreateVolume)
+		err := command.RunCommandForTest(cmd, "transactionIdVolumeCreate", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		checkCreatedDaoVolume(volumeId, journalId, t)
+		checkCreatedStateVolume(getStateVolume(volumeId, t), volumeId, journalId, t)
+		expectedBalance := initialBalance - priceEditorCreateJournal - priceEditorCreateVolume
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withNewJournalCreate(f, t)
+}
+
+func checkCreatedDaoVolume(volumeId, journalId string, t *testing.T) {
+	volumes, err := dao.GetVolumesOfJournal(journalId)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(volumes) != 1 {
+		t.Error("Expected to have exactly one volume")
+	}
+	theVolume := volumes[0]
+	if theVolume.VolumeId != volumeId {
+		t.Error("volumeId mismatch")
+	}
+	if theVolume.JournalId != journalId {
+		t.Error("journalId mismatch")
+	}
+	if theVolume.Issue != "My issue" {
+		t.Error("issue mismatch")
+	}
+	if util.Abs(theVolume.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("CreatedOn mismatch")
+	}
+}
+
+func checkCreatedStateVolume(theVolume *model.StateVolume, volumeId, journalId string, t *testing.T) {
+	if theVolume.Id != volumeId {
+		t.Error("volumeId mismatch")
+	}
+	if theVolume.JournalId != journalId {
+		t.Error("journalId mismatch")
+	}
+	if theVolume.Issue != "My issue" {
+		t.Error("issue mismatch")
+	}
+	if util.Abs(theVolume.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("CreatedOn mismatch")
+	}
+}
+
+func getStateVolume(volumeId string, t *testing.T) *model.StateVolume {
+	data, err := blockchainAccess.GetState([]string{volumeId})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(data) != 1 {
+		t.Error("Expected to read one address")
+	}
+	volumeBytes := data[volumeId]
+	volume := &model.StateVolume{}
+	err = proto.Unmarshal(volumeBytes, volume)
+	if err != nil {
+		t.Error(err)
+	}
+	return volume
 }

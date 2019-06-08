@@ -285,6 +285,8 @@ func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*upda
 		return nbce.checkJournalEditorInvite(c.GetCommandJournalEditorInvite())
 	case *model.Command_CommandJournalEditorAcceptDuty:
 		return nbce.checkJournalEditorAcceptDuty(c.GetCommandJournalEditorAcceptDuty())
+	case *model.Command_CommandVolumeCreate:
+		return nbce.checkVolumeCreate(c.GetCommandVolumeCreate())
 	case *model.Command_PersonCreate:
 		return nbce.checkPersonCreate(c.GetPersonCreate())
 	case *model.Command_CommandPersonUpdateProperties:

@@ -577,3 +577,66 @@ WHERE
 ORDER BY editor.personid
 `, journalId))
 }
+
+func createVolumeCreateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationVolumeCreate{}
+	result := &dataManipulationEvent{dataManipulation: dm}
+	var i64 int64
+	var err error
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_TIMESTAMP:
+			i64, err = strconv.ParseInt(a.Value, 10, 64)
+			dm.createdOn = i64
+		case model.EV_KEY_ID:
+			dm.volumeId = a.Value
+		case model.EV_KEY_JOURNAL_ID:
+			dm.journalId = a.Value
+		case model.EV_KEY_VOLUME_ISSUE:
+			dm.issue = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationVolumeCreate struct {
+	volumeId  string
+	journalId string
+	createdOn int64
+	issue     string
+}
+
+var _ dataManipulation = new(dataManipulationVolumeCreate)
+
+func (dm *dataManipulationVolumeCreate) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec("INSERT INTO volume VALUES(?, ?, ?, ?)",
+		dm.volumeId, dm.createdOn, dm.journalId, dm.issue)
+	return err
+}
+
+func GetVolumesOfJournal(journalId string) ([]Volume, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	result := []Volume{}
+	err = tx.Select(&result, "SELECT * FROM volume WHERE journalId = ? ORDER BY issue DESC",
+		journalId)
+	return result, err
+}
+
+type Volume struct {
+	VolumeId  string
+	CreatedOn int64
+	JournalId string
+	Issue     string
+}
