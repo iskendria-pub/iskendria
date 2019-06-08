@@ -302,6 +302,26 @@ type JournalView struct {
 	InitialDescription string
 }
 
+type VolumeView struct {
+	VolumeId     string
+	Issue        string
+	JournalId    string
+	JournalTitle string
+}
+
+func volumesToVolumeViews(volumes []dao.Volume, journalId, journalTitle string) []*VolumeView {
+	result := make([]*VolumeView, 0, len(volumes))
+	for _, volume := range volumes {
+		result = append(result, &VolumeView{
+			VolumeId:     volume.VolumeId,
+			Issue:        volume.Issue,
+			JournalId:    journalId,
+			JournalTitle: journalTitle,
+		})
+	}
+	return result
+}
+
 func journalUpdate(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Entering journalUpdate...\n")
 	defer log.Printf("Leaving journalUpdate\n")
@@ -623,26 +643,6 @@ func personVerifyAndRefresh(w http.ResponseWriter, r *http.Request) {
 		UploadNeeded: true,
 		IsWarning:    true,
 	})
-}
-
-type VolumeView struct {
-	VolumeId     string
-	Issue        string
-	JournalId    string
-	JournalTitle string
-}
-
-func volumesToVolumeViews(volumes []dao.Volume, journalId, journalTitle string) []*VolumeView {
-	result := make([]*VolumeView, 0, len(volumes))
-	for _, volume := range volumes {
-		result = append(result, &VolumeView{
-			VolumeId:     volume.VolumeId,
-			Issue:        volume.Issue,
-			JournalId:    journalId,
-			JournalTitle: journalTitle,
-		})
-	}
-	return result
 }
 
 func handleVolume(w http.ResponseWriter, r *http.Request) {
