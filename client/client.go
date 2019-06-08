@@ -138,6 +138,12 @@ func main() {
 						Handler:  resignAsEditor,
 						ArgNames: []string{"journal id"},
 					},
+					&cli.StructRunnerHandler{
+						FullDescription:    "Welcome to the volume create dialog",
+						OneLineDescription: "Create volume",
+						Name:               "createVolume",
+						Action:             volumeCreate,
+					},
 				),
 			},
 		),
@@ -376,4 +382,20 @@ func resignAsEditor(outputter cli.Outputter, journalId string) {
 			cliAlexandria.LoggedInPerson.Id,
 			cliAlexandria.LoggedIn())
 	})
+}
+
+func volumeCreate(outputter cli.Outputter, volume *command.Volume) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	cmd, volumeId := command.GetCommandVolumeCreate(
+		volume,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceEditorCreateVolume)
+	if err := blockchain.SendCommand(cmd, outputter); err != nil {
+		outputter(cliAlexandria.ToIoError(err) + "\n")
+		return
+	}
+	outputter("The volumeId of the created volume is: " + volumeId + "\n")
 }

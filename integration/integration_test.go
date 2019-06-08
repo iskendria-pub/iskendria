@@ -869,6 +869,7 @@ func TestCreateVolume(t *testing.T) {
 			t.Error(err)
 		}
 		checkCreatedDaoVolume(volumeId, journalId, t)
+		checkDaoGetSingleVolume(volumeId, journalId, t)
 		checkCreatedStateVolume(getStateVolume(volumeId, t), volumeId, journalId, t)
 		expectedBalance := initialBalance - priceEditorCreateJournal - priceEditorCreateVolume
 		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
@@ -885,17 +886,21 @@ func checkCreatedDaoVolume(volumeId, journalId string, t *testing.T) {
 	if len(volumes) != 1 {
 		t.Error("Expected to have exactly one volume")
 	}
-	theVolume := volumes[0]
-	if theVolume.VolumeId != volumeId {
+	theVolume := &volumes[0]
+	checkDaoVolumeContents(theVolume, volumeId, journalId, t)
+}
+
+func checkDaoVolumeContents(actual *dao.Volume, expectedVolumeId, expectedJournalId string, t *testing.T) {
+	if actual.VolumeId != expectedVolumeId {
 		t.Error("volumeId mismatch")
 	}
-	if theVolume.JournalId != journalId {
+	if actual.JournalId != expectedJournalId {
 		t.Error("journalId mismatch")
 	}
-	if theVolume.Issue != "My issue" {
+	if actual.Issue != "My issue" {
 		t.Error("issue mismatch")
 	}
-	if util.Abs(theVolume.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
+	if util.Abs(actual.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
 		t.Error("CreatedOn mismatch")
 	}
 }
@@ -913,6 +918,14 @@ func checkCreatedStateVolume(theVolume *model.StateVolume, volumeId, journalId s
 	if util.Abs(theVolume.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
 		t.Error("CreatedOn mismatch")
 	}
+}
+
+func checkDaoGetSingleVolume(volumeId, journalId string, t *testing.T) {
+	volume, err := dao.GetVolume(volumeId)
+	if err != nil {
+		t.Error(err)
+	}
+	checkDaoVolumeContents(volume, volumeId, journalId, t)
 }
 
 func getStateVolume(volumeId string, t *testing.T) *model.StateVolume {

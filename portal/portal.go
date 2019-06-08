@@ -41,6 +41,18 @@ var journalsTemplate = `
 </body>
 `
 
+var volumesTemplate = `
+{{define "volumes"}}
+<table>
+{{range .}}
+<tr>
+  <td><a href="/volume/{{.JournalId}}/{{.VolumeId}}">{{.Issue}}</a></td>
+</tr>
+{{end}}
+</table>
+{{end}}
+`
+
 var journalTemplate = `
 <head>
   <title>Alexandria</title>
@@ -65,6 +77,8 @@ var journalTemplate = `
   <p>
   {{end}}
   {{template "manageDocument" .ManageDocument}}
+  <h2>Volumes</h2>
+  {{template "volumes" .Volumes}}
 </body>
 `
 
@@ -135,6 +149,18 @@ var personTemplate = `
 </body>
 `
 
+var volumeTemplate = `
+<head>
+  <title>Alexandria</title>
+  <link rel="stylesheet" href="/public/alexandria.css"/>
+</head>
+<body>
+  <h1>Alexandria</h1>
+  <h2>{{.JournalTitle}}</h2>
+  <h2>{{.Issue}}</h2>
+</body>
+`
+
 const manageDocumentsJsUrl = "/manageDocument/manageDocument.js"
 
 func main() {
@@ -164,6 +190,7 @@ func runHttpServer() {
 	r.HandleFunc("/person/{id}", handlePerson)
 	r.HandleFunc("/personUpdate/{id}", personUpdate)
 	r.HandleFunc("/personVerifyAndRefresh/{id}", personVerifyAndRefresh)
+	r.HandleFunc("/volume/{journalId}/{volumeId}", handleVolume)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	r.PathPrefix("/manageDocument/").Handler(
 		http.StripPrefix("/manageDocument/", http.FileServer(http.Dir("./components/manageDocument"))))
@@ -191,7 +218,7 @@ func handleJournals(w http.ResponseWriter, _ *http.Request) {
 }
 
 var parsedJournalTemplate = parseTemplatesWithManageDocument(
-	"journalTemplate", editorsTemplate, journalTemplate)
+	"journalTemplate", editorsTemplate, volumesTemplate, journalTemplate)
 
 func parseTemplatesWithManageDocument(name string, templatesToAdd ...string) *template.Template {
 	result := manageDocument.ParseManageDocumentTemplate(name)
@@ -214,14 +241,20 @@ func handleJournal(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("Error reading journal from database: " + err.Error()))
 		return
 	}
-	err = parsedJournalTemplate.Execute(w, journalToJournalContext(journal))
+	volumes, err := dao.GetVolumesOfJournal(journalId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("Error reading volumes from database: " + err.Error()))
+		return
+	}
+	err = parsedJournalTemplate.Execute(w, journalToJournalContext(journal, volumes))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("Error executing template: " + err.Error()))
 	}
 }
 
-func journalToJournalContext(journal *dao.Journal) *JournalContext {
+func journalToJournalContext(journal *dao.Journal, volumes []dao.Volume) *JournalContext {
 	result := &JournalContext{
 		JournalView: JournalView{
 			JournalId:       journal.JournalId,
@@ -236,6 +269,7 @@ func journalToJournalContext(journal *dao.Journal) *JournalContext {
 			VerifyUrlComponent:   "journalVerifyAndRefresh",
 			SubjectWord:          "description",
 		},
+		Volumes: volumesToVolumeViews(volumes, journal.JournalId, journal.Title),
 	}
 	if journal.Descriptionhash == "" {
 		return result
@@ -258,6 +292,7 @@ func journalToJournalContext(journal *dao.Journal) *JournalContext {
 type JournalContext struct {
 	JournalView    JournalView
 	ManageDocument manageDocument.ManageDocumentContext
+	Volumes        []*VolumeView
 }
 
 type JournalView struct {
@@ -589,3 +624,56 @@ func personVerifyAndRefresh(w http.ResponseWriter, r *http.Request) {
 		IsWarning:    true,
 	})
 }
+
+type VolumeView struct {
+	VolumeId     string
+	Issue        string
+	JournalId    string
+	JournalTitle string
+}
+
+func volumesToVolumeViews(volumes []dao.Volume, journalId, journalTitle string) []*VolumeView {
+	result := make([]*VolumeView, 0, len(volumes))
+	for _, volume := range volumes {
+		result = append(result, &VolumeView{
+			VolumeId:     volume.VolumeId,
+			Issue:        volume.Issue,
+			JournalId:    journalId,
+			JournalTitle: journalTitle,
+		})
+	}
+	return result
+}
+
+func handleVolume(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering handleVolume...\n")
+	defer log.Printf("Left handleVolume\n")
+	vars := mux.Vars(r)
+	journalId := vars["journalId"]
+	volumeId := vars["volumeId"]
+	journal, err := dao.GetJournal(journalId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprintf(w, "Could not find journal for journalId: "+journalId)
+		return
+	}
+	volume, err := dao.GetVolume(volumeId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprintf(w, "Could not find volume for volumeId: "+volumeId)
+		return
+	}
+	err = parsedVolumeTemplate.Execute(w, &VolumeView{
+		VolumeId:     volume.VolumeId,
+		Issue:        volume.Issue,
+		JournalId:    journal.JournalId,
+		JournalTitle: journal.Title,
+	})
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprintf(w, "Could not parse volume template: "+err.Error())
+		return
+	}
+}
+
+var parsedVolumeTemplate = util.ParseTemplates("volume", volumeTemplate)

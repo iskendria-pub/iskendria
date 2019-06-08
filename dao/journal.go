@@ -640,3 +640,21 @@ type Volume struct {
 	JournalId string
 	Issue     string
 }
+
+func GetVolume(volumeId string) (*Volume, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	result := &Volume{}
+	err = tx.Get(result, "SELECT * FROM volume WHERE volumeId = ? ORDER BY issue DESC",
+		volumeId)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, errors.New("Did not find volume for volumeId: " + volumeId)
+	}
+	return result, nil
+}
