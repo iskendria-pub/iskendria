@@ -61,7 +61,7 @@ function linkManageDocument(context) {
             showResponse("error", response.data);
         } else {
             var theResponse = response.data;
-            var responseClass = "success"
+            var responseClass = "success";
             if(theResponse.IsWarning) {
                 responseClass = "error"
             }

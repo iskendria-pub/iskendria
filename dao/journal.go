@@ -653,8 +653,5 @@ func GetVolume(volumeId string) (*Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	if result == nil {
-		return nil, errors.New("Did not find volume for volumeId: " + volumeId)
-	}
 	return result, nil
 }
