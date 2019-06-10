@@ -13,6 +13,7 @@ type runnableHandler interface {
 	getName() string
 	getHelpIndexLine() string
 	handleLine(words []string) error
+	isArgumentsAfterEqualSign() bool
 }
 
 type singleLineRunnableHandler struct {
@@ -126,6 +127,10 @@ func getValues(handlerType reflect.Type, argNames []string, argWords []string, n
 	return values, nil
 }
 
+func (slrh *singleLineRunnableHandler) isArgumentsAfterEqualSign() bool {
+	return false
+}
+
 type groupContextRunnable struct {
 	*handlersForGroup
 	interactionStrategy interactionStrategy
@@ -187,6 +192,10 @@ func (gcr *groupContextRunnable) handleLine(words []string) error {
 	}
 	gcr.run()
 	return nil
+}
+
+func (grc *groupContextRunnable) isArgumentsAfterEqualSign() bool {
+	return false
 }
 
 type dialogContextRunnable struct {
@@ -263,6 +272,34 @@ func (dcr *dialogContextRunnable) doContinue(outputter Outputter) {
 func (dcr *dialogContextRunnable) cancel(_ Outputter) {
 }
 
+func (dcr *dialogContextRunnable) add(outputter Outputter, variableName, addedItem string) {
+	if addedItem == "" {
+		outputter("Cannot add empty value")
+		return
+	}
+	fieldName := strings.Title(variableName)
+	value, found := dcr.getReflectValueFromStruct(fieldName)
+	if !found {
+		outputter("Field does not exist: " + variableName)
+		return
+	}
+	theSlice := make([]string, value.Len()+1)
+	for i := 0; i < value.Len(); i++ {
+		theSlice[i] = value.Index(i).Interface().(string)
+	}
+	theSlice[value.Len()] = addedItem
+	value.Set(reflect.ValueOf(theSlice))
+}
+
+func (dcr *dialogContextRunnable) getReflectValueFromStruct(fieldName string) (reflect.Value, bool) {
+	for i := 0; i < dcr.readValue.Elem().NumField(); i++ {
+		if dcr.readValue.Elem().Type().Field(i).Name == fieldName {
+			return dcr.readValue.Elem().Field(i), true
+		}
+	}
+	return reflect.ValueOf(nil), false
+}
+
 func (dcr *dialogContextRunnable) handleLine(words []string) error {
 	err, stop := dcr.setReferenceValue(words)
 	if err != nil {
@@ -320,9 +357,26 @@ func (dcr *dialogContextRunnable) executeLine(line string) error {
 	}
 	handler := getHandler(words[0], dcr.handlers)
 	if handler == nil {
-		return errors.New("Name does not match a command or a property: " + words[0])
+		return dcr.searchAndExecuteHandlerWithoutEqualSign(line)
 	}
 	return handler.handleLine(words)
+}
+
+func (dcr *dialogContextRunnable) searchAndExecuteHandlerWithoutEqualSign(line string) error {
+	words := strings.Split(strings.TrimSpace(line), " ")
+	handler := getHandler(words[0], dcr.handlers)
+	// Prevent property to be set without = sign
+	if handler == nil {
+		return errors.New("Command not found: " + words[0])
+	}
+	if handler.isArgumentsAfterEqualSign() {
+		return errors.New("Property set requires \"=\" sign: " + words[0])
+	}
+	return handler.handleLine(words)
+}
+
+func (dcr *dialogContextRunnable) isArgumentsAfterEqualSign() bool {
+	return false
 }
 
 type reviewValue struct {
@@ -383,6 +437,10 @@ func (dph *dialogPropertyHandler) handleLine(words []string) error {
 	return nil
 }
 
+func (dph *dialogPropertyHandler) isArgumentsAfterEqualSign() bool {
+	return true
+}
+
 type dialogListPropertyHandler struct {
 	name        string
 	fieldNumber int
@@ -421,4 +479,8 @@ func getHandler(name string, handlers []runnableHandler) runnableHandler {
 		}
 	}
 	return nil
+}
+
+func (dlph *dialogListPropertyHandler) isArgumentsAfterEqualSign() bool {
+	return true
 }

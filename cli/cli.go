@@ -321,6 +321,27 @@ func (srh *StructRunnerHandler) addGeneratedCommandHandlers(dcr *dialogContextRu
 		continueHandler.build(),
 		cancelHandler.build(),
 	}
+	if hasListFields(dcr) {
+		addHandler := &SingleLineHandler{
+			Name:     "add",
+			Handler:  dcr.add,
+			ArgNames: []string{"list name", "added item"},
+		}
+		dcr.handlers = append(dcr.handlers,
+			addHandler.build(),
+		)
+	}
+}
+
+func hasListFields(dcr *dialogContextRunnable) bool {
+	actionInputType := dcr.actionInpuType
+	for i := 0; i < actionInputType.NumField(); i++ {
+		fieldType := actionInputType.Field(i).Type
+		if fieldType.Kind() == reflect.Slice {
+			return true
+		}
+	}
+	return false
 }
 
 func (srh *StructRunnerHandler) addPropertyHandlers(actionInputType reflect.Type, dcr *dialogContextRunnable) {
