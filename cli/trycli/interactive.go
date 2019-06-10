@@ -66,6 +66,9 @@ properties. We will do something trivial with them on "continue".
 Note that when you enter the dialog, the struct is already
 filled with the reference values.
 
+The "list" field refers to a []string field in the handling
+Golang code. Please edit this field like "list = first second".
+
 Please note that your options are not sorted alphabetically, but
 according to the field order of the Golang struct being filled.
 `)
@@ -255,6 +258,7 @@ func createReference(_ cli.Outputter) *DialogStruct {
 		First:  true,
 		Second: 8,
 		Fourth: "Martijn Dirkse",
+		List:   []string{"firstListItem", "secondListItem"},
 	}
 }
 
@@ -269,6 +273,7 @@ func chooseReference(outputter cli.Outputter, number int32) *DialogStruct {
 			First:  true,
 			Second: 43,
 			Fourth: "Arri Dirkse",
+			List:   []string{"firstListItem"},
 		},
 	}
 	reference, found := references[number]
