@@ -32,11 +32,14 @@ that implements error.
 
 StructRunnerHandler wraps a function taking a struct pointer,
 the Action. This handler starts a dialog allowing the end user
-to set all fields of the struct. A command "continue" is added
-automatically that allows the end user to call the Action.
-There is also "cancel" to go back without executing the
-Action. The end user can do "review" to get an overview of
-the entered properties.
+to set all fields of the struct. Not every type of field is
+supported. Fields can be bool, int32, int64, string or []string.
+You can set a []string field by delimiting the elements by one
+or morespace. Each item is non-empty (not "") but the empty
+slice is supported. A command "continue" is added automatically
+that allows the end user to call the Action. There is also
+"cancel" to go back without executing the Action. The end user
+can do "review" to get an overview of the entered properties.
 
 StructRunnerHandler has an optional ReferenceValueGetter, a
 function that returns a reference value. The reference value

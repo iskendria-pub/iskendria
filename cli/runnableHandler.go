@@ -402,7 +402,13 @@ func (dlph *dialogListPropertyHandler) getHelpIndexLine() string {
 func (dlph *dialogListPropertyHandler) handleLine(words []string) error {
 	value := []string{}
 	if len(words) == 2 && words[1] != "" {
-		value = strings.Split(strings.TrimSpace(words[1]), " ")
+		items := strings.Split(strings.TrimSpace(words[1]), " ")
+		value = make([]string, 0, len(items))
+		for _, item := range items {
+			if item != "" {
+				value = append(value, item)
+			}
+		}
 	}
 	dlph.readValue.Elem().Field(dlph.fieldNumber).Set(reflect.ValueOf(value))
 	return nil

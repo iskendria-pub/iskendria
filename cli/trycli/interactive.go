@@ -24,7 +24,7 @@ tested with the "expectTrue" command.
 Also unrelated to this game, dialogs are tested. A dialog is a function
 that requires a list of name/value pairs to be set interactively.
 You can do "continue" to execute the function with the given
-values. Values can be bool, string, int32, int64 or []string.
+values.
 
 There are three dialog tests, one without a reference value and two with
 a reference value. One of the dialogs with reference values has a fixed
@@ -53,6 +53,9 @@ properties. We will do something trivial with them on "continue".
 
 Please note that your options are not sorted alphabetically, but
 according to the field order of the Golang struct being filled.
+
+The "list" field refers to a []string field in the handling
+Golang code. Please edit this field like "list = first second".
 
 This test is without a reference value.
 `)
