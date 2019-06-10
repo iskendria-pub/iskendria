@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"gitlab.bbinfra.net/3estack/alexandria/util"
+	"log"
 	"reflect"
 	"strings"
 )
@@ -323,15 +324,36 @@ func (srh *StructRunnerHandler) addPropertyHandlers(actionInputType reflect.Type
 	dialogPropertyHandlers := make([]runnableHandler, actionInputType.NumField())
 	for i := 0; i < actionInputType.NumField(); i++ {
 		f := actionInputType.Field(i)
+		log.Println("Field: " + f.Name)
 		if f.Name != strings.Title(f.Name) {
 			panic("Field is not exported: " + f.Name)
 		}
-		dph := &dialogPropertyHandler{
-			name:         util.UnTitle(f.Name),
-			propertyType: f.Type,
-			fieldNumber:  i,
+		if f.Type.Kind() == reflect.Slice {
+			addPropertyHandlerForSliceField(f, i, dialogPropertyHandlers)
+		} else {
+			addPropertyHandlerForScalarField(f, i, dialogPropertyHandlers)
 		}
-		dialogPropertyHandlers[i] = dph
 	}
 	dcr.handlers = append(dcr.handlers, dialogPropertyHandlers...)
+}
+
+func addPropertyHandlerForSliceField(f reflect.StructField, i int, dialogPropertyHandlers []runnableHandler) {
+	if f.Type.Elem().Kind() != reflect.String {
+		panic(fmt.Sprintf("Field %s is a slice, its element type should be string",
+			f.Name))
+	}
+	dlph := &dialogListPropertyHandler{
+		name:        util.UnTitle(f.Name),
+		fieldNumber: i,
+	}
+	dialogPropertyHandlers[i] = dlph
+}
+
+func addPropertyHandlerForScalarField(f reflect.StructField, i int, dialogPropertyHandlers []runnableHandler) {
+	dph := &dialogPropertyHandler{
+		name:         util.UnTitle(f.Name),
+		propertyType: f.Type,
+		fieldNumber:  i,
+	}
+	dialogPropertyHandlers[i] = dph
 }

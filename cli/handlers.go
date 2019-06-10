@@ -80,7 +80,7 @@ func (hfd *handlersForDialog) splitPropertiesAndCommands() []*lineGroup {
 		switch specificHandler := handler.(type) {
 		case *singleLineRunnableHandler:
 			commands = append(commands, specificHandler)
-		case *dialogPropertyHandler:
+		case *dialogPropertyHandler, *dialogListPropertyHandler:
 			properties = append(properties, specificHandler)
 		default:
 			panic("Unknown handler type")

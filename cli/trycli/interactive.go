@@ -24,7 +24,7 @@ tested with the "expectTrue" command.
 Also unrelated to this game, dialogs are tested. A dialog is a function
 that requires a list of name/value pairs to be set interactively.
 You can do "continue" to execute the function with the given
-values.
+values. Values can be bool, string, int32, int64 or []string.
 
 There are three dialog tests, one without a reference value and two with
 a reference value. One of the dialogs with reference values has a fixed
@@ -153,21 +153,21 @@ func main() {
 				ReferenceValueGetterArgNames: []string{"chosen number"},
 			}),
 			cli.Handler(&cli.Cli{
-				FullDescription: "With event paging, parent. You should see a message after each 10 enter presses",
+				FullDescription:    "With event paging, parent. You should see a message after each 10 enter presses",
 				OneLineDescription: "With event paging",
-				Name: "with-paging",
-				EventPager: countNumberOfCalls,
-				Handlers: []cli.Handler {
+				Name:               "with-paging",
+				EventPager:         countNumberOfCalls,
+				Handlers: []cli.Handler{
 					&cli.SingleLineHandler{
 						Name:     "and",
 						Handler:  and,
 						ArgNames: []string{"first value", "second value"},
 					},
 					&cli.Cli{
-						FullDescription: "Sub group - continues counting enters",
+						FullDescription:    "Sub group - continues counting enters",
 						OneLineDescription: "Sub group that continues counting enters",
-						Name: "subgroup",
-						Handlers: []cli.Handler{},
+						Name:               "subgroup",
+						Handlers:           []cli.Handler{},
 					},
 				},
 			}),
@@ -226,6 +226,7 @@ type DialogStruct struct {
 	First  bool
 	Second int32
 	Fourth string
+	List   []string
 }
 
 func executeDialogStruct(outputter cli.Outputter, v *DialogStruct) {
@@ -233,6 +234,10 @@ func executeDialogStruct(outputter cli.Outputter, v *DialogStruct) {
 	outputter(fmt.Sprintf("We take first = %v\n", v.First))
 	outputter(fmt.Sprintf("We take second = %v\n", v.Second))
 	outputter(fmt.Sprintf("We take fourth = %v\n", v.Fourth))
+	outputter(fmt.Sprintf("The list field has length %d\n", len(v.List)))
+	for i, item := range v.List {
+		outputter(fmt.Sprintf("  List item #%d has value %s\n", i+1, item))
+	}
 }
 
 func errorReturnerExpectingTrue(testValue bool) error {
@@ -275,7 +280,7 @@ var callCount int
 
 func countNumberOfCalls(outputter cli.Outputter) {
 	callCount++
-	if callCount % 10 == 0 {
+	if callCount%10 == 0 {
 		outputter(fmt.Sprintf("*** Number of enters: %d\n", callCount))
 	}
 }

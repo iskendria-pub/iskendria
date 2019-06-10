@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"gitlab.bbinfra.net/3estack/alexandria/util"
 	"reflect"
 	"sort"
 	"strings"
@@ -217,7 +218,33 @@ func (dcr *dialogContextRunnable) help(outputter Outputter) {
 }
 
 func (dcr *dialogContextRunnable) review(outputter Outputter) {
-	table := StructToTable(dcr.readValue.Interface())
+	numFields := dcr.readValue.Elem().NumField()
+	reviewValues := make([]*reviewValue, numFields)
+	for i := 0; i < numFields; i++ {
+		reviewValues[i] = newReviewValue(
+			util.UnTitle(dcr.readValue.Elem().Type().Field(i).Name),
+			dcr.readValue.Elem().Field(i))
+	}
+	numLines := 0
+	for i := 0; i < len(reviewValues); i++ {
+		numLines += reviewValues[i].numLines
+	}
+	table := NewTable(numLines, 2)
+	lineNum := 0
+	for i := 0; i < len(reviewValues); i++ {
+		if len(reviewValues[i].formattedValues) == 0 {
+			table.Set(lineNum, 0, reviewValues[i].fieldName)
+			lineNum++
+		} else {
+			for j := range reviewValues[i].formattedValues {
+				if j == 0 {
+					table.Set(lineNum, 0, reviewValues[i].fieldName)
+				}
+				table.Set(lineNum, 1, reviewValues[i].formattedValues[j])
+				lineNum++
+			}
+		}
+	}
 	outputter(table.String())
 }
 
@@ -279,6 +306,8 @@ func (dcr *dialogContextRunnable) initReadValue() {
 		switch specificHandler := handler.(type) {
 		case *dialogPropertyHandler:
 			specificHandler.readValue = dcr.readValue
+		case *dialogListPropertyHandler:
+			specificHandler.readValue = dcr.readValue
 		}
 	}
 }
@@ -294,6 +323,34 @@ func (dcr *dialogContextRunnable) executeLine(line string) error {
 		return errors.New("Name does not match a command or a property: " + words[0])
 	}
 	return handler.handleLine(words)
+}
+
+type reviewValue struct {
+	fieldName       string
+	numLines        int
+	formattedValues []string
+}
+
+func newReviewValue(fieldName string, value reflect.Value) *reviewValue {
+	result := &reviewValue{
+		fieldName: fieldName,
+	}
+	if value.Kind() == reflect.Slice {
+		theSlice := make([]string, value.Len())
+		for i := 0; i < value.Len(); i++ {
+			theSlice[i] = value.Index(i).Interface().(string)
+		}
+		result.formattedValues = theSlice
+		if len(result.formattedValues) == 0 {
+			result.numLines = 1
+		} else {
+			result.numLines = len(result.formattedValues)
+		}
+		return result
+	}
+	result.numLines = 1
+	result.formattedValues = []string{fmt.Sprintf("%v", value.Interface())}
+	return result
 }
 
 type dialogPropertyHandler struct {
@@ -323,6 +380,31 @@ func (dph *dialogPropertyHandler) handleLine(words []string) error {
 		}
 	}
 	dph.readValue.Elem().Field(dph.fieldNumber).Set(value)
+	return nil
+}
+
+type dialogListPropertyHandler struct {
+	name        string
+	fieldNumber int
+	readValue   reflect.Value
+}
+
+var _ runnableHandler = new(dialogListPropertyHandler)
+
+func (dlph *dialogListPropertyHandler) getName() string {
+	return dlph.name
+}
+
+func (dlph *dialogListPropertyHandler) getHelpIndexLine() string {
+	return dlph.name + " (list)"
+}
+
+func (dlph *dialogListPropertyHandler) handleLine(words []string) error {
+	value := []string{}
+	if len(words) == 2 && words[1] != "" {
+		value = strings.Split(strings.TrimSpace(words[1]), " ")
+	}
+	dlph.readValue.Elem().Field(dlph.fieldNumber).Set(reflect.ValueOf(value))
 	return nil
 }
 
