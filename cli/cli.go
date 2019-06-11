@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"gitlab.bbinfra.net/3estack/alexandria/util"
-	"log"
 	"reflect"
 	"strings"
 )
@@ -327,8 +326,26 @@ func (srh *StructRunnerHandler) addGeneratedCommandHandlers(dcr *dialogContextRu
 			Handler:  dcr.add,
 			ArgNames: []string{"list name", "added item"},
 		}
+		removeItemHandler := &SingleLineHandler{
+			Name:     "removeItem",
+			Handler:  dcr.removeItem,
+			ArgNames: []string{"List name", "removed item"},
+		}
+		removeIndexHandler := &SingleLineHandler{
+			Name:     "removeIndex",
+			Handler:  dcr.removeIndex,
+			ArgNames: []string{"List name", "removed index"},
+		}
+		insertHandler := &SingleLineHandler{
+			Name:     "insert",
+			Handler:  dcr.insert,
+			ArgNames: []string{"List name", "inserted item", "index"},
+		}
 		dcr.handlers = append(dcr.handlers,
 			addHandler.build(),
+			removeItemHandler.build(),
+			removeIndexHandler.build(),
+			insertHandler.build(),
 		)
 	}
 }
@@ -348,7 +365,6 @@ func (srh *StructRunnerHandler) addPropertyHandlers(actionInputType reflect.Type
 	dialogPropertyHandlers := make([]runnableHandler, actionInputType.NumField())
 	for i := 0; i < actionInputType.NumField(); i++ {
 		f := actionInputType.Field(i)
-		log.Println("Field: " + f.Name)
 		if f.Name != strings.Title(f.Name) {
 			panic("Field is not exported: " + f.Name)
 		}

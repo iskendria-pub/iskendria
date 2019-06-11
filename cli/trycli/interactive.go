@@ -26,11 +26,18 @@ that requires a list of name/value pairs to be set interactively.
 You can do "continue" to execute the function with the given
 values.
 
-There are three dialog tests, one without a reference value and two with
+There are four dialog tests, two without a reference value and two with
 a reference value. One of the dialogs with reference values has a fixed
 reference value; this dialog does not require an argument to start.
 The other uses a dynamic reference value that depends on the input
 value supplied when entering the dialog.
+
+The first dialog without reference value and the two dialogs with
+reference value have a []string member called "list". When there
+is a list member, four additional handlers are generated: add,
+insert, removeItem and removeIndex. The last dialog does not have
+a list member. Please verify that these four methods are not
+present here.
 
 Finally, there is a group to test event paging. After every ten
 enter-presses within this group, a message is displayed to simulate
@@ -157,6 +164,14 @@ func main() {
 				Action:                       executeDialogStruct,
 				ReferenceValueGetter:         chooseReference,
 				ReferenceValueGetterArgNames: []string{"chosen number"},
+			}),
+			cli.Handler(&cli.StructRunnerHandler{
+				FullDescription: strings.TrimSpace(`
+Dialog without reference and without list.
+Methods add, insert, removeItem and removeIndex should not be present`),
+				OneLineDescription: "Dialog test without lists",
+				Name:               "dialog-nolist",
+				Action:             executeDialogStructNoList,
 			}),
 			cli.Handler(&cli.Cli{
 				FullDescription:    "With event paging, parent. You should see a message after each 10 enter presses",
@@ -291,4 +306,18 @@ func countNumberOfCalls(outputter cli.Outputter) {
 	if callCount%10 == 0 {
 		outputter(fmt.Sprintf("*** Number of enters: %d\n", callCount))
 	}
+}
+
+type DialogStructNoList struct {
+	The32Bit  int32
+	The64Bit  int64
+	TheBool   bool
+	TheString string
+}
+
+func executeDialogStructNoList(outputter cli.Outputter, input *DialogStructNoList) {
+	outputter(fmt.Sprintf("The32Bit:  %d\n", input.The32Bit))
+	outputter(fmt.Sprintf("The64Bit:  %d\n", input.The64Bit))
+	outputter(fmt.Sprintf("TheBool:   %v\n", input.TheBool))
+	outputter(fmt.Sprintf("TheString: %s\n", input.TheString))
 }

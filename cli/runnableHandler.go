@@ -273,14 +273,9 @@ func (dcr *dialogContextRunnable) cancel(_ Outputter) {
 }
 
 func (dcr *dialogContextRunnable) add(outputter Outputter, variableName, addedItem string) {
-	if addedItem == "" {
-		outputter("Cannot add empty value")
-		return
-	}
-	fieldName := strings.Title(variableName)
-	value, found := dcr.getReflectValueFromStruct(fieldName)
-	if !found {
-		outputter("Field does not exist: " + variableName)
+	value, err := dcr.initListManipulation(variableName, addedItem)
+	if err != nil {
+		outputter(err.Error() + "\n")
 		return
 	}
 	theSlice := make([]string, value.Len()+1)
@@ -291,6 +286,18 @@ func (dcr *dialogContextRunnable) add(outputter Outputter, variableName, addedIt
 	value.Set(reflect.ValueOf(theSlice))
 }
 
+func (dcr *dialogContextRunnable) initListManipulation(variableName, item string) (reflect.Value, error) {
+	if item == "" {
+		return reflect.ValueOf(nil), errors.New("Cannot add empty value")
+	}
+	fieldName := strings.Title(variableName)
+	value, found := dcr.getReflectValueFromStruct(fieldName)
+	if !found {
+		return reflect.ValueOf(nil), errors.New("Field does not exist: " + variableName)
+	}
+	return value, nil
+}
+
 func (dcr *dialogContextRunnable) getReflectValueFromStruct(fieldName string) (reflect.Value, bool) {
 	for i := 0; i < dcr.readValue.Elem().NumField(); i++ {
 		if dcr.readValue.Elem().Type().Field(i).Name == fieldName {
@@ -298,6 +305,78 @@ func (dcr *dialogContextRunnable) getReflectValueFromStruct(fieldName string) (r
 		}
 	}
 	return reflect.ValueOf(nil), false
+}
+
+func (dcr *dialogContextRunnable) removeItem(outputter Outputter, variableName, removedItem string) {
+	value, err := dcr.initListManipulation(variableName, removedItem)
+	if err != nil {
+		outputter(err.Error() + "\n")
+		return
+	}
+	didRemove := false
+	theSlice := make([]string, 0, value.Len())
+	for i := 0; i < value.Len(); i++ {
+		item := value.Index(i).Interface().(string)
+		if item == removedItem {
+			didRemove = true
+		} else {
+			theSlice = append(theSlice, item)
+		}
+	}
+	if !didRemove {
+		outputter("Item to be removed was not present\n")
+		return
+	}
+	value.Set(reflect.ValueOf(theSlice))
+}
+
+func (dcr *dialogContextRunnable) insert(outputter Outputter, variableName, insertedItem string, oneBasedIndex int32) {
+	value, err := dcr.initListManipulation(variableName, insertedItem)
+	if err != nil {
+		outputter(err.Error() + "\n")
+		return
+	}
+	index := oneBasedIndex - 1
+	if index < 0 || index >= int32((value.Len()+1)) {
+		outputter(fmt.Sprintf("Index out of range: %d\n", oneBasedIndex))
+		return
+	}
+	offset := int32(0)
+	theSlice := make([]string, value.Len()+1)
+	for i := int32(0); i < int32(value.Len()); i++ {
+		if i == index {
+			theSlice[i] = insertedItem
+			offset = 1
+		}
+		theSlice[i+offset] = value.Index(int(i)).Interface().(string)
+	}
+	if offset == 0 {
+		theSlice[value.Len()] = insertedItem
+	}
+	value.Set(reflect.ValueOf(theSlice))
+}
+
+func (dcr *dialogContextRunnable) removeIndex(outputter Outputter, variableName string, oneBasedIndex int32) {
+	value, found := dcr.getReflectValueFromStruct(strings.Title(variableName))
+	if !found {
+		outputter(fmt.Sprintf("Field does not exist: %s\n", variableName))
+		return
+	}
+	index := oneBasedIndex - 1
+	if index < 0 || index >= int32(value.Len()) {
+		outputter(fmt.Sprintf("Index out of bounds: %d\n", oneBasedIndex))
+		return
+	}
+	theSlice := make([]string, value.Len()-1)
+	offset := int32(0)
+	for i := int32(0); i < int32(value.Len()); i++ {
+		if i == index {
+			offset = -1
+		} else {
+			theSlice[i+offset] = value.Index(int(i)).Interface().(string)
+		}
+	}
+	value.Set(reflect.ValueOf(theSlice))
 }
 
 func (dcr *dialogContextRunnable) handleLine(words []string) error {
