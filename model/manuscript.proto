@@ -61,6 +61,12 @@ message CommandManuscriptCreateNewVersion {
 
 message CommandManuscriptAcceptAuthorship {
     string manuscriptId = 1;
+    repeated Author author = 2;
+}
+
+message CommandManuscriptAllowReview {
+    string manuscriptThreadId = 1;
+    repeated string manuscriptId = 2;
 }
 
 // TODO: CommandManuscriptReview
