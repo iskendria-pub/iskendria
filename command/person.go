@@ -282,7 +282,7 @@ type singleUpdatePersonCreate struct {
 
 var _ singleUpdate = new(singleUpdatePersonCreate)
 
-func (u *singleUpdatePersonCreate) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdatePersonCreate) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	personId := u.personCreate.NewPersonId
 	person := &model.StatePerson{
 		Id:         personId,
@@ -295,7 +295,7 @@ func (u *singleUpdatePersonCreate) updateState(state *unmarshalledState) (writte
 		IsSigned:   u.isSigned,
 	}
 	state.persons[personId] = person
-	return personId
+	return []string{personId}
 }
 
 func (u *singleUpdatePersonCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
@@ -406,9 +406,9 @@ type singleUpdatePersonPropertyUpdate struct {
 
 var _ singleUpdate = new(singleUpdatePersonPropertyUpdate)
 
-func (su singleUpdatePersonPropertyUpdate) updateState(_ *unmarshalledState) (writtenAddress string) {
+func (su singleUpdatePersonPropertyUpdate) updateState(_ *unmarshalledState) (writtenAddresses []string) {
 	*su.stateField = su.newValue
-	return su.personId
+	return []string{su.personId}
 }
 
 func (su singleUpdatePersonPropertyUpdate) issueEvent(
@@ -532,9 +532,9 @@ type singleUpdatePersonAuthorizationUpdate struct {
 
 var _ singleUpdate = new(singleUpdatePersonAuthorizationUpdate)
 
-func (u *singleUpdatePersonAuthorizationUpdate) updateState(*unmarshalledState) (writtenAddress string) {
+func (u *singleUpdatePersonAuthorizationUpdate) updateState(*unmarshalledState) (writtenAddresses []string) {
 	*u.stateField = u.newValue
-	return u.personId
+	return []string{u.personId}
 }
 
 func (u *singleUpdatePersonAuthorizationUpdate) issueEvent(
@@ -610,9 +610,9 @@ type singleUpdatePersonIncBalance struct {
 
 var _ singleUpdate = new(singleUpdatePersonIncBalance)
 
-func (u *singleUpdatePersonIncBalance) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdatePersonIncBalance) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	state.persons[u.personId].Balance = u.newBalance
-	return u.personId
+	return []string{u.personId}
 }
 
 func (u *singleUpdatePersonIncBalance) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {

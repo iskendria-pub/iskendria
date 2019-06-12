@@ -30,6 +30,8 @@ var AllEventTypes = []string{
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_CREATE,
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_UPDATE,
 	model.AlexandriaPrefix + model.EV_TYPE_PERSON_MODIFICATION_TIME,
+	model.AlexandriaPrefix + model.EV_TYPE_MANUSCRIPT_CREATE,
+	model.AlexandriaPrefix + model.EV_TYPE_AUTHOR_CREATE,
 }
 
 func Init(fname string, logger *log.Logger) {
@@ -65,6 +67,8 @@ func createTables(logger *log.Logger) {
 		model.TableCreateJournal,
 		model.TableCreateEditor,
 		model.TableCreateVolume,
+		model.TableCreateManuscript,
+		model.TableCreateAuthor,
 	}
 	for _, stmt := range tableCreateStatements {
 		_, err := db.Exec(stmt)
@@ -121,6 +125,10 @@ func parseEvent(input *events_pb2.Event, logger *log.Logger) (event, error) {
 		return createPersonUpdateEvent(input)
 	case model.EV_TYPE_PERSON_MODIFICATION_TIME:
 		return createPersonModificationTimeEvent(input)
+	case model.EV_TYPE_MANUSCRIPT_CREATE:
+		return createManuscriptCreateEvent(input)
+	case model.EV_TYPE_AUTHOR_CREATE:
+		return createAuthorCreateEvent(input)
 	default:
 		return nil, errors.New("Unknown event type: " + input.EventType)
 	}

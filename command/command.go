@@ -195,8 +195,10 @@ func (ce *commandExecution) runUpdater(u *updater) error {
 func (ce *commandExecution) updateState(u *updater) error {
 	addressesToWrite := make(map[string]bool)
 	for _, su := range u.updates {
-		addressToWrite := su.updateState(u.unmarshalledState)
-		addressesToWrite[addressToWrite] = true
+		writtenAddresses := su.updateState(u.unmarshalledState)
+		for _, w := range writtenAddresses {
+			addressesToWrite[w] = true
+		}
 	}
 	dataToWrite, err := u.unmarshalledState.read(util.MapStringBoolToSlice(addressesToWrite))
 	if err != nil {
@@ -295,6 +297,8 @@ func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*upda
 		return nbce.checkPersonUpdateAuthorization(c.GetCommandUpdateAuthorization())
 	case *model.Command_CommandPersonUpdateBalanceIncrement:
 		return nbce.checkPersonUpdateIncBalance(c.GetCommandPersonUpdateBalanceIncrement())
+	case *model.Command_CommandManuscriptCreate:
+		return nbce.checkManuscriptCreate(c.GetCommandManuscriptCreate())
 	default:
 		return nil, errors.New("Non-bootstrap command type not supported")
 	}

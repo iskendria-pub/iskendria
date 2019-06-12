@@ -3,6 +3,7 @@ syntax = "proto3";
 import "person.proto";
 import "journal.proto";
 import "settings.proto";
+import "manuscript.proto";
 
 option go_package = "model";
 
@@ -24,5 +25,6 @@ message Command {
         CommandPersonUpdateProperties commandPersonUpdateProperties = 14;
         CommandPersonUpdateAuthorization commandUpdateAuthorization = 15;
         CommandPersonUpdateBalanceIncrement commandPersonUpdateBalanceIncrement = 16;
+        CommandManuscriptCreate commandManuscriptCreate = 17;
     }
 }

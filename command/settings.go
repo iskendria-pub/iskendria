@@ -104,7 +104,7 @@ type singleUpdateSettingsCreate struct {
 
 var _ singleUpdate = new(singleUpdateSettingsCreate)
 
-func (u *singleUpdateSettingsCreate) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdateSettingsCreate) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	state.settings = &model.StateSettings{
 		CreatedOn:  u.timestamp,
 		ModifiedOn: u.timestamp,
@@ -129,7 +129,7 @@ func (u *singleUpdateSettingsCreate) updateState(state *unmarshalledState) (writ
 			PriceEditorAcceptDuty:                u.priceList.PriceEditorAcceptDuty,
 		},
 	}
-	return model.GetSettingsAddress()
+	return []string{model.GetSettingsAddress()}
 }
 
 func (u *singleUpdateSettingsCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
@@ -265,9 +265,9 @@ type singleUpdateSettingsUpdate struct {
 
 var _ singleUpdate = new(singleUpdateSettingsUpdate)
 
-func (u *singleUpdateSettingsUpdate) updateState(_ *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdateSettingsUpdate) updateState(_ *unmarshalledState) (writtenAddresses []string) {
 	*u.stateField = u.newValue
-	return model.GetSettingsAddress()
+	return []string{model.GetSettingsAddress()}
 }
 
 func (u *singleUpdateSettingsUpdate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
@@ -301,9 +301,9 @@ type singleUpdateSettingsModificationTime struct {
 
 var _ singleUpdate = new(singleUpdateSettingsModificationTime)
 
-func (u *singleUpdateSettingsModificationTime) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdateSettingsModificationTime) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	state.settings.ModifiedOn = u.timestamp
-	return model.GetSettingsAddress()
+	return []string{model.GetSettingsAddress()}
 }
 
 func (u *singleUpdateSettingsModificationTime) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {

@@ -36,9 +36,9 @@ type singleUpdate{{.Tag}}ModificationTime struct {
 
 var _ singleUpdate = new(singleUpdate{{.Tag}}ModificationTime)
 
-func (u *singleUpdate{{.Tag}}ModificationTime) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdate{{.Tag}}ModificationTime) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	state.{{.StateContainer}}[u.id].ModifiedOn = u.timestamp
-	return u.id
+	return []string{u.id}
 }
 
 func (u *singleUpdate{{.Tag}}ModificationTime) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {

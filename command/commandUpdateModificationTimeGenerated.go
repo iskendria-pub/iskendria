@@ -25,9 +25,9 @@ type singleUpdatePersonModificationTime struct {
 
 var _ singleUpdate = new(singleUpdatePersonModificationTime)
 
-func (u *singleUpdatePersonModificationTime) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdatePersonModificationTime) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	state.persons[u.id].ModifiedOn = u.timestamp
-	return u.id
+	return []string{u.id}
 }
 
 func (u *singleUpdatePersonModificationTime) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
@@ -73,9 +73,9 @@ type singleUpdateJournalModificationTime struct {
 
 var _ singleUpdate = new(singleUpdateJournalModificationTime)
 
-func (u *singleUpdateJournalModificationTime) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdateJournalModificationTime) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	state.journals[u.id].ModifiedOn = u.timestamp
-	return u.id
+	return []string{u.id}
 }
 
 func (u *singleUpdateJournalModificationTime) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {

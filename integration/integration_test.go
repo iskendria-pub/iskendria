@@ -944,3 +944,227 @@ func getStateVolume(volumeId string, t *testing.T) *model.StateVolume {
 	}
 	return volume
 }
+
+func TestManuscriptCreate(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalUpdateDescription", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(
+		manuscriptCreate *command.ManuscriptCreate,
+		journal *command.Journal,
+		personCreate *command.PersonCreate,
+		initialBalance int32,
+		t *testing.T) {
+		cmd, manuscriptId := command.GetManuscriptCreateCommand(
+			manuscriptCreate,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceAuthorSubmitNewManuscript)
+		err := command.RunCommandForTest(cmd, "transactionIdAuthorSubmitNewJournal", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		threadId := checkCreatedStateManuscript(
+			getStateManuscript(manuscriptId),
+			manuscriptId,
+			getTheOnlyDaoJournal(t).JournalId,
+			getPersonByKey(personCreate.PublicKey, t).Id,
+			t)
+		daoManuscript, err := dao.GetManuscript(manuscriptId)
+		if err != nil {
+			t.Error(err)
+		}
+		checkCreatedDaoManuscript(
+			daoManuscript,
+			manuscriptId,
+			threadId,
+			getTheOnlyDaoJournal(t).JournalId,
+			getPersonByKey(personCreate.PublicKey, t).Id,
+			t)
+		expectedBalance := initialBalance - priceAuthorSubmitNewManuscript
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withNewManuscriptCreate(f, t)
+}
+
+func getStateManuscript(manuscriptId string) *model.StateManuscript {
+	resultMap, err := blockchainAccess.GetState([]string{manuscriptId})
+	if err != nil {
+		panic(err)
+	}
+	if len(resultMap) != 1 {
+		panic("Did not find manuscriptId: " + manuscriptId)
+	}
+	result := &model.StateManuscript{}
+	err = proto.Unmarshal(resultMap[manuscriptId], result)
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
+
+func checkCreatedStateManuscript(
+	manuscript *model.StateManuscript,
+	manuscriptId string,
+	journalId string,
+	secondAuthorId string,
+	t *testing.T) string {
+	if manuscript.Id != manuscriptId {
+		t.Error("ManuscriptId mismatch")
+	}
+	if util.Abs(model.GetCurrentTime()-manuscript.CreatedOn) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("CreatedOn mismatch")
+	}
+	if util.Abs(model.GetCurrentTime()-manuscript.ModifiedOn) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("ModifiedOn mismatch")
+	}
+	if manuscript.Hash != model.HashBytes([]byte("Lorem ipsum")) {
+		t.Error("Hash mismatch")
+	}
+	if !model.IsManuscriptThreadAddress(manuscript.ThreadId) {
+		t.Error("ThreadId mismatch")
+	}
+	if manuscript.VersionNumber != int32(0) {
+		t.Error("VersionNumber mismatch")
+	}
+	if manuscript.CommitMsg != "Initial version" {
+		t.Error("CommitMsg mismatch")
+	}
+	if manuscript.Title != "My Manuscript" {
+		t.Error("Title mismatch")
+	}
+	if len(manuscript.Author) != 2 {
+		t.Error("Wrong number of authors")
+	}
+	checkCreatedStateFirstAuthor(manuscript.Author[0], t)
+	checkCreatedStateSecondAuthor(manuscript.Author[1], secondAuthorId, t)
+	if manuscript.Status != model.ManuscriptStatus_init {
+		t.Error("Status mismatch")
+	}
+	if manuscript.JournalId != journalId {
+		t.Error("JournalId mismatch")
+	}
+	if manuscript.VolumeId != "" {
+		t.Error("VolumeId mismatch")
+	}
+	if manuscript.FirstPage != "" {
+		t.Error("FirstPage mismatch")
+	}
+	if manuscript.LastPage != "" {
+		t.Error("LastPage mismatch")
+	}
+	return manuscript.ThreadId
+}
+
+func checkCreatedStateFirstAuthor(author *model.Author, t *testing.T) {
+	if author.AuthorId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+		t.Error("First author id mismatch")
+	}
+	if author.AuthorNumber != int32(0) {
+		t.Error("First author number should be zero")
+	}
+	if author.DidSign != true {
+		t.Error("First author was expected to be signed")
+	}
+}
+
+func checkCreatedStateSecondAuthor(author *model.Author, expectedAuthorId string, t *testing.T) {
+	if author.AuthorId != expectedAuthorId {
+		t.Error("Second author id mismatch")
+	}
+	if author.AuthorNumber != 1 {
+		t.Error("Second author number should be one")
+	}
+	if author.DidSign != false {
+		t.Error("Second author was expected not to be signed")
+	}
+}
+
+func checkCreatedDaoManuscript(
+	manuscript *dao.Manuscript,
+	manuscriptId,
+	threadId string,
+	journalId string,
+	secondAuthorId string,
+	t *testing.T) {
+	if manuscriptId != manuscriptId {
+		t.Error("ManuscriptId mismatch")
+	}
+	if util.Abs(model.GetCurrentTime()-manuscript.CreatedOn) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("CreatedOn mismatch")
+	}
+	if util.Abs(model.GetCurrentTime()-manuscript.ModifiedOn) >= TIME_DIFF_THRESHOLD_SECONDS {
+		t.Error("ModifiedOn mismatch")
+	}
+	if manuscript.Hash != model.HashBytes([]byte("Lorem ipsum")) {
+		t.Error("Hash mismatch")
+	}
+	if manuscript.ThreadId != threadId {
+		t.Error("ThreadId mismatch")
+	}
+	if manuscript.VersionNumber != int32(0) {
+		t.Error("VersionNumber mismatch")
+	}
+	if manuscript.CommitMsg != "Initial version" {
+		t.Error("CommitMsg mismatch")
+	}
+	if manuscript.Title != "My Manuscript" {
+		t.Error("Title mismatch")
+	}
+	if manuscript.Status != model.GetManuscriptStatusString(model.ManuscriptStatus_init) {
+		t.Error("Status mismatch")
+	}
+	if manuscript.JournalId != journalId {
+		t.Error("JournalId mismatch")
+	}
+	if manuscript.VolumeId != "" {
+		t.Error("VolumdId mismatch")
+	}
+	if manuscript.FirstPage != "" {
+		t.Error("FirstPage mismatch")
+	}
+	if manuscript.LastPage != "" {
+		t.Error("LastPage mismatch")
+	}
+	if manuscript.IsReviewable != false {
+		t.Error("IsReviewable mismatch")
+	}
+	checkCreatedDaoFirstAuthor(manuscript.Authors[0], manuscriptId, t)
+	checkCreatedDaoSecondAuthor(manuscript.Authors[1], manuscriptId, secondAuthorId, t)
+}
+
+func checkCreatedDaoFirstAuthor(author *dao.Author, manuscriptId string, t *testing.T) {
+	if author.ManuscriptId != manuscriptId {
+		t.Error("First author manuscriptId mismatch")
+	}
+	if author.PersonId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+		t.Error(("First author personId mismatch"))
+	}
+	if author.DidSign != true {
+		t.Error("First author didSign mismatch")
+	}
+	if author.AuthorNumber != 0 {
+		t.Error("First author authorNumber mismatch")
+	}
+	if author.PersonName != majorName {
+		t.Error("First author PersonName mismatch")
+	}
+}
+
+func checkCreatedDaoSecondAuthor(author *dao.Author, manuscriptId, secondAuthorId string, t *testing.T) {
+	if author.ManuscriptId != manuscriptId {
+		t.Error("Second author manuscriptId mismatch")
+	}
+	if author.PersonId != secondAuthorId {
+		t.Error("Second author personId mismatch")
+	}
+	if author.AuthorNumber != 1 {
+		t.Error("Second author authorNumber mismatch")
+	}
+	if author.DidSign != false {
+		t.Error("Second author didSign mismatch")
+	}
+	if author.PersonName != "Rens" {
+		t.Error("Second author PersonName mismatch")
+	}
+}

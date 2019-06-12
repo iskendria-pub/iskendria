@@ -1,0 +1,259 @@
+package dao
+
+import (
+	"errors"
+	"fmt"
+	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
+	"github.com/jmoiron/sqlx"
+	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"strconv"
+)
+
+func createManuscriptCreateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationManuscriptCreate{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_TIMESTAMP:
+			i64, err = strconv.ParseInt(a.Value, 10, 64)
+			dm.timestamp = i64
+		case model.EV_KEY_MANUSCRIPT_ID:
+			dm.id = a.Value
+		case model.EV_KEY_MANUSCRIPT_THREAD_ID:
+			dm.threadId = a.Value
+		case model.EV_KEY_MANUSCRIPT_HASH:
+			dm.hash = a.Value
+		case model.EV_KEY_MANUSCRIPT_VERSION_NUMBER:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			dm.versionNumber = int32(i64)
+		case model.EV_KEY_MANUSCRIPT_COMMIT_MSG:
+			dm.commitMsg = a.Value
+		case model.EV_KEY_MANUSCRIPT_TITLE:
+			dm.title = a.Value
+		case model.EV_KEY_MANUSCRIPT_STATUS:
+			dm.status = a.Value
+		case model.EV_KEY_JOURNAL_ID:
+			dm.journalid = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationManuscriptCreate struct {
+	id            string
+	timestamp     int64
+	hash          string
+	threadId      string
+	versionNumber int32
+	commitMsg     string
+	title         string
+	status        string
+	journalid     string
+}
+
+var _ dataManipulation = new(dataManipulationManuscriptCreate)
+
+func (dm *dataManipulationManuscriptCreate) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec(fmt.Sprintf("INSERT INTO manuscript VALUES (%s)", GetPlaceHolders(14)),
+		dm.id,
+		dm.timestamp,
+		dm.timestamp,
+		dm.hash,
+		dm.threadId,
+		dm.versionNumber,
+		dm.commitMsg,
+		dm.title,
+		dm.status,
+		dm.journalid,
+		"",
+		"",
+		"",
+		false)
+	return err
+}
+
+func createAuthorCreateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationAuthorCreate{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	var b bool
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_MANUSCRIPT_ID:
+			dm.manuscriptId = a.Value
+		case model.EV_KEY_PERSON_ID:
+			dm.personId = a.Value
+		case model.EV_KEY_AUTHOR_DID_SIGN:
+			b, err = strconv.ParseBool(a.Value)
+			dm.didSign = b
+		case model.EV_KEY_AUTHOR_NUMBER:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			dm.authorNumber = int32(i64)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationAuthorCreate struct {
+	manuscriptId string
+	personId     string
+	didSign      bool
+	authorNumber int32
+}
+
+var _ dataManipulation = new(dataManipulationAuthorCreate)
+
+func (dm *dataManipulationAuthorCreate) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec(fmt.Sprintf("INSERT INTO author VALUES (%s)", GetPlaceHolders(4)),
+		dm.manuscriptId,
+		dm.personId,
+		dm.didSign,
+		dm.authorNumber)
+	return err
+}
+
+func GetManuscript(manuscriptId string) (*Manuscript, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	combinations := &[]ManuscriptAuthorCombination{}
+	err = tx.Select(combinations, getGetManuscriptQuery(), manuscriptId)
+	if err != nil {
+		return nil, err
+	}
+	if len(*combinations) == 0 {
+		return nil, errors.New("Manuscript not found: " + manuscriptId)
+	}
+	return combinationsToManuscript(combinations), nil
+}
+
+type Manuscript struct {
+	Id            string
+	CreatedOn     int64
+	ModifiedOn    int64
+	Hash          string
+	ThreadId      string
+	VersionNumber int32
+	CommitMsg     string
+	Title         string
+	Status        string
+	JournalId     string
+	VolumeId      string
+	FirstPage     string
+	LastPage      string
+	IsReviewable  bool
+	Authors       []*Author
+}
+
+type Author struct {
+	ManuscriptId string
+	PersonId     string
+	DidSign      bool
+	AuthorNumber int32
+	PersonName   string
+}
+
+type ManuscriptAuthorCombination struct {
+	Id            string
+	CreatedOn     int64
+	ModifiedOn    int64
+	Hash          string
+	ThreadId      string
+	VersionNumber int32
+	CommitMsg     string
+	Title         string
+	Status        string
+	JournalId     string
+	VolumeId      string
+	FirstPage     string
+	LastPage      string
+	IsReviewable  bool
+	PersonId      string
+	DidSign       bool
+	AuthorNumber  int32
+	PersonName    string
+}
+
+func getGetManuscriptQuery() string {
+	return `
+SELECT
+	manuscript.id,
+	manuscript.createdon,
+	manuscript.modifiedon,
+	manuscript.hash,
+	manuscript.threadid,
+	manuscript.versionnumber,
+	manuscript.commitmsg,
+	manuscript.title,
+	manuscript.status,
+	manuscript.journalid,
+	manuscript.volumeid,
+	manuscript.firstpage,
+	manuscript.lastpage,
+	manuscript.isreviewable,
+	author.personid,
+	author.didsign,
+	author.authornumber,
+    person.name AS personname
+FROM manuscript, author, person
+WHERE manuscript.id = author.manuscriptid
+  AND person.id = author.personid
+  AND manuscript.id = ?
+ORDER BY author.authornumber
+`
+}
+
+func combinationsToManuscript(combinations *[]ManuscriptAuthorCombination) *Manuscript {
+	authors := make([]*Author, len(*combinations))
+	result := &Manuscript{
+		Authors: authors,
+	}
+	for i, c := range *combinations {
+		result.Id = c.Id
+		result.CreatedOn = c.CreatedOn
+		result.ModifiedOn = c.ModifiedOn
+		result.Hash = c.Hash
+		result.ThreadId = c.ThreadId
+		result.VersionNumber = c.VersionNumber
+		result.CommitMsg = c.CommitMsg
+		result.Title = c.Title
+		result.Status = c.Status
+		result.JournalId = c.JournalId
+		result.VolumeId = c.VolumeId
+		result.FirstPage = c.FirstPage
+		result.LastPage = c.LastPage
+		result.Authors[i] = &Author{
+			ManuscriptId: c.Id,
+			PersonId:     c.PersonId,
+			DidSign:      c.DidSign,
+			AuthorNumber: c.AuthorNumber,
+			PersonName:   c.PersonName,
+		}
+	}
+	return result
+}

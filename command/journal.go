@@ -289,7 +289,7 @@ type singleUpdateJournalCreate struct {
 
 var _ singleUpdate = new(singleUpdateJournalCreate)
 
-func (u *singleUpdateJournalCreate) updateState(state *unmarshalledState) string {
+func (u *singleUpdateJournalCreate) updateState(state *unmarshalledState) []string {
 	journalId := u.journalCreate.JournalId
 	journal := &model.StateJournal{
 		Id:              journalId,
@@ -301,7 +301,7 @@ func (u *singleUpdateJournalCreate) updateState(state *unmarshalledState) string
 		EditorInfo:      []*model.EditorInfo{},
 	}
 	state.journals[journalId] = journal
-	return journalId
+	return []string{journalId}
 }
 
 func (u *singleUpdateJournalCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
@@ -346,7 +346,7 @@ type singleUpdateEditorCreate struct {
 
 var _ singleUpdate = new(singleUpdateEditorCreate)
 
-func (u *singleUpdateEditorCreate) updateState(state *unmarshalledState) string {
+func (u *singleUpdateEditorCreate) updateState(state *unmarshalledState) []string {
 	journal := state.journals[u.journalId]
 	journal.EditorInfo = append(journal.EditorInfo, &model.EditorInfo{
 		EditorId:    u.editorId,
@@ -355,7 +355,7 @@ func (u *singleUpdateEditorCreate) updateState(state *unmarshalledState) string 
 	sort.Slice(journal.EditorInfo, func(i, j int) bool {
 		return journal.EditorInfo[i].EditorId < journal.EditorInfo[j].EditorId
 	})
-	return u.journalId
+	return []string{u.journalId}
 }
 
 func (u *singleUpdateEditorCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
@@ -455,9 +455,9 @@ type singleUpdateJournalUpdateProperties struct {
 
 var _ singleUpdate = new(singleUpdateJournalUpdateProperties)
 
-func (u *singleUpdateJournalUpdateProperties) updateState(*unmarshalledState) (writtenAddress string) {
+func (u *singleUpdateJournalUpdateProperties) updateState(*unmarshalledState) (writtenAddress []string) {
 	*u.stateField = u.newValue
-	return u.journalId
+	return []string{u.journalId}
 }
 
 func (u *singleUpdateJournalUpdateProperties) issueEvent(
@@ -538,9 +538,9 @@ type singleUpdateJournalUpdateAuthorization struct {
 
 var _ singleUpdate = new(singleUpdateJournalUpdateAuthorization)
 
-func (u *singleUpdateJournalUpdateAuthorization) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdateJournalUpdateAuthorization) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	state.journals[u.journalId].IsSigned = u.makeSigned
-	return u.journalId
+	return []string{u.journalId}
 }
 
 func (u *singleUpdateJournalUpdateAuthorization) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
@@ -607,7 +607,7 @@ type singleUpdateEditorDelete struct {
 var _ singleUpdate = new(singleUpdateEditorDelete)
 
 func (u *singleUpdateEditorDelete) updateState(
-	state *unmarshalledState) (writtenAddress string) {
+	state *unmarshalledState) (writtenAddresses []string) {
 	existingEditors := state.journals[u.journalId].EditorInfo
 	newEditors := make([]*model.EditorInfo, 0, len(existingEditors)-1)
 	for _, e := range existingEditors {
@@ -619,7 +619,7 @@ func (u *singleUpdateEditorDelete) updateState(
 		}
 	}
 	state.journals[u.journalId].EditorInfo = newEditors
-	return u.journalId
+	return []string{u.journalId}
 }
 
 func (u *singleUpdateEditorDelete) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
@@ -722,14 +722,14 @@ type singleUpdateEditorAcceptDuty struct {
 
 var _ singleUpdate = new(singleUpdateEditorAcceptDuty)
 
-func (u *singleUpdateEditorAcceptDuty) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdateEditorAcceptDuty) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	journal := state.journals[u.journalId]
 	for _, e := range journal.EditorInfo {
 		if e.EditorId == u.editorId {
 			e.EditorState = model.EditorState_editorAccepted
 		}
 	}
-	return u.journalId
+	return []string{u.journalId}
 }
 
 func (u *singleUpdateEditorAcceptDuty) issueEvent(
@@ -842,14 +842,14 @@ type singleUpdateVolumeCreate struct {
 
 var _ singleUpdate = new(singleUpdateVolumeCreate)
 
-func (u *singleUpdateVolumeCreate) updateState(state *unmarshalledState) (writtenAddress string) {
+func (u *singleUpdateVolumeCreate) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	state.volumes[u.volumeId] = &model.StateVolume{
 		Id:        u.volumeId,
 		CreatedOn: u.timestamp,
 		JournalId: u.journalId,
 		Issue:     u.issue,
 	}
-	return u.volumeId
+	return []string{u.volumeId}
 }
 
 func (u *singleUpdateVolumeCreate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {

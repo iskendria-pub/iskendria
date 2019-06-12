@@ -11,7 +11,7 @@ type updater struct {
 }
 
 type singleUpdate interface {
-	updateState(*unmarshalledState) (writtenAddress string)
+	updateState(*unmarshalledState) (writtenAddresses []string)
 	issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error
 }
 

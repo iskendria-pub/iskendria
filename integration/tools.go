@@ -26,6 +26,7 @@ const priceMajorCreatePerson int32 = 102
 const priceMajorChangePersonAuthorization int32 = 103
 const priceMajorChangeJournalAuthorization = 104
 const pricePersonEdit int32 = 105
+const priceAuthorSubmitNewManuscript int32 = 106
 const priceEditorCreateJournal int32 = 114
 const priceEditorCreateVolume int32 = 115
 const priceEditorEditJournal int32 = 116
@@ -96,6 +97,31 @@ func withNewJournalCreate(testFunc func(*command.Journal, *command.PersonCreate,
 		testFunc(journal, personCreate, initialBalance, t)
 	}
 	withNewPersonCreate(f, t)
+}
+
+func withNewManuscriptCreate(
+	testFunc func(*command.ManuscriptCreate, *command.Journal, *command.PersonCreate, int32, *testing.T),
+	t *testing.T) {
+	f := func(
+		journal *command.Journal,
+		personCreate *command.PersonCreate,
+		initialBalance int32,
+		t *testing.T) {
+		doTestJournalCreate(journal, personCreate, initialBalance, t)
+		initialBalance -= priceEditorCreateJournal
+		manuscriptCreate := &command.ManuscriptCreate{
+			TheManuscript: []byte("Lorem ipsum"),
+			CommitMsg:     "Initial version",
+			Title:         "My Manuscript",
+			AuthorId: []string{
+				getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+				getPersonByKey(personCreate.PublicKey, t).Id,
+			},
+			JournalId: getTheOnlyDaoJournal(t).JournalId,
+		}
+		testFunc(manuscriptCreate, journal, personCreate, initialBalance, t)
+	}
+	withNewJournalCreate(f, t)
 }
 
 func getOriginalCommandJournal() *command.Journal {
@@ -231,7 +257,7 @@ func getBootstrap() *command.Bootstrap {
 		PriceMajorChangePersonAuthorization:  priceMajorChangePersonAuthorization,
 		PriceMajorChangeJournalAuthorization: priceMajorChangeJournalAuthorization,
 		PricePersonEdit:                      pricePersonEdit,
-		PriceAuthorSubmitNewManuscript:       106,
+		PriceAuthorSubmitNewManuscript:       priceAuthorSubmitNewManuscript,
 		PriceAuthorSubmitNewVersion:          107,
 		PriceAuthorAcceptAuthorship:          108,
 		PriceReviewerSubmit:                  109,
@@ -271,7 +297,7 @@ func checkBootstrapStateSettings(settings *model.StateSettings, t *testing.T) {
 	if settings.PriceList.PricePersonEdit != pricePersonEdit {
 		t.Error("PricePersonEdit mismatch")
 	}
-	if settings.PriceList.PriceAuthorSubmitNewManuscript != 106 {
+	if settings.PriceList.PriceAuthorSubmitNewManuscript != priceAuthorSubmitNewManuscript {
 		t.Error("PriceAuthorSubmitNewManuscript mismatch")
 	}
 	if settings.PriceList.PriceAuthorSubmitNewVersion != 107 {
@@ -328,7 +354,7 @@ func checkBootstrapDaoSettings(settings *dao.Settings, t *testing.T) {
 	if settings.PricePersonEdit != pricePersonEdit {
 		t.Error("PricePersonEdit mismatch")
 	}
-	if settings.PriceAuthorSubmitNewManuscript != 106 {
+	if settings.PriceAuthorSubmitNewManuscript != priceAuthorSubmitNewManuscript {
 		t.Error("PriceAuthorSubmitNewManuscript mismatch")
 	}
 	if settings.PriceAuthorSubmitNewVersion != 107 {

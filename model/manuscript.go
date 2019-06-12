@@ -12,7 +12,7 @@ CREATE TABLE manuscript (
     versionnumber integer not null,
     commitmsg VARCHAR not null,
     title VARCHAR not null,
-    status integer not null,
+    status VARCHAR not null,
     journalid VARCHAR not null,
     volumeid VARCHAR not null,
     firstpage VARCHAR not null,
@@ -103,4 +103,16 @@ func GetManuscriptJudgementString(judgement ManuscriptJudgement) string {
 	default:
 		panic("Invalid manuscript judgement")
 	}
+}
+
+const manuscriptThreadAddressPrefix = "18"
+
+func CreateManuscriptThreadAddress() string {
+	var theUuid uuid.UUID = uuid.New()
+	uuidDigest := hexdigestOfUuid(theUuid)
+	return Namespace + manuscriptThreadAddressPrefix + uuidDigest[:62]
+}
+
+func IsManuscriptThreadAddress(address string) bool {
+	return getAddressPrefixFromAddress(address) == manuscriptThreadAddressPrefix
 }

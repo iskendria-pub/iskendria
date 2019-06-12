@@ -11,6 +11,7 @@ command/tmp
 dao/tmp
 generate/command/command/command
 generate/command/modificationTime/modificationTime
+generate/command/unmarshalledState/unmarshalledState
 generate/dao/dao/dao
 generate/dao/modificationTime/modificationTime
 generate/util/util
