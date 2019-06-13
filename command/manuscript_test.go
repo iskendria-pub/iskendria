@@ -8,6 +8,7 @@ import (
 )
 
 const priceAuthorSubmitNewManuscript = int32(5)
+const priceAuthorSubmitNewVersion = int32(6)
 
 func getNonBootstrapCommandExecution(context *testContext) *nonBootstrapCommandExecution {
 	logger := log.New(os.Stdout, "testAuthor", log.Flags())
@@ -122,8 +123,8 @@ func TestCheckManuscriptCreateWithTwoAuthors(t *testing.T) {
 		return
 	}
 	checkManuscriptCreate(actualCreateManuscript, context, model.ManuscriptStatus_init, t)
-	checkAuthorCreateSigner(actualSignerCreate, context, t)
-	checkAuthorCreateOther(actualOtherCreate, context, t)
+	checkAuthorCreateSigner(actualSignerCreate, context.signer.Id, context.manuscriptId, t)
+	checkAuthorCreateOther(actualOtherCreate, context.other.Id, context.manuscriptId, t)
 }
 
 func getManuscriptCreateTestCommand(context *testContext, authorIds []string) *model.CommandManuscriptCreate {
@@ -162,9 +163,10 @@ func checkManuscriptCreate(
 
 func checkAuthorCreateSigner(
 	actualSignerCreate *singleUpdateAuthorCreate,
-	context *testContext,
+	signerId string,
+	manuscriptId string,
 	t *testing.T) {
-	if actualSignerCreate.manuscriptId != context.manuscriptId {
+	if actualSignerCreate.manuscriptId != manuscriptId {
 		t.Error("actualSignerCreate manuscriptId mismatch")
 	}
 	if actualSignerCreate.authorNumber != int32(0) {
@@ -173,16 +175,17 @@ func checkAuthorCreateSigner(
 	if actualSignerCreate.didSign != true {
 		t.Error("actualSignerCreate didSign mismatch")
 	}
-	if actualSignerCreate.authorId != context.signer.Id {
+	if actualSignerCreate.authorId != signerId {
 		t.Error("actualSignerCreate authorId mismatch")
 	}
 }
 
 func checkAuthorCreateOther(
 	actualOtherCreate *singleUpdateAuthorCreate,
-	context *testContext,
+	otherId string,
+	manuscriptId string,
 	t *testing.T) {
-	if actualOtherCreate.manuscriptId != context.manuscriptId {
+	if actualOtherCreate.manuscriptId != manuscriptId {
 		t.Error("actualOtherCreate manuscriptId mismatch")
 	}
 	if actualOtherCreate.authorNumber != int32(1) {
@@ -191,12 +194,12 @@ func checkAuthorCreateOther(
 	if actualOtherCreate.didSign != false {
 		t.Error("actualOtherCreate didSign mismatch")
 	}
-	if actualOtherCreate.authorId != context.other.Id {
+	if actualOtherCreate.authorId != otherId {
 		t.Error("actualOtherCreate authorId mismatch")
 	}
 }
 
-func TestCheckManuscriptCreateWithOneAuthors(t *testing.T) {
+func TestCheckManuscriptCreateWithOneAuthor(t *testing.T) {
 	context := getTestContext()
 	nbce := getNonBootstrapCommandExecution(context)
 	authorIds := []string{context.signer.Id}
@@ -216,5 +219,214 @@ func TestCheckManuscriptCreateWithOneAuthors(t *testing.T) {
 		return
 	}
 	checkManuscriptCreate(actualCreateManuscript, context, model.ManuscriptStatus_new, t)
-	checkAuthorCreateSigner(actualSignerCreate, context, t)
+	checkAuthorCreateSigner(actualSignerCreate, context.signer.Id, context.manuscriptId, t)
+}
+
+func getNonBootstrapCommandExecutionWithInitialManuscript(
+	context *testContextWithInitialManuscript) *nonBootstrapCommandExecution {
+	logger := log.New(os.Stdout, "testAuthor", log.Flags())
+	ba := NewBlockchainStub(nil, logger)
+	totalUnmarshalledState := &unmarshalledState{
+		emptyAddresses: make(map[string]bool),
+		settings: &model.StateSettings{
+			PriceList: &model.PriceList{
+				PriceAuthorSubmitNewVersion: priceAuthorSubmitNewVersion,
+			},
+		},
+		persons: map[string]*model.StatePerson{
+			context.signer.Id: context.signer,
+			context.other.Id:  context.other,
+		},
+		journals: map[string]*model.StateJournal{
+			context.journal.Id: context.journal,
+		},
+		manuscripts: map[string]*model.StateManuscript{
+			context.initialManuscriptId: &model.StateManuscript{
+				Id:            context.initialManuscriptId,
+				Hash:          "2468ace0",
+				ThreadId:      context.threadId,
+				VersionNumber: 0,
+				Title:         "My Test Manuscript",
+				Author: []*model.Author{
+					{
+						AuthorId:     context.signer.Id,
+						DidSign:      false,
+						AuthorNumber: 0,
+					},
+					{
+						AuthorId:     context.other.Id,
+						DidSign:      false,
+						AuthorNumber: 1,
+					},
+				},
+				Status:    model.ManuscriptStatus_init,
+				JournalId: context.journal.Id,
+			},
+		},
+		manuscriptThreads: map[string]*model.StateManuscriptThread{
+			context.threadId: &model.StateManuscriptThread{
+				Id:           context.threadId,
+				ManuscriptId: []string{context.initialManuscriptId},
+				IsReviewable: context.isThreadReviewable,
+			},
+		},
+	}
+	readUnmarshalledState := &unmarshalledState{
+		emptyAddresses: make(map[string]bool),
+		settings: &model.StateSettings{
+			PriceList: &model.PriceList{
+				PriceAuthorSubmitNewVersion: priceAuthorSubmitNewVersion,
+			},
+		},
+		persons: map[string]*model.StatePerson{
+			context.signer.Id: context.signer,
+		},
+		journals:          make(map[string]*model.StateJournal),
+		manuscripts:       make(map[string]*model.StateManuscript),
+		manuscriptThreads: make(map[string]*model.StateManuscriptThread),
+	}
+	data, err := totalUnmarshalledState.read([]string{
+		context.signer.Id,
+		context.other.Id,
+		model.GetSettingsAddress(),
+		context.journal.Id,
+		context.initialManuscriptId,
+		context.threadId,
+	})
+	if err != nil {
+		panic(err)
+	}
+	writtenAddresses, err := ba.SetState(data)
+	if err != nil {
+		panic(err)
+	}
+	if len(writtenAddresses) != 6 {
+		panic("Not all addresses were written")
+	}
+	return &nonBootstrapCommandExecution{
+		verifiedSignerId:  context.signer.Id,
+		price:             priceAuthorSubmitNewVersion,
+		timestamp:         model.GetCurrentTime(),
+		blockchainAccess:  ba,
+		unmarshalledState: readUnmarshalledState,
+	}
+}
+
+type testContextWithInitialManuscript struct {
+	signer              *model.StatePerson
+	other               *model.StatePerson
+	journal             *model.StateJournal
+	initialManuscriptId string
+	threadId            string
+	isThreadReviewable  bool
+	manuscriptId        string
+	manuscriptStatus    model.ManuscriptStatus
+}
+
+func TestCheckManuscriptCreateNewVersionWithTwoAuthors(t *testing.T) {
+	contexts := []testContextWithInitialManuscript{
+		*getTestContextWithInitialManuscript(false, model.ManuscriptStatus_init),
+		*getTestContextWithInitialManuscript(true, model.ManuscriptStatus_init),
+	}
+	for _, context := range contexts {
+		nbce := getNonBootstrapCommandExecutionWithInitialManuscript(&context)
+		authorIds := []string{context.signer.Id, context.other.Id}
+		c := getManuscriptCreateNewVersionTestCommand(&context, authorIds)
+		u, err := nbce.checkManuscriptCreateNewVersion(c)
+		if err != nil {
+			t.Error(err)
+		}
+		if len(u.updates) != 3 {
+			t.Error("Expected three singleUpdate objects")
+			return
+		}
+		actualCreateManuscript := u.updates[0].(*singleUpdateManuscriptCreateNewVersion)
+		actualSignerCreate := u.updates[1].(*singleUpdateAuthorCreate)
+		actualOtherCreate := u.updates[2].(*singleUpdateAuthorCreate)
+		if actualCreateManuscript == nil || actualSignerCreate == nil || actualOtherCreate == nil {
+			t.Error("Unexpected singleUpdate types")
+			return
+		}
+		checkManuscriptCreateNewVersion(actualCreateManuscript, &context, context.manuscriptStatus, t)
+		checkAuthorCreateSigner(actualSignerCreate, context.signer.Id, context.manuscriptId, t)
+		checkAuthorCreateOther(actualOtherCreate, context.other.Id, context.manuscriptId, t)
+	}
+}
+
+func getTestContextWithInitialManuscript(
+	isThreadReviewable bool,
+	manuscriptStatus model.ManuscriptStatus) *testContextWithInitialManuscript {
+	return &testContextWithInitialManuscript{
+		signer:              getStatePerson("John"),
+		other:               getStatePerson("Jane"),
+		journal:             getStateJournal("My journal"),
+		initialManuscriptId: model.CreateManuscriptAddress(),
+		threadId:            model.CreateManuscriptThreadAddress(),
+		isThreadReviewable:  isThreadReviewable,
+		manuscriptId:        model.CreateManuscriptAddress(),
+		manuscriptStatus:    manuscriptStatus,
+	}
+}
+
+func getManuscriptCreateNewVersionTestCommand(
+	context *testContextWithInitialManuscript, authorIds []string) *model.CommandManuscriptCreateNewVersion {
+	c := &model.CommandManuscriptCreateNewVersion{
+		ManuscriptId:         context.manuscriptId,
+		PreviousManuscriptId: context.initialManuscriptId,
+		Hash:                 "someOtherHash",
+		CommitMsg:            "Next version",
+		Title:                "My manuscript",
+		AuthorId:             authorIds,
+	}
+	return c
+}
+
+func checkManuscriptCreateNewVersion(
+	actualCreateManuscript *singleUpdateManuscriptCreateNewVersion,
+	context *testContextWithInitialManuscript,
+	expectedManuscriptState model.ManuscriptStatus,
+	t *testing.T) {
+	if actualCreateManuscript.manuscriptId != context.manuscriptId {
+		t.Error("ManuscriptId mismatch")
+	}
+	if actualCreateManuscript.versionNumber != int32(1) {
+		t.Error("Expected version number one")
+	}
+	if actualCreateManuscript.manuscriptThreadId != context.threadId {
+		t.Error("ThreadId mismatch")
+	}
+	if actualCreateManuscript.journalId != context.journal.Id {
+		t.Error("JournalId mismatch")
+	}
+	if actualCreateManuscript.status != expectedManuscriptState {
+		t.Error("Status mismatch")
+	}
+}
+
+func TestCheckManuscriptCreateNewVersionWithOneAuthor(t *testing.T) {
+	contexts := []testContextWithInitialManuscript{
+		*getTestContextWithInitialManuscript(false, model.ManuscriptStatus_new),
+		*getTestContextWithInitialManuscript(true, model.ManuscriptStatus_reviewable),
+	}
+	for _, context := range contexts {
+		nbce := getNonBootstrapCommandExecutionWithInitialManuscript(&context)
+		authorIds := []string{context.signer.Id}
+		c := getManuscriptCreateNewVersionTestCommand(&context, authorIds)
+		u, err := nbce.checkManuscriptCreateNewVersion(c)
+		if err != nil {
+			t.Error(err)
+		}
+		if len(u.updates) != 2 {
+			t.Error("Expected two singleUpdate objects")
+			return
+		}
+		actualCreateManuscript := u.updates[0].(*singleUpdateManuscriptCreateNewVersion)
+		actualSignerCreate := u.updates[1].(*singleUpdateAuthorCreate)
+		if actualCreateManuscript == nil || actualSignerCreate == nil {
+			t.Error("Unexpected singleUpdate types")
+			return
+		}
+		checkManuscriptCreateNewVersion(actualCreateManuscript, &context, context.manuscriptStatus, t)
+		checkAuthorCreateSigner(actualSignerCreate, context.signer.Id, context.manuscriptId, t)
+	}
 }

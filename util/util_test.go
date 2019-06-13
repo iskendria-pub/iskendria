@@ -98,3 +98,15 @@ func TestStringHasAll(t *testing.T) {
 		t.Error("When only some of slice are in map, result should be false")
 	}
 }
+
+func TestEconomicStringSliceAppend(t *testing.T) {
+	start := []string{}
+	result := EconomicStringSliceAppend(start, "first")
+	if len(result) != 1 || result[0] != "first" {
+		t.Error("Append to empty failed")
+	}
+	result = EconomicStringSliceAppend(result, "second")
+	if len(result) != 2 || result[0] != "first" || result[1] != "second" {
+		t.Error("Append to nonempty failed")
+	}
+}

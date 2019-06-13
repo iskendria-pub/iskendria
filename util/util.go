@@ -90,3 +90,15 @@ func StringSetHasAll(sm map[string]bool, ss []string) bool {
 	}
 	return true
 }
+
+func EconomicStringSliceAppend(start []string, elem string) []string {
+	if len(start) == 0 {
+		return []string{elem}
+	}
+	result := make([]string, len(start)+1)
+	for i, s := range start {
+		result[i] = s
+	}
+	result[len(start)] = elem
+	return result
+}

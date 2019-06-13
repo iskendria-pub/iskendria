@@ -954,56 +954,70 @@ func TestManuscriptCreate(t *testing.T) {
 		personCreate *command.PersonCreate,
 		initialBalance int32,
 		t *testing.T) {
-		cmd, manuscriptId := command.GetManuscriptCreateCommand(
-			manuscriptCreate,
+		doTestManuscriptCreate(manuscriptCreate, personCreate, initialBalance, t)
+	}
+	withNewManuscriptCreate(f, t)
+}
+
+func TestManuscriptCreateNewVersion(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalUpdateDescription", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(
+		manuscriptCreate *command.ManuscriptCreate,
+		journal *command.Journal,
+		personCreate *command.PersonCreate,
+		initialBalance int32,
+		t *testing.T) {
+		previousManuscriptId, threadId := doTestManuscriptCreate(manuscriptCreate, personCreate, initialBalance, t)
+		manuscriptCreateNewVersion := &command.ManuscriptCreateNewVersion{
+			TheManuscript: []byte("New version text"),
+			CommitMsg:     "Next version",
+			Title:         "My manuscript",
+			AuthorId: []string{
+				getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+				getPersonByKey(personCreate.PublicKey, t).Id,
+			},
+			PreviousManuscriptId: previousManuscriptId,
+			ThreadId:             threadId,
+			JournalId:            getTheOnlyDaoJournal(t).JournalId,
+		}
+		cmd, newManuscriptId := command.GetManuscriptCreateNewVersionCommand(
+			manuscriptCreateNewVersion,
 			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
 			cliAlexandria.LoggedIn(),
-			priceAuthorSubmitNewManuscript)
-		err := command.RunCommandForTest(cmd, "transactionIdAuthorSubmitNewJournal", blockchainAccess)
+			priceAuthorSubmitNewVersion)
+		err := command.RunCommandForTest(cmd, "transactionIdManuscriptCreateNewVersion", blockchainAccess)
 		if err != nil {
 			t.Error(err)
 		}
-		threadId := checkCreatedStateManuscript(
-			getStateManuscript(manuscriptId),
-			manuscriptId,
+		actualThreadId := checkCreatedStateManuscriptNewVersion(
+			getStateManuscript(newManuscriptId),
+			newManuscriptId,
 			getTheOnlyDaoJournal(t).JournalId,
 			getPersonByKey(personCreate.PublicKey, t).Id,
 			t)
-		daoManuscript, err := dao.GetManuscript(manuscriptId)
+		if actualThreadId != threadId {
+			t.Error("ThreadId mismatch")
+		}
+		daoManuscriptNewVersion, err := dao.GetManuscript(newManuscriptId)
 		if err != nil {
 			t.Error(err)
 		}
-		checkCreatedDaoManuscript(
-			daoManuscript,
-			manuscriptId,
+		checkCreatedDaoManuscriptNewVersion(
+			daoManuscriptNewVersion,
+			newManuscriptId,
 			threadId,
 			getTheOnlyDaoJournal(t).JournalId,
 			getPersonByKey(personCreate.PublicKey, t).Id,
 			t)
-		expectedBalance := initialBalance - priceAuthorSubmitNewManuscript
+		expectedBalance := initialBalance - priceAuthorSubmitNewManuscript - priceAuthorSubmitNewVersion
 		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewManuscriptCreate(f, t)
 }
 
-func getStateManuscript(manuscriptId string) *model.StateManuscript {
-	resultMap, err := blockchainAccess.GetState([]string{manuscriptId})
-	if err != nil {
-		panic(err)
-	}
-	if len(resultMap) != 1 {
-		panic("Did not find manuscriptId: " + manuscriptId)
-	}
-	result := &model.StateManuscript{}
-	err = proto.Unmarshal(resultMap[manuscriptId], result)
-	if err != nil {
-		panic(err)
-	}
-	return result
-}
-
-func checkCreatedStateManuscript(
+func checkCreatedStateManuscriptNewVersion(
 	manuscript *model.StateManuscript,
 	manuscriptId string,
 	journalId string,
@@ -1018,19 +1032,19 @@ func checkCreatedStateManuscript(
 	if util.Abs(model.GetCurrentTime()-manuscript.ModifiedOn) >= TIME_DIFF_THRESHOLD_SECONDS {
 		t.Error("ModifiedOn mismatch")
 	}
-	if manuscript.Hash != model.HashBytes([]byte("Lorem ipsum")) {
+	if manuscript.Hash != model.HashBytes([]byte("New version text")) {
 		t.Error("Hash mismatch")
 	}
 	if !model.IsManuscriptThreadAddress(manuscript.ThreadId) {
 		t.Error("ThreadId mismatch")
 	}
-	if manuscript.VersionNumber != int32(0) {
+	if manuscript.VersionNumber != int32(1) {
 		t.Error("VersionNumber mismatch")
 	}
-	if manuscript.CommitMsg != "Initial version" {
+	if manuscript.CommitMsg != "Next version" {
 		t.Error("CommitMsg mismatch")
 	}
-	if manuscript.Title != "My Manuscript" {
+	if manuscript.Title != "My manuscript" {
 		t.Error("Title mismatch")
 	}
 	if len(manuscript.Author) != 2 {
@@ -1056,31 +1070,7 @@ func checkCreatedStateManuscript(
 	return manuscript.ThreadId
 }
 
-func checkCreatedStateFirstAuthor(author *model.Author, t *testing.T) {
-	if author.AuthorId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
-		t.Error("First author id mismatch")
-	}
-	if author.AuthorNumber != int32(0) {
-		t.Error("First author number should be zero")
-	}
-	if author.DidSign != true {
-		t.Error("First author was expected to be signed")
-	}
-}
-
-func checkCreatedStateSecondAuthor(author *model.Author, expectedAuthorId string, t *testing.T) {
-	if author.AuthorId != expectedAuthorId {
-		t.Error("Second author id mismatch")
-	}
-	if author.AuthorNumber != 1 {
-		t.Error("Second author number should be one")
-	}
-	if author.DidSign != false {
-		t.Error("Second author was expected not to be signed")
-	}
-}
-
-func checkCreatedDaoManuscript(
+func checkCreatedDaoManuscriptNewVersion(
 	manuscript *dao.Manuscript,
 	manuscriptId,
 	threadId string,
@@ -1096,19 +1086,19 @@ func checkCreatedDaoManuscript(
 	if util.Abs(model.GetCurrentTime()-manuscript.ModifiedOn) >= TIME_DIFF_THRESHOLD_SECONDS {
 		t.Error("ModifiedOn mismatch")
 	}
-	if manuscript.Hash != model.HashBytes([]byte("Lorem ipsum")) {
+	if manuscript.Hash != model.HashBytes([]byte("New version text")) {
 		t.Error("Hash mismatch")
 	}
 	if manuscript.ThreadId != threadId {
 		t.Error("ThreadId mismatch")
 	}
-	if manuscript.VersionNumber != int32(0) {
+	if manuscript.VersionNumber != int32(1) {
 		t.Error("VersionNumber mismatch")
 	}
-	if manuscript.CommitMsg != "Initial version" {
+	if manuscript.CommitMsg != "Next version" {
 		t.Error("CommitMsg mismatch")
 	}
-	if manuscript.Title != "My Manuscript" {
+	if manuscript.Title != "My manuscript" {
 		t.Error("Title mismatch")
 	}
 	if manuscript.Status != model.GetManuscriptStatusString(model.ManuscriptStatus_init) {
@@ -1131,40 +1121,4 @@ func checkCreatedDaoManuscript(
 	}
 	checkCreatedDaoFirstAuthor(manuscript.Authors[0], manuscriptId, t)
 	checkCreatedDaoSecondAuthor(manuscript.Authors[1], manuscriptId, secondAuthorId, t)
-}
-
-func checkCreatedDaoFirstAuthor(author *dao.Author, manuscriptId string, t *testing.T) {
-	if author.ManuscriptId != manuscriptId {
-		t.Error("First author manuscriptId mismatch")
-	}
-	if author.PersonId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
-		t.Error(("First author personId mismatch"))
-	}
-	if author.DidSign != true {
-		t.Error("First author didSign mismatch")
-	}
-	if author.AuthorNumber != 0 {
-		t.Error("First author authorNumber mismatch")
-	}
-	if author.PersonName != majorName {
-		t.Error("First author PersonName mismatch")
-	}
-}
-
-func checkCreatedDaoSecondAuthor(author *dao.Author, manuscriptId, secondAuthorId string, t *testing.T) {
-	if author.ManuscriptId != manuscriptId {
-		t.Error("Second author manuscriptId mismatch")
-	}
-	if author.PersonId != secondAuthorId {
-		t.Error("Second author personId mismatch")
-	}
-	if author.AuthorNumber != 1 {
-		t.Error("Second author authorNumber mismatch")
-	}
-	if author.DidSign != false {
-		t.Error("Second author didSign mismatch")
-	}
-	if author.PersonName != "Rens" {
-		t.Error("Second author PersonName mismatch")
-	}
 }

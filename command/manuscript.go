@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"gitlab.bbinfra.net/3estack/alexandria/util"
 	"strconv"
 )
 
@@ -53,6 +54,50 @@ func GetManuscriptCreateCommand(
 	}, manuscriptId
 }
 
+type ManuscriptCreateNewVersion struct {
+	TheManuscript        []byte
+	CommitMsg            string
+	Title                string
+	AuthorId             []string
+	PreviousManuscriptId string
+	ThreadId             string
+	JournalId            string
+}
+
+func GetManuscriptCreateNewVersionCommand(
+	manuscriptCreateNewVersion *ManuscriptCreateNewVersion,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) (*Command, string) {
+	manuscriptId := model.CreateManuscriptAddress()
+	return &Command{
+		InputAddresses: append(manuscriptCreateNewVersion.AuthorId,
+			model.GetSettingsAddress(),
+			signerId,
+			manuscriptCreateNewVersion.JournalId,
+			manuscriptId,
+			manuscriptCreateNewVersion.PreviousManuscriptId,
+			manuscriptCreateNewVersion.ThreadId),
+		OutputAddresses: []string{signerId, manuscriptId, manuscriptCreateNewVersion.ThreadId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
+			Price:     price,
+			Timestamp: model.GetCurrentTime(),
+			Body: &model.Command_CommandManuscriptCreateNewVersion{
+				CommandManuscriptCreateNewVersion: &model.CommandManuscriptCreateNewVersion{
+					ManuscriptId:         manuscriptId,
+					PreviousManuscriptId: manuscriptCreateNewVersion.PreviousManuscriptId,
+					Hash:                 model.HashBytes(manuscriptCreateNewVersion.TheManuscript),
+					CommitMsg:            manuscriptCreateNewVersion.CommitMsg,
+					Title:                manuscriptCreateNewVersion.Title,
+					AuthorId:             manuscriptCreateNewVersion.AuthorId,
+				},
+			},
+		},
+	}, manuscriptId
+}
+
 func (nbce *nonBootstrapCommandExecution) checkManuscriptCreate(c *model.CommandManuscriptCreate) (*updater, error) {
 	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceAuthorSubmitNewManuscript
 	if nbce.price != expectedPrice {
@@ -61,7 +106,10 @@ func (nbce *nonBootstrapCommandExecution) checkManuscriptCreate(c *model.Command
 	if err := checkSanityManuscriptCreate(c); err != nil {
 		return nil, err
 	}
-	err := nbce.readAndCheckManuscriptCreateAddresses(c)
+	err := nbce.readAndCheckAddresses(
+		append(c.AuthorId, c.JournalId),
+		[]string{c.ManuscriptId, c.ManuscriptThreadId},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -81,27 +129,20 @@ func (nbce *nonBootstrapCommandExecution) checkManuscriptCreate(c *model.Command
 	}
 	updates := []singleUpdate{
 		&singleUpdateManuscriptCreate{
-			manuscriptId:       c.ManuscriptId,
-			manuscriptThreadId: c.ManuscriptThreadId,
-			timestamp:          nbce.timestamp,
-			hash:               c.Hash,
-			versionNumber:      int32(0),
-			commitMsg:          c.CommitMsg,
-			title:              c.Title,
-			status:             status,
-			journalId:          c.JournalId,
+			singleUpdateManuscriptCreateBase: singleUpdateManuscriptCreateBase{
+				manuscriptId:       c.ManuscriptId,
+				manuscriptThreadId: c.ManuscriptThreadId,
+				timestamp:          nbce.timestamp,
+				hash:               c.Hash,
+				versionNumber:      int32(0),
+				commitMsg:          c.CommitMsg,
+				title:              c.Title,
+				status:             status,
+				journalId:          c.JournalId,
+			},
 		},
 	}
-	for i, a := range c.AuthorId {
-		didSign := (a == nbce.verifiedSignerId)
-		updates = append(updates, &singleUpdateAuthorCreate{
-			manuscriptId: c.ManuscriptId,
-			authorId:     a,
-			didSign:      didSign,
-			authorNumber: int32(i),
-			timestamp:    nbce.timestamp,
-		})
-	}
+	updates = nbce.addAuthorUpdates(c.AuthorId, updates, c.ManuscriptId)
 	return &updater{
 		unmarshalledState: nbce.unmarshalledState,
 		updates:           updates,
@@ -133,32 +174,7 @@ func checkSanityManuscriptCreate(c *model.CommandManuscriptCreate) error {
 	return nil
 }
 
-func (nbce *nonBootstrapCommandExecution) readAndCheckManuscriptCreateAddresses(c *model.CommandManuscriptCreate) error {
-	addressesExpectedFilled := append(c.AuthorId, c.JournalId)
-	addressesExpectedEmpty := []string{c.ManuscriptId, c.ManuscriptThreadId}
-	toRead := append(addressesExpectedFilled, addressesExpectedEmpty...)
-	readState, err := nbce.blockchainAccess.GetState(toRead)
-	if err != nil {
-		return err
-	}
-	err = nbce.unmarshalledState.add(readState, toRead)
-	if err != nil {
-		return err
-	}
-	for _, a := range addressesExpectedFilled {
-		if nbce.unmarshalledState.getAddressState(a) != ADDRESS_FILLED {
-			return errors.New("Address was not filled: " + a)
-		}
-	}
-	for _, a := range addressesExpectedEmpty {
-		if nbce.unmarshalledState.getAddressState(a) != ADDRESS_EMPTY {
-			return errors.New("Manuscript id or manuscript thread id already in use: " + a)
-		}
-	}
-	return nil
-}
-
-type singleUpdateManuscriptCreate struct {
+type singleUpdateManuscriptCreateBase struct {
 	manuscriptId       string
 	manuscriptThreadId string
 	timestamp          int64
@@ -170,9 +186,7 @@ type singleUpdateManuscriptCreate struct {
 	journalId          string
 }
 
-var _ singleUpdate = new(singleUpdateManuscriptCreate)
-
-func (u *singleUpdateManuscriptCreate) updateState(state *unmarshalledState) []string {
+func (u *singleUpdateManuscriptCreateBase) updateStateManuscript(state *unmarshalledState) {
 	state.manuscripts[u.manuscriptId] = &model.StateManuscript{
 		Id:            u.manuscriptId,
 		CreatedOn:     u.timestamp,
@@ -186,15 +200,9 @@ func (u *singleUpdateManuscriptCreate) updateState(state *unmarshalledState) []s
 		Status:        u.status,
 		JournalId:     u.journalId,
 	}
-	state.manuscriptThreads[u.manuscriptThreadId] = &model.StateManuscriptThread{
-		Id:           u.manuscriptThreadId,
-		ManuscriptId: []string{u.manuscriptId},
-		IsReviewable: false,
-	}
-	return []string{u.manuscriptId, u.manuscriptThreadId}
 }
 
-func (u *singleUpdateManuscriptCreate) issueEvent(
+func (u *singleUpdateManuscriptCreateBase) issueEvent(
 	eventSeq int32, transactionId string, ba BlockchainAccess) error {
 	return ba.AddEvent(
 		model.AlexandriaPrefix+model.EV_TYPE_MANUSCRIPT_CREATE,
@@ -244,6 +252,22 @@ func (u *singleUpdateManuscriptCreate) issueEvent(
 				Value: u.journalId,
 			},
 		}, []byte{})
+}
+
+type singleUpdateManuscriptCreate struct {
+	singleUpdateManuscriptCreateBase
+}
+
+var _ singleUpdate = new(singleUpdateManuscriptCreate)
+
+func (u *singleUpdateManuscriptCreate) updateState(state *unmarshalledState) []string {
+	u.updateStateManuscript(state)
+	state.manuscriptThreads[u.manuscriptThreadId] = &model.StateManuscriptThread{
+		Id:           u.manuscriptThreadId,
+		ManuscriptId: []string{u.manuscriptId},
+		IsReviewable: false,
+	}
+	return []string{u.manuscriptId, u.manuscriptThreadId}
 }
 
 type singleUpdateAuthorCreate struct {
@@ -309,4 +333,107 @@ func (u *singleUpdateAuthorCreate) issueEvent(
 				Value: fmt.Sprintf("%d", u.authorNumber),
 			},
 		}, []byte{})
+}
+
+func (nbce *nonBootstrapCommandExecution) checkManuscriptCreateNewVersion(
+	c *model.CommandManuscriptCreateNewVersion) (*updater, error) {
+	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceAuthorSubmitNewVersion
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("PriceAuthorSubmitNewVersion", expectedPrice)
+	}
+	if err := checkSanityManuscriptCreateNewVersion(c); err != nil {
+		return nil, err
+	}
+	isSignerAuthor := false
+	for _, a := range c.AuthorId {
+		if a == nbce.verifiedSignerId {
+			isSignerAuthor = true
+			break
+		}
+	}
+	if !isSignerAuthor {
+		return nil, errors.New("A manuscript should be submitted by one of its authors")
+	}
+	err := nbce.readAndCheckAddresses(
+		append(c.AuthorId, c.PreviousManuscriptId),
+		[]string{c.ManuscriptId})
+	if err != nil {
+		return nil, err
+	}
+	previousManuscript := nbce.unmarshalledState.manuscripts[c.PreviousManuscriptId]
+	err = nbce.readAndCheckAddresses(
+		[]string{previousManuscript.ThreadId, previousManuscript.JournalId},
+		[]string{})
+	if err != nil {
+		return nil, err
+	}
+	manuscriptThread := nbce.unmarshalledState.manuscriptThreads[previousManuscript.ThreadId]
+	if manuscriptThread.ManuscriptId[len(manuscriptThread.ManuscriptId)-1] != c.PreviousManuscriptId {
+		return nil, errors.New("You can only add a manuscript to the end of its thread")
+	}
+	status := model.ManuscriptStatus_init
+	if len(c.AuthorId) == 1 {
+		status = model.ManuscriptStatus_new
+	}
+	if status == model.ManuscriptStatus_new && manuscriptThread.IsReviewable {
+		status = model.ManuscriptStatus_reviewable
+	}
+	versionNumber := int32(len(manuscriptThread.ManuscriptId))
+	updates := []singleUpdate{
+		&singleUpdateManuscriptCreateNewVersion{
+			singleUpdateManuscriptCreateBase: singleUpdateManuscriptCreateBase{
+				manuscriptId:       c.ManuscriptId,
+				manuscriptThreadId: manuscriptThread.Id,
+				timestamp:          nbce.timestamp,
+				hash:               c.Hash,
+				versionNumber:      versionNumber,
+				commitMsg:          c.CommitMsg,
+				title:              c.Title,
+				status:             status,
+				journalId:          previousManuscript.JournalId,
+			},
+		},
+	}
+	updates = nbce.addAuthorUpdates(c.AuthorId, updates, c.ManuscriptId)
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           updates,
+	}, nil
+}
+
+func checkSanityManuscriptCreateNewVersion(c *model.CommandManuscriptCreateNewVersion) error {
+	if !model.IsManuscriptAddress(c.ManuscriptId) {
+		return errors.New("ManuscriptId is not a manuscript id: " + c.ManuscriptId)
+	}
+	if !model.IsManuscriptAddress(c.PreviousManuscriptId) {
+		return errors.New("PreviousManuscriptId is not a manuscript id: " + c.PreviousManuscriptId)
+	}
+	if c.Hash == "" {
+		return errors.New("Hash should not be empty")
+	}
+	if c.CommitMsg == "" {
+		return errors.New("For versions after the first, the commit message is mandatory")
+	}
+	if c.Title == "" {
+		return errors.New("Title is mandatory")
+	}
+	for _, authorId := range c.AuthorId {
+		if !model.IsPersonAddress(authorId) {
+			return errors.New("Author is not a person: " + authorId)
+		}
+	}
+	return nil
+}
+
+type singleUpdateManuscriptCreateNewVersion struct {
+	singleUpdateManuscriptCreateBase
+}
+
+var _ singleUpdate = new(singleUpdateManuscriptCreateNewVersion)
+
+func (u *singleUpdateManuscriptCreateNewVersion) updateState(state *unmarshalledState) []string {
+	u.updateStateManuscript(state)
+	state.manuscriptThreads[u.manuscriptThreadId].ManuscriptId = util.EconomicStringSliceAppend(
+		state.manuscriptThreads[u.manuscriptThreadId].ManuscriptId, u.manuscriptId)
+	return []string{u.manuscriptId, u.manuscriptThreadId}
 }
