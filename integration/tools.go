@@ -742,7 +742,7 @@ func doTestManuscriptCreate(
 	personCreate *command.PersonCreate,
 	initialBalance int32,
 	t *testing.T) (string, string) {
-	cmd, manuscriptId := command.GetManuscriptCreateCommand(
+	cmd, manuscriptId := command.GetCommandManuscriptCreate(
 		manuscriptCreate,
 		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
 		cliAlexandria.LoggedIn(),

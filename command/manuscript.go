@@ -17,7 +17,7 @@ type ManuscriptCreate struct {
 	JournalId     string
 }
 
-func GetManuscriptCreateCommand(
+func GetCommandManuscriptCreate(
 	manuscriptCreate *ManuscriptCreate,
 	signerId string,
 	cryptoIdentity *CryptoIdentity,
@@ -64,7 +64,7 @@ type ManuscriptCreateNewVersion struct {
 	JournalId            string
 }
 
-func GetManuscriptCreateNewVersionCommand(
+func GetCommandManuscriptCreateNewVersion(
 	manuscriptCreateNewVersion *ManuscriptCreateNewVersion,
 	signerId string,
 	cryptoIdentity *CryptoIdentity,

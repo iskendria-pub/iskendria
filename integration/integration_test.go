@@ -981,7 +981,7 @@ func TestManuscriptCreateNewVersion(t *testing.T) {
 			ThreadId:             threadId,
 			JournalId:            getTheOnlyDaoJournal(t).JournalId,
 		}
-		cmd, newManuscriptId := command.GetManuscriptCreateNewVersionCommand(
+		cmd, newManuscriptId := command.GetCommandManuscriptCreateNewVersion(
 			manuscriptCreateNewVersion,
 			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
 			cliAlexandria.LoggedIn(),
