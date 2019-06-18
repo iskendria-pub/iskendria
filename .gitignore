@@ -22,3 +22,4 @@ portal/*.txt
 portal/documents
 processor/processor
 temp
+util/tmp
