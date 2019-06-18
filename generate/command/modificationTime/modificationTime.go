@@ -85,6 +85,11 @@ func main() {
 			EventType:      "model.EV_TYPE_JOURNAL_MODIFICATION_TIME",
 			StateContainer: "journals",
 		},
+		{
+			Tag:            "Manuscript",
+			EventType:      "model.EV_TYPE_MANUSCRIPT_MODIFICATION_TIME",
+			StateContainer: "manuscripts",
+		},
 	}
 	tmpl, err := template.New("templateUpdateModificationTime").Parse(templateUpdateModificationTime)
 	if err != nil {

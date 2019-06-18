@@ -92,6 +92,12 @@ func main() {
 			Tag:        "Journal",
 			Table:      "journal",
 		},
+		{
+			IdColumn:   "id",
+			IsSettings: false,
+			Tag:        "Manuscript",
+			Table:      "manuscript",
+		},
 	}
 	tmpl, err := template.New("templateModificationTime").Parse(templateModificationTime)
 	if err != nil {

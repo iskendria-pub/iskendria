@@ -27,5 +27,6 @@ message Command {
         CommandPersonUpdateBalanceIncrement commandPersonUpdateBalanceIncrement = 16;
         CommandManuscriptCreate commandManuscriptCreate = 17;
         CommandManuscriptCreateNewVersion commandManuscriptCreateNewVersion = 18;
+        CommandManuscriptAcceptAuthorship commandManuscriptAcceptAuthorship = 19;
     }
 }

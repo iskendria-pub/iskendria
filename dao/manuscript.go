@@ -7,6 +7,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"strconv"
+	"strings"
 )
 
 func createManuscriptCreateEvent(ev *events_pb2.Event) (event, error) {
@@ -132,6 +133,92 @@ func (dm *dataManipulationAuthorCreate) apply(tx *sqlx.Tx) error {
 		dm.personId,
 		dm.didSign,
 		dm.authorNumber)
+	return err
+}
+
+func createManuscriptUpdateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationManuscriptUpdateString{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_ID:
+			dm.manuscriptId = a.Value
+		case model.EV_KEY_MANUSCRIPT_STATUS:
+			dm.field = strings.ToLower(a.Key)
+			dm.newValue = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationManuscriptUpdateString struct {
+	manuscriptId string
+	field        string
+	newValue     string
+}
+
+var _ dataManipulation = new(dataManipulationManuscriptUpdateString)
+
+func (dm *dataManipulationManuscriptUpdateString) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec(fmt.Sprintf("UPDATE manuscript SET %s = ? WHERE id = ?",
+		dm.field), dm.newValue, dm.manuscriptId)
+	return err
+}
+
+func createAuthorUpdateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationAuthorSign{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var b bool
+	var i64 int64
+	var err error
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_MANUSCRIPT_ID:
+			dm.manuscriptId = a.Value
+		case model.EV_KEY_PERSON_ID:
+			dm.personId = a.Value
+		case model.EV_KEY_AUTHOR_DID_SIGN:
+			b, err = strconv.ParseBool(a.Value)
+			if err == nil && b == false {
+				err = errors.New("author.didsign cannot be cleared")
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationAuthorSign struct {
+	manuscriptId string
+	personId     string
+}
+
+var _ dataManipulation = new(dataManipulationAuthorSign)
+
+func (dm *dataManipulationAuthorSign) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec("UPDATE author SET didsign = ? WHERE manuscriptid = ? AND personid = ?",
+		true, dm.manuscriptId, dm.personId)
 	return err
 }
 

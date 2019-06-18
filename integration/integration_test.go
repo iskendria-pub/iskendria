@@ -1122,3 +1122,77 @@ func checkCreatedDaoManuscriptNewVersion(
 	checkCreatedDaoFirstAuthor(manuscript.Authors[0], manuscriptId, t)
 	checkCreatedDaoSecondAuthor(manuscript.Authors[1], manuscriptId, secondAuthorId, t)
 }
+
+func TestManuscriptAuthorAccept(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalUpdateDescription", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(
+		manuscriptCreate *command.ManuscriptCreate,
+		journal *command.Journal,
+		personCreate *command.PersonCreate,
+		initialBalance int32,
+		t *testing.T) {
+		manuscriptId, _ := doTestManuscriptCreate(manuscriptCreate, personCreate, initialBalance, t)
+		manuscript, err := dao.GetManuscript(manuscriptId)
+		if err != nil {
+			t.Error(err)
+		}
+		err = cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile)
+		if err != nil {
+			t.Error(err)
+		}
+		cmd := command.GetCommandManuscriptAcceptAuthorship(
+			manuscript,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceAuthorAcceptAuthorship)
+		err = command.RunCommandForTest(cmd, "transactionIdAuthorAcceptAuthorship", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		manuscript, err = dao.GetManuscript(manuscriptId)
+		if err != nil {
+			t.Error(err)
+		}
+		checkDaoManuscriptAuthorAccepted(manuscript, t)
+		checkStateManuscriptAuthorAccepted(getStateManuscript(manuscriptId), t)
+		expectedBalance := SUFFICIENT_BALANCE - priceAuthorAcceptAuthorship
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withNewManuscriptCreate(f, t)
+}
+
+func checkDaoManuscriptAuthorAccepted(manuscript *dao.Manuscript, t *testing.T) {
+	if manuscript.Status != model.GetManuscriptStatusString(model.ManuscriptStatus_new) {
+		t.Error("Manuscript status mismatch")
+	}
+	if len(manuscript.Authors) != 2 {
+		t.Error("Expected two authors")
+	}
+	for i := 0; i < 2; i++ {
+		if manuscript.Authors[i].DidSign != true {
+			t.Error(fmt.Sprintf("Expected that author %d signed", i))
+		}
+	}
+	if manuscript.Authors[1].PersonId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+		t.Error("Expected that the second author is the last created person (not the bootstrapper)")
+	}
+}
+
+func checkStateManuscriptAuthorAccepted(state *model.StateManuscript, t *testing.T) {
+	if state.Status != model.ManuscriptStatus_new {
+		t.Error("Manuscript status mismatch")
+	}
+	if len(state.Author) != 2 {
+		t.Error("Expected two authors")
+	}
+	for i := 0; i < 2; i++ {
+		if !state.Author[i].DidSign {
+			t.Error(fmt.Sprintf("Expected that author %d signed", i))
+		}
+	}
+	if state.Author[1].AuthorId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+		t.Error("Expected that the second author is the last created person (not the bootstrapper)")
+	}
+}

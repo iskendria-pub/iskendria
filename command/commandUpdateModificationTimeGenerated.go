@@ -102,3 +102,51 @@ func (u *singleUpdateJournalModificationTime) issueEvent(eventSeq int32, transac
 		},
 		[]byte{})
 }
+
+func (nbce *nonBootstrapCommandExecution) addSingleUpdateManuscriptModificationTimeIfNeeded(
+	singleUpdates []singleUpdate, subjectId string) []singleUpdate {
+	if len(singleUpdates) >= 1 {
+		singleUpdates = append(singleUpdates, &singleUpdateManuscriptModificationTime{
+			timestamp: nbce.timestamp,
+			id:        subjectId,
+		})
+	}
+	return singleUpdates
+}
+
+type singleUpdateManuscriptModificationTime struct {
+	timestamp int64
+	id        string
+}
+
+var _ singleUpdate = new(singleUpdateManuscriptModificationTime)
+
+func (u *singleUpdateManuscriptModificationTime) updateState(state *unmarshalledState) (writtenAddresses []string) {
+	state.manuscripts[u.id].ModifiedOn = u.timestamp
+	return []string{u.id}
+}
+
+func (u *singleUpdateManuscriptModificationTime) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	eventType := model.AlexandriaPrefix + model.EV_TYPE_MANUSCRIPT_MODIFICATION_TIME
+	log.Println("Sending event of type: " + eventType)
+	return ba.AddEvent(eventType,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_ID,
+				Value: u.id,
+			},
+		},
+		[]byte{})
+}

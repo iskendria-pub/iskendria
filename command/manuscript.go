@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
+	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"gitlab.bbinfra.net/3estack/alexandria/util"
 	"strconv"
@@ -98,6 +99,50 @@ func GetCommandManuscriptCreateNewVersion(
 	}, manuscriptId
 }
 
+func GetCommandManuscriptAcceptAuthorship(
+	manuscript *dao.Manuscript,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
+	authorIds := make([]string, len(manuscript.Authors))
+	for i, a := range manuscript.Authors {
+		authorIds[i] = a.PersonId
+	}
+	return &Command{
+		InputAddresses: append(
+			authorIds,
+			model.GetSettingsAddress(),
+			manuscript.Id,
+			manuscript.ThreadId,
+			signerId),
+		OutputAddresses: []string{manuscript.Id, manuscript.ThreadId, signerId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
+			Price:     price,
+			Timestamp: model.GetCurrentTime(),
+			Body: &model.Command_CommandManuscriptAcceptAuthorship{
+				CommandManuscriptAcceptAuthorship: &model.CommandManuscriptAcceptAuthorship{
+					ManuscriptId: manuscript.Id,
+					Author:       daoManudcriptToCommandAuthors(manuscript),
+				},
+			},
+		},
+	}
+}
+
+func daoManudcriptToCommandAuthors(manuscript *dao.Manuscript) []*model.Author {
+	result := make([]*model.Author, len(manuscript.Authors))
+	for i, a := range manuscript.Authors {
+		result[i] = &model.Author{
+			AuthorId:     a.PersonId,
+			DidSign:      a.DidSign,
+			AuthorNumber: a.AuthorNumber,
+		}
+	}
+	return result
+}
+
 func (nbce *nonBootstrapCommandExecution) checkManuscriptCreate(c *model.CommandManuscriptCreate) (*updater, error) {
 	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceAuthorSubmitNewManuscript
 	if nbce.price != expectedPrice {
@@ -123,10 +168,7 @@ func (nbce *nonBootstrapCommandExecution) checkManuscriptCreate(c *model.Command
 	if !isSignerAuthor {
 		return nil, errors.New("A manuscript should be submitted by one of its authors")
 	}
-	status := model.ManuscriptStatus_init
-	if len(c.AuthorId) == 1 {
-		status = model.ManuscriptStatus_new
-	}
+	status := getNewManuscriptStatus(len(c.AuthorId) == 1, false)
 	updates := []singleUpdate{
 		&singleUpdateManuscriptCreate{
 			singleUpdateManuscriptCreateBase: singleUpdateManuscriptCreateBase{
@@ -172,6 +214,17 @@ func checkSanityManuscriptCreate(c *model.CommandManuscriptCreate) error {
 		return errors.New("JournalId is not a journal: " + c.JournalId)
 	}
 	return nil
+}
+
+func getNewManuscriptStatus(allAuthorsWillHaveSigned, isThreadReviewable bool) model.ManuscriptStatus {
+	status := model.ManuscriptStatus_init
+	if allAuthorsWillHaveSigned {
+		status = model.ManuscriptStatus_new
+	}
+	if status == model.ManuscriptStatus_new && isThreadReviewable {
+		status = model.ManuscriptStatus_reviewable
+	}
+	return status
 }
 
 type singleUpdateManuscriptCreateBase struct {
@@ -371,13 +424,7 @@ func (nbce *nonBootstrapCommandExecution) checkManuscriptCreateNewVersion(
 	if manuscriptThread.ManuscriptId[len(manuscriptThread.ManuscriptId)-1] != c.PreviousManuscriptId {
 		return nil, errors.New("You can only add a manuscript to the end of its thread")
 	}
-	status := model.ManuscriptStatus_init
-	if len(c.AuthorId) == 1 {
-		status = model.ManuscriptStatus_new
-	}
-	if status == model.ManuscriptStatus_new && manuscriptThread.IsReviewable {
-		status = model.ManuscriptStatus_reviewable
-	}
+	status := getNewManuscriptStatus(len(c.AuthorId) == 1, manuscriptThread.IsReviewable)
 	versionNumber := int32(len(manuscriptThread.ManuscriptId))
 	updates := []singleUpdate{
 		&singleUpdateManuscriptCreateNewVersion{
@@ -436,4 +483,227 @@ func (u *singleUpdateManuscriptCreateNewVersion) updateState(state *unmarshalled
 	state.manuscriptThreads[u.manuscriptThreadId].ManuscriptId = util.EconomicStringSliceAppend(
 		state.manuscriptThreads[u.manuscriptThreadId].ManuscriptId, u.manuscriptId)
 	return []string{u.manuscriptId, u.manuscriptThreadId}
+}
+
+func (nbce *nonBootstrapCommandExecution) checkManuscriptAcceptAuthorship(
+	c *model.CommandManuscriptAcceptAuthorship) (*updater, error) {
+	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceAuthorAcceptAuthorship
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("PriceAuthorAcceptAuthorship", expectedPrice)
+	}
+	if err := checkSanityManuscriptAcceptAuthorship(c); err != nil {
+		return nil, err
+	}
+	err := nbce.readAndCheckAddresses(
+		append(getAuthorIds(c.Author), c.ManuscriptId),
+		[]string{})
+	if err != nil {
+		return nil, err
+	}
+	manuscript := nbce.unmarshalledState.manuscripts[c.ManuscriptId]
+	err = nbce.readAndCheckAddresses([]string{manuscript.ThreadId}, []string{})
+	if err != nil {
+		return nil, err
+	}
+	if manuscript.Status != model.ManuscriptStatus_init {
+		return nil, errors.New("All authors already accepted authorship")
+	}
+	err = checkAuthors(manuscript.Author, c.Author)
+	if err != nil {
+		return nil, err
+	}
+	err = nbce.checkSignerIsAuthor(c.ManuscriptId)
+	if err != nil {
+		return nil, err
+	}
+	doesAuthorUpdate, allAuthorsWillHaveSigned := getCommandManuscriptAcceptAuthorshipWork(
+		c, nbce.verifiedSignerId)
+	updates := []singleUpdate{}
+	if doesAuthorUpdate {
+		updates = append(updates, &singleUpdateAuthorUpdate{
+			manuscriptId: c.ManuscriptId,
+			authorId:     nbce.verifiedSignerId,
+			timestamp:    nbce.timestamp,
+		})
+	}
+	if allAuthorsWillHaveSigned {
+		status := getNewManuscriptStatus(
+			allAuthorsWillHaveSigned,
+			nbce.unmarshalledState.manuscriptThreads[manuscript.ThreadId].IsReviewable)
+		updates = append(updates, &singleUpdateManuscriptUpdateStatus{
+			manuscriptId: c.ManuscriptId,
+			newStatus:    status,
+			timestamp:    nbce.timestamp,
+		})
+	}
+	updates = nbce.addSingleUpdateManuscriptModificationTimeIfNeeded(updates, c.ManuscriptId)
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           updates,
+	}, nil
+}
+
+func checkSanityManuscriptAcceptAuthorship(c *model.CommandManuscriptAcceptAuthorship) error {
+	if !model.IsManuscriptAddress(c.ManuscriptId) {
+		return errors.New("Not a manuscript: " + c.ManuscriptId)
+	}
+	for _, a := range c.Author {
+		if !model.IsPersonAddress(a.AuthorId) {
+			return errors.New("AuthorId is not a person: " + a.AuthorId)
+		}
+	}
+	return nil
+}
+
+func getAuthorIds(authors []*model.Author) []string {
+	result := make([]string, len(authors))
+	for i, a := range authors {
+		result[i] = a.AuthorId
+	}
+	return result
+}
+
+func checkAuthors(expectedAuthors, actualAuthors []*model.Author) error {
+	if len(expectedAuthors) != len(actualAuthors) {
+		return errors.New(fmt.Sprintf("Number of authors mismatch, expected %d but got %d",
+			len(expectedAuthors), len(actualAuthors)))
+	}
+	for i := range expectedAuthors {
+		expected := expectedAuthors[i]
+		actual := actualAuthors[i]
+		if expected.AuthorId != actual.AuthorId {
+			return errors.New(fmt.Sprintf("Author id mismatch for author #%d, expected %s but got %s",
+				i+1, expected.AuthorId, actual.AuthorId))
+		}
+		if expected.AuthorNumber != int32(i) {
+			return errors.New("Blockchain not consistent, author number does not agree with array index")
+		}
+		if actual.AuthorNumber != int32(i) {
+			return errors.New("AuthorNumber mismatch")
+		}
+		if expected.DidSign != actual.DidSign {
+			return errors.New(fmt.Sprintf("DidSign mismatch for author #%d, expected %v but got %v",
+				i+1, expected.DidSign, actual.DidSign))
+		}
+	}
+	return nil
+}
+
+func getCommandManuscriptAcceptAuthorshipWork(
+	c *model.CommandManuscriptAcceptAuthorship,
+	signerId string) (doesAuthorUpdate, allAuthorsWillHaveSigned bool) {
+	allAuthorsWillHaveSigned = true
+	doesAuthorUpdate = false
+	for _, a := range c.Author {
+		if a.AuthorId == signerId {
+			if !a.DidSign {
+				doesAuthorUpdate = true
+			}
+		} else {
+			if !a.DidSign {
+				allAuthorsWillHaveSigned = false
+			}
+		}
+	}
+	return
+}
+
+func (nbce *nonBootstrapCommandExecution) checkSignerIsAuthor(manuscriptId string) error {
+	for _, a := range nbce.unmarshalledState.manuscripts[manuscriptId].Author {
+		if a.AuthorId == nbce.verifiedSignerId {
+			return nil
+		}
+	}
+	return errors.New("You are not an author of manuscript " + manuscriptId)
+}
+
+type singleUpdateManuscriptUpdateStatus struct {
+	manuscriptId string
+	newStatus    model.ManuscriptStatus
+	timestamp    int64
+}
+
+var _ singleUpdate = new(singleUpdateManuscriptUpdateStatus)
+
+func (u *singleUpdateManuscriptUpdateStatus) updateState(state *unmarshalledState) (writtenAddresses []string) {
+	state.manuscripts[u.manuscriptId].Status = u.newStatus
+	return []string{u.manuscriptId}
+}
+
+func (u *singleUpdateManuscriptUpdateStatus) issueEvent(
+	eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.AlexandriaPrefix+model.EV_TYPE_MANUSCRIPT_UPDATE,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_ID,
+				Value: u.manuscriptId,
+			},
+			{
+				Key:   model.EV_KEY_MANUSCRIPT_STATUS,
+				Value: model.GetManuscriptStatusString(u.newStatus),
+			},
+		}, []byte{})
+}
+
+type singleUpdateAuthorUpdate struct {
+	manuscriptId string
+	authorId     string
+	timestamp    int64
+}
+
+var _ singleUpdate = new(singleUpdateAuthorUpdate)
+
+func (u *singleUpdateAuthorUpdate) updateState(state *unmarshalledState) (writtenAddresses []string) {
+	manuscript := state.manuscripts[u.manuscriptId]
+	for _, a := range manuscript.Author {
+		if a.AuthorId == u.authorId {
+			a.DidSign = true
+		}
+	}
+	return []string{u.manuscriptId}
+}
+
+func (u *singleUpdateAuthorUpdate) issueEvent(
+	eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.AlexandriaPrefix+model.EV_TYPE_AUTHOR_UPDATE,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_MANUSCRIPT_ID,
+				Value: u.manuscriptId,
+			},
+			{
+				Key:   model.EV_KEY_PERSON_ID,
+				Value: u.authorId,
+			},
+			{
+				Key:   model.EV_KEY_AUTHOR_DID_SIGN,
+				Value: strconv.FormatBool(true),
+			},
+		}, []byte{})
 }

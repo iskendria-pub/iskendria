@@ -28,6 +28,7 @@ const priceMajorChangeJournalAuthorization = 104
 const pricePersonEdit int32 = 105
 const priceAuthorSubmitNewManuscript int32 = 106
 const priceAuthorSubmitNewVersion int32 = 107
+const priceAuthorAcceptAuthorship int32 = 108
 const priceEditorCreateJournal int32 = 114
 const priceEditorCreateVolume int32 = 115
 const priceEditorEditJournal int32 = 116
@@ -260,7 +261,7 @@ func getBootstrap() *command.Bootstrap {
 		PricePersonEdit:                      pricePersonEdit,
 		PriceAuthorSubmitNewManuscript:       priceAuthorSubmitNewManuscript,
 		PriceAuthorSubmitNewVersion:          priceAuthorSubmitNewVersion,
-		PriceAuthorAcceptAuthorship:          108,
+		PriceAuthorAcceptAuthorship:          priceAuthorAcceptAuthorship,
 		PriceReviewerSubmit:                  109,
 		PriceEditorAllowManuscriptReview:     110,
 		PriceEditorRejectManuscript:          111,
@@ -304,7 +305,7 @@ func checkBootstrapStateSettings(settings *model.StateSettings, t *testing.T) {
 	if settings.PriceList.PriceAuthorSubmitNewVersion != priceAuthorSubmitNewVersion {
 		t.Error("PriceAuthorSubmitNewVersion mismatch")
 	}
-	if settings.PriceList.PriceAuthorAcceptAuthorship != 108 {
+	if settings.PriceList.PriceAuthorAcceptAuthorship != priceAuthorAcceptAuthorship {
 		t.Error("PriceAuthorAcceptAuthorship mismatch")
 	}
 	if settings.PriceList.PriceReviewerSubmit != 109 {
@@ -361,7 +362,7 @@ func checkBootstrapDaoSettings(settings *dao.Settings, t *testing.T) {
 	if settings.PriceAuthorSubmitNewVersion != priceAuthorSubmitNewVersion {
 		t.Error("PriceAuthorSubmitNewVersion mismatch")
 	}
-	if settings.PriceAuthorAcceptAuthorship != 108 {
+	if settings.PriceAuthorAcceptAuthorship != priceAuthorAcceptAuthorship {
 		t.Error("PriceAuthorAcceptAuthorship mismatch")
 	}
 	if settings.PriceReviewerSubmit != 109 {
