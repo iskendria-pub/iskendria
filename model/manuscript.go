@@ -21,6 +21,10 @@ CREATE TABLE manuscript (
 )
 `
 
+var IndexCreateManuscript = `
+	CREATE INDEX idx_manuscript_threadid ON manuscript(threadid)
+`
+
 var TableCreateAuthor = `
 CREATE TABLE author (
     manuscriptid VARCHAR not null,
@@ -41,6 +45,7 @@ const (
 	EV_TYPE_MANUSCRIPT_MODIFICATION_TIME = "evManuscriptModificationTime"
 	EV_TYPE_AUTHOR_CREATE                = "evAuthorCreate"
 	EV_TYPE_AUTHOR_UPDATE                = "evAuthorUpdate"
+	EV_TYPE_MANUSCRIPT_THREAD_UPDATE     = "evManuscriptThreadUpdate"
 )
 
 const (
@@ -91,6 +96,44 @@ func GetManuscriptStatusString(status ManuscriptStatus) string {
 		return "ASSIGNED"
 	default:
 		panic("Invalud manuscript status")
+	}
+}
+
+func GetManuscriptStatusCode(s string) ManuscriptStatus {
+	possibleResults := []ManuscriptStatus{
+		ManuscriptStatus_init,
+		ManuscriptStatus_new,
+		ManuscriptStatus_reviewable,
+		ManuscriptStatus_rejected,
+		ManuscriptStatus_published,
+		ManuscriptStatus_assigned,
+	}
+	for _, status := range possibleResults {
+		if GetManuscriptStatusString(status) == s {
+			return status
+		}
+	}
+	panic("String is not a manuscript status: " + s)
+}
+
+var MinManuscriptStatus int32
+var MaxManuscriptStatus int32
+
+func init() {
+	isFirst := true
+	for status := range ManuscriptStatus_name {
+		if isFirst {
+			MinManuscriptStatus = status
+			MaxManuscriptStatus = status
+			isFirst = false
+		} else {
+			if status < MinManuscriptStatus {
+				MinManuscriptStatus = status
+			}
+			if status > MaxManuscriptStatus {
+				MaxManuscriptStatus = status
+			}
+		}
 	}
 }
 

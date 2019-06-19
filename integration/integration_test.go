@@ -956,7 +956,7 @@ func TestManuscriptCreate(t *testing.T) {
 		t *testing.T) {
 		doTestManuscriptCreate(manuscriptCreate, personCreate, initialBalance, t)
 	}
-	withNewManuscriptCreate(f, t)
+	withNewManuscriptCreate(f, 2, t)
 }
 
 func TestManuscriptCreateNewVersion(t *testing.T) {
@@ -999,6 +999,10 @@ func TestManuscriptCreateNewVersion(t *testing.T) {
 		if actualThreadId != threadId {
 			t.Error("ThreadId mismatch")
 		}
+		checkCreatedThreadStateManuscriptNewVersion(
+			threadId,
+			[]string{previousManuscriptId, newManuscriptId},
+			t)
 		daoManuscriptNewVersion, err := dao.GetManuscript(newManuscriptId)
 		if err != nil {
 			t.Error(err)
@@ -1014,7 +1018,7 @@ func TestManuscriptCreateNewVersion(t *testing.T) {
 		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 	}
-	withNewManuscriptCreate(f, t)
+	withNewManuscriptCreate(f, 2, t)
 }
 
 func checkCreatedStateManuscriptNewVersion(
@@ -1068,6 +1072,36 @@ func checkCreatedStateManuscriptNewVersion(
 		t.Error("LastPage mismatch")
 	}
 	return manuscript.ThreadId
+}
+
+func checkCreatedThreadStateManuscriptNewVersion(
+	threadId string, expectedManuscripts []string, t *testing.T) {
+	if len(expectedManuscripts) != 2 {
+		t.Fail()
+	}
+	var orderedExpectedManuscripts []string
+	if expectedManuscripts[0] < expectedManuscripts[1] {
+		orderedExpectedManuscripts = []string{
+			expectedManuscripts[0], expectedManuscripts[1]}
+	} else {
+		orderedExpectedManuscripts = []string{
+			expectedManuscripts[1], expectedManuscripts[0]}
+	}
+	stateThread := getStateThread(threadId, t)
+	if stateThread.Id != threadId {
+		t.Error("Thread state id does not match its address: " + threadId)
+	}
+	if stateThread.IsReviewable != false {
+		t.Error("Thread should not be reviewable")
+	}
+	if len(stateThread.ManuscriptId) != 2 {
+		t.Error("Expected that thread has two manuscripts")
+	}
+	for i, m := range stateThread.ManuscriptId {
+		if m != orderedExpectedManuscripts[i] {
+			t.Error("In thread, manuscript id mismatch")
+		}
+	}
 }
 
 func checkCreatedDaoManuscriptNewVersion(
@@ -1160,7 +1194,7 @@ func TestManuscriptAuthorAccept(t *testing.T) {
 		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 	}
-	withNewManuscriptCreate(f, t)
+	withNewManuscriptCreate(f, 2, t)
 }
 
 func checkDaoManuscriptAuthorAccepted(manuscript *dao.Manuscript, t *testing.T) {
@@ -1194,5 +1228,79 @@ func checkStateManuscriptAuthorAccepted(state *model.StateManuscript, t *testing
 	}
 	if state.Author[1].AuthorId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
 		t.Error("Expected that the second author is the last created person (not the bootstrapper)")
+	}
+}
+
+func TestManuscriptAllowReview(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestJournalUpdateDescription", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(
+		manuscriptCreate *command.ManuscriptCreate,
+		journal *command.Journal,
+		personCreate *command.PersonCreate,
+		initialBalance int32,
+		t *testing.T) {
+		cmdManuscriptCreate, manuscriptId := command.GetCommandManuscriptCreate(
+			manuscriptCreate,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceAuthorSubmitNewManuscript)
+		err := command.RunCommandForTest(
+			cmdManuscriptCreate, "transactionIdManuscriptCreateOneAuthor", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		manuscript, err := dao.GetManuscript(manuscriptId)
+		if err != nil {
+			t.Error(err)
+		}
+		threadReference, err := dao.GetReferenceThread(manuscript.ThreadId)
+		if err != nil {
+			t.Error(err)
+		}
+		cmdAllowReview := command.GetCommandManuscriptAllowReview(
+			manuscript.ThreadId,
+			threadReference,
+			getTheOnlyDaoJournal(t).JournalId,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorAllowManuscriptReview)
+		err = command.RunCommandForTest(
+			cmdAllowReview, "transactionIdManuscriptAllowReview", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		manuscript, err = dao.GetManuscript(manuscriptId)
+		if err != nil {
+			t.Error(err)
+		}
+		checkDaoManuscriptAllowReview(manuscript, t)
+		checkManuscriptStateManuscriptAllowReview(getStateManuscript(manuscriptId), t)
+		checkThreadStateManuscriptAllowReview(getStateThread(manuscript.ThreadId, t), t)
+		expectedBalance := initialBalance - priceAuthorSubmitNewManuscript - priceEditorAllowManuscriptReview
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withNewManuscriptCreate(f, 1, t)
+}
+
+func checkDaoManuscriptAllowReview(manuscript *dao.Manuscript, t *testing.T) {
+	if manuscript.IsReviewable != true {
+		t.Error("Expected that manuscript is reviewable")
+	}
+	if manuscript.Status != model.GetManuscriptStatusString(model.ManuscriptStatus_reviewable) {
+		t.Error("Status mismatch")
+	}
+}
+
+func checkManuscriptStateManuscriptAllowReview(state *model.StateManuscript, t *testing.T) {
+	if state.Status != model.ManuscriptStatus_reviewable {
+		t.Error("Status mismatch")
+	}
+}
+
+func checkThreadStateManuscriptAllowReview(state *model.StateManuscriptThread, t *testing.T) {
+	if state.IsReviewable != true {
+		t.Error("isReviewable mismatch")
 	}
 }

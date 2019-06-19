@@ -303,6 +303,8 @@ func (nbce *nonBootstrapCommandExecution) checkSpecific(c *model.Command) (*upda
 		return nbce.checkManuscriptCreateNewVersion(c.GetCommandManuscriptCreateNewVersion())
 	case *model.Command_CommandManuscriptAcceptAuthorship:
 		return nbce.checkManuscriptAcceptAuthorship(c.GetCommandManuscriptAcceptAuthorship())
+	case *model.Command_CommandManuscriptAllowReview:
+		return nbce.checkManuscriptAllowReview(c.GetCommandManuscriptAllowReview())
 	default:
 		return nil, errors.New("Non-bootstrap command type not supported")
 	}

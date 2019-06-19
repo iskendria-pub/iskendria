@@ -65,8 +65,13 @@ message CommandManuscriptAcceptAuthorship {
 }
 
 message CommandManuscriptAllowReview {
-    string manuscriptThreadId = 1;
-    repeated string manuscriptId = 2;
+    string ThreadId = 1;
+    repeated ThreadReferenceItem threadReference = 2;
+}
+
+message ThreadReferenceItem {
+    string manuscriptId = 1;
+    ManuscriptStatus manuscriptStatus = 2;
 }
 
 // TODO: CommandManuscriptReview

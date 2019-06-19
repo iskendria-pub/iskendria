@@ -7,6 +7,7 @@ import (
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"gitlab.bbinfra.net/3estack/alexandria/util"
+	"sort"
 	"strconv"
 )
 
@@ -138,6 +139,47 @@ func daoManudcriptToCommandAuthors(manuscript *dao.Manuscript) []*model.Author {
 			AuthorId:     a.PersonId,
 			DidSign:      a.DidSign,
 			AuthorNumber: a.AuthorNumber,
+		}
+	}
+	return result
+}
+
+func GetCommandManuscriptAllowReview(
+	threadId string,
+	daoThreadReference []dao.ReferenceThreadItem,
+	journalId string,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
+	manuscriptIds := make([]string, len(daoThreadReference))
+	for i, r := range daoThreadReference {
+		manuscriptIds[i] = r.Id
+	}
+	return &Command{
+		InputAddresses:  append(manuscriptIds, threadId, model.GetSettingsAddress(), signerId, journalId),
+		OutputAddresses: append(manuscriptIds, threadId, signerId),
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
+			Price:     price,
+			Timestamp: model.GetCurrentTime(),
+			Body: &model.Command_CommandManuscriptAllowReview{
+				CommandManuscriptAllowReview: &model.CommandManuscriptAllowReview{
+					ThreadId:        threadId,
+					ThreadReference: daoThreadReferenceToCommandReferenceThread(daoThreadReference),
+				},
+			},
+		},
+	}
+}
+
+func daoThreadReferenceToCommandReferenceThread(
+	daoReferenceThread []dao.ReferenceThreadItem) []*model.ThreadReferenceItem {
+	result := make([]*model.ThreadReferenceItem, len(daoReferenceThread))
+	for i, r := range daoReferenceThread {
+		result[i] = &model.ThreadReferenceItem{
+			ManuscriptId:     r.Id,
+			ManuscriptStatus: model.GetManuscriptStatusCode(r.Status),
 		}
 	}
 	return result
@@ -480,8 +522,12 @@ var _ singleUpdate = new(singleUpdateManuscriptCreateNewVersion)
 
 func (u *singleUpdateManuscriptCreateNewVersion) updateState(state *unmarshalledState) []string {
 	u.updateStateManuscript(state)
-	state.manuscriptThreads[u.manuscriptThreadId].ManuscriptId = util.EconomicStringSliceAppend(
-		state.manuscriptThreads[u.manuscriptThreadId].ManuscriptId, u.manuscriptId)
+	thread := state.manuscriptThreads[u.manuscriptThreadId]
+	thread.ManuscriptId = util.EconomicStringSliceAppend(
+		thread.ManuscriptId, u.manuscriptId)
+	sort.Slice(thread.ManuscriptId, func(i, j int) bool {
+		return thread.ManuscriptId[i] < thread.ManuscriptId[j]
+	})
 	return []string{u.manuscriptId, u.manuscriptThreadId}
 }
 
@@ -704,6 +750,174 @@ func (u *singleUpdateAuthorUpdate) issueEvent(
 			{
 				Key:   model.EV_KEY_AUTHOR_DID_SIGN,
 				Value: strconv.FormatBool(true),
+			},
+		}, []byte{})
+}
+
+func (nbce *nonBootstrapCommandExecution) checkManuscriptAllowReview(c *model.CommandManuscriptAllowReview) (
+	*updater, error) {
+	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceEditorAllowManuscriptReview
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("PriceEditorAllowManuscriptReview", expectedPrice)
+	}
+	if err := checkSanityManuscriptAllowReview(c); err != nil {
+		return nil, err
+	}
+	err := nbce.readAndCheckAddresses(
+		append(getManuscriptIds(c.ThreadReference), c.ThreadId),
+		[]string{})
+	if err != nil {
+		return nil, err
+	}
+	err = nbce.checkThreadReference(c.ThreadId, c.ThreadReference)
+	if err != nil {
+		return nil, err
+	}
+	err = nbce.checkAllowReviewSignerIsJournalEditor(c)
+	if err != nil {
+		return nil, err
+	}
+	updates := []singleUpdate{
+		&singleUpdateManuscriptThreadAllowReview{
+			threadId:  c.ThreadId,
+			timestamp: nbce.timestamp,
+		},
+	}
+	for _, threadReferenceItem := range c.ThreadReference {
+		allAuthorsSigned := nbce.IsAllAuthorsOfThreadReferenceItemSigned(threadReferenceItem)
+		newStatus := getNewManuscriptStatus(allAuthorsSigned, true)
+		if newStatus != threadReferenceItem.ManuscriptStatus {
+			updates = append(updates, &singleUpdateManuscriptUpdateStatus{
+				manuscriptId: threadReferenceItem.ManuscriptId,
+				newStatus:    newStatus,
+				timestamp:    nbce.timestamp,
+			},
+				&singleUpdateManuscriptModificationTime{
+					id:        threadReferenceItem.ManuscriptId,
+					timestamp: nbce.timestamp,
+				})
+		}
+	}
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           updates,
+	}, nil
+}
+
+func checkSanityManuscriptAllowReview(c *model.CommandManuscriptAllowReview) error {
+	if !model.IsManuscriptThreadAddress(c.ThreadId) {
+		return errors.New("Not a manuscript thread: " + c.ThreadId)
+	}
+	if len(c.ThreadReference) == 0 {
+		return errors.New("Thread without manuscirpts: " + c.ThreadId)
+	}
+	for _, item := range c.ThreadReference {
+		if !model.IsManuscriptAddress(item.ManuscriptId) {
+			return errors.New("Not a manuscript: " + item.ManuscriptId)
+		}
+		if item.ManuscriptStatus < model.ManuscriptStatus(model.MinManuscriptStatus) ||
+			item.ManuscriptStatus > model.ManuscriptStatus(model.MaxManuscriptStatus) {
+			return errors.New(fmt.Sprintf("ManuscriptStatus out of range: %d", item.ManuscriptStatus))
+		}
+	}
+	return nil
+}
+
+func getManuscriptIds(referenceThread []*model.ThreadReferenceItem) []string {
+	result := make([]string, len(referenceThread))
+	for i, r := range referenceThread {
+		result[i] = r.ManuscriptId
+	}
+	return result
+}
+
+func (nbce *nonBootstrapCommandExecution) checkThreadReference(
+	threadId string, r []*model.ThreadReferenceItem) error {
+	blockchainManuscriptIds := nbce.unmarshalledState.manuscriptThreads[threadId].ManuscriptId
+	if len(r) != len(blockchainManuscriptIds) {
+		return errors.New("The number of reference manuscript in the command does not match. " +
+			fmt.Sprintf("Expected %d, got %d",
+				len(blockchainManuscriptIds), len(r)))
+	}
+	for i := 0; i < len(blockchainManuscriptIds); i++ {
+		if r[i].ManuscriptId != blockchainManuscriptIds[i] {
+			return errors.New(fmt.Sprintf("Manuscript id %d does not match. Expected %s, got %s",
+				i+1, blockchainManuscriptIds[i], r[i].ManuscriptId))
+		}
+		expectedStatus := nbce.unmarshalledState.manuscripts[blockchainManuscriptIds[i]].Status
+		if r[i].ManuscriptStatus != expectedStatus {
+			return errors.New(fmt.Sprintf("Status of manuscript %d does not match. Expected %s, got %s",
+				i+1,
+				model.GetManuscriptStatusString(expectedStatus),
+				model.GetManuscriptStatusString(r[i].ManuscriptStatus)))
+		}
+	}
+	return nil
+}
+
+func (nbce *nonBootstrapCommandExecution) checkAllowReviewSignerIsJournalEditor(
+	c *model.CommandManuscriptAllowReview) error {
+	journalId := nbce.unmarshalledState.manuscripts[c.ThreadReference[0].ManuscriptId].JournalId
+	err := nbce.readAndCheckAddresses([]string{journalId}, []string{})
+	if err != nil {
+		return err
+	}
+	journal := nbce.unmarshalledState.journals[journalId]
+	isSignerJournalEditor := false
+	for _, e := range journal.EditorInfo {
+		if e.EditorId == nbce.verifiedSignerId {
+			isSignerJournalEditor = true
+		}
+	}
+	if !isSignerJournalEditor {
+		return errors.New("You are not editor of journal " + journalId)
+	}
+	return nil
+}
+
+func (nbce *nonBootstrapCommandExecution) IsAllAuthorsOfThreadReferenceItemSigned(manuscript *model.ThreadReferenceItem) bool {
+	allAuthorsSigned := true
+	for _, a := range nbce.unmarshalledState.manuscripts[manuscript.ManuscriptId].Author {
+		if !a.DidSign {
+			allAuthorsSigned = false
+			break
+		}
+	}
+	return allAuthorsSigned
+}
+
+type singleUpdateManuscriptThreadAllowReview struct {
+	threadId  string
+	timestamp int64
+}
+
+var _ singleUpdate = new(singleUpdateManuscriptThreadAllowReview)
+
+func (u *singleUpdateManuscriptThreadAllowReview) updateState(state *unmarshalledState) (writtenAddresses []string) {
+	state.manuscriptThreads[u.threadId].IsReviewable = true
+	return []string{u.threadId}
+}
+
+func (u *singleUpdateManuscriptThreadAllowReview) issueEvent(
+	eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.AlexandriaPrefix+model.EV_TYPE_MANUSCRIPT_THREAD_UPDATE,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_MANUSCRIPT_THREAD_ID,
+				Value: u.threadId,
 			},
 		}, []byte{})
 }

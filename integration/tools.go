@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
@@ -29,6 +30,7 @@ const pricePersonEdit int32 = 105
 const priceAuthorSubmitNewManuscript int32 = 106
 const priceAuthorSubmitNewVersion int32 = 107
 const priceAuthorAcceptAuthorship int32 = 108
+const priceEditorAllowManuscriptReview int32 = 110
 const priceEditorCreateJournal int32 = 114
 const priceEditorCreateVolume int32 = 115
 const priceEditorEditJournal int32 = 116
@@ -103,6 +105,7 @@ func withNewJournalCreate(testFunc func(*command.Journal, *command.PersonCreate,
 
 func withNewManuscriptCreate(
 	testFunc func(*command.ManuscriptCreate, *command.Journal, *command.PersonCreate, int32, *testing.T),
+	numAuthors int,
 	t *testing.T) {
 	f := func(
 		journal *command.Journal,
@@ -115,15 +118,26 @@ func withNewManuscriptCreate(
 			TheManuscript: []byte("Lorem ipsum"),
 			CommitMsg:     "Initial version",
 			Title:         "My Manuscript",
-			AuthorId: []string{
-				getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-				getPersonByKey(personCreate.PublicKey, t).Id,
-			},
-			JournalId: getTheOnlyDaoJournal(t).JournalId,
+			AuthorId:      getAuthorsForWithNewManuscriptId(numAuthors, personCreate, t),
+			JournalId:     getTheOnlyDaoJournal(t).JournalId,
 		}
 		testFunc(manuscriptCreate, journal, personCreate, initialBalance, t)
 	}
 	withNewJournalCreate(f, t)
+}
+
+func getAuthorsForWithNewManuscriptId(
+	numAuthors int, personCreate *command.PersonCreate, t *testing.T) []string {
+	result := make([]string, numAuthors)
+	for i := 0; i < numAuthors; i++ {
+		switch i {
+		case 0:
+			result[0] = getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id
+		case 1:
+			result[1] = getPersonByKey(personCreate.PublicKey, t).Id
+		}
+	}
+	return result
 }
 
 func getOriginalCommandJournal() *command.Journal {
@@ -263,7 +277,7 @@ func getBootstrap() *command.Bootstrap {
 		PriceAuthorSubmitNewVersion:          priceAuthorSubmitNewVersion,
 		PriceAuthorAcceptAuthorship:          priceAuthorAcceptAuthorship,
 		PriceReviewerSubmit:                  109,
-		PriceEditorAllowManuscriptReview:     110,
+		PriceEditorAllowManuscriptReview:     priceEditorAllowManuscriptReview,
 		PriceEditorRejectManuscript:          111,
 		PriceEditorPublishManuscript:         112,
 		PriceEditorAssignManuscript:          113,
@@ -311,7 +325,7 @@ func checkBootstrapStateSettings(settings *model.StateSettings, t *testing.T) {
 	if settings.PriceList.PriceReviewerSubmit != 109 {
 		t.Error("PriceReviewerSubmit mismatch")
 	}
-	if settings.PriceList.PriceEditorAllowManuscriptReview != 110 {
+	if settings.PriceList.PriceEditorAllowManuscriptReview != priceEditorAllowManuscriptReview {
 		t.Error("PriceEditorAllowManuscriptReview mismatch")
 	}
 	if settings.PriceList.PriceEditorRejectManuscript != 111 {
@@ -368,7 +382,7 @@ func checkBootstrapDaoSettings(settings *dao.Settings, t *testing.T) {
 	if settings.PriceReviewerSubmit != 109 {
 		t.Error("PriceReviewerSubmit mismatch")
 	}
-	if settings.PriceEditorAllowManuscriptReview != 110 {
+	if settings.PriceEditorAllowManuscriptReview != priceEditorAllowManuscriptReview {
 		t.Error("PriceEditorAllowManuscriptReview mismatch")
 	}
 	if settings.PriceEditorRejectManuscript != 111 {
@@ -955,4 +969,21 @@ func checkCreatedDaoSecondAuthor(author *dao.Author, manuscriptId, secondAuthorI
 	if author.PersonName != "Rens" {
 		t.Error("Second author PersonName mismatch")
 	}
+}
+
+func getStateThread(threadId string, t *testing.T) *model.StateManuscriptThread {
+	data, err := blockchainAccess.GetState([]string{threadId})
+	if err != nil {
+		t.Error(err)
+	}
+	stateBytes, ok := data[threadId]
+	if !ok {
+		t.Error(errors.New("Thread address was not filled: " + threadId))
+	}
+	state := &model.StateManuscriptThread{}
+	err = proto.Unmarshal(stateBytes, state)
+	if err != nil {
+		t.Error(err)
+	}
+	return state
 }

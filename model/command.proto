@@ -28,5 +28,6 @@ message Command {
         CommandManuscriptCreate commandManuscriptCreate = 17;
         CommandManuscriptCreateNewVersion commandManuscriptCreateNewVersion = 18;
         CommandManuscriptAcceptAuthorship commandManuscriptAcceptAuthorship = 19;
+        CommandManuscriptAllowReview commandManuscriptAllowReview = 20;
     }
 }

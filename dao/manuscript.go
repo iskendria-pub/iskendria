@@ -222,6 +222,43 @@ func (dm *dataManipulationAuthorSign) apply(tx *sqlx.Tx) error {
 	return err
 }
 
+func createManuscriptThreadUpdateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationManuscriptThreadUpdate{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var i64 int64
+	var err error
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_MANUSCRIPT_THREAD_ID:
+			dm.threadId = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationManuscriptThreadUpdate struct {
+	threadId string
+}
+
+var _ dataManipulation = new(dataManipulationManuscriptThreadUpdate)
+
+func (dm *dataManipulationManuscriptThreadUpdate) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec(
+		"UPDATE manuscript SET isreviewable = ? WHERE threadid = ?",
+		true, dm.threadId)
+	return err
+}
+
 func GetManuscript(manuscriptId string) (*Manuscript, error) {
 	tx, err := db.Beginx()
 	if err != nil {
@@ -334,6 +371,7 @@ func combinationsToManuscript(combinations *[]ManuscriptAuthorCombination) *Manu
 		result.VolumeId = c.VolumeId
 		result.FirstPage = c.FirstPage
 		result.LastPage = c.LastPage
+		result.IsReviewable = c.IsReviewable
 		result.Authors[i] = &Author{
 			ManuscriptId: c.Id,
 			PersonId:     c.PersonId,
@@ -343,4 +381,34 @@ func combinationsToManuscript(combinations *[]ManuscriptAuthorCombination) *Manu
 		}
 	}
 	return result
+}
+
+func GetReferenceThread(threadId string) ([]ReferenceThreadItem, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	rawResult := make([]ReferenceThreadItem, 0)
+	err = tx.Select(&rawResult, getQueryReferenceThread(), threadId)
+	if err != nil {
+		return nil, err
+	}
+	return rawResult, nil
+}
+
+type ReferenceThreadItem struct {
+	Id     string
+	Status string
+}
+
+func getQueryReferenceThread() string {
+	return `
+SELECT
+  id,
+  status
+FROM manuscript
+WHERE threadid = ?
+ORDER BY id
+`
 }
