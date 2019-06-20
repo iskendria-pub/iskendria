@@ -186,6 +186,12 @@ func main() {
 			ModelStateField:            "StateManuscriptThread",
 			ModelAddressTypeChecker:    "IsManuscriptThreadAddress",
 		},
+		{
+			Tag:                        "Review",
+			UnmarshalledContainerField: "reviews",
+			ModelStateField:            "StateReview",
+			ModelAddressTypeChecker:    "IsReviewAddress",
+		},
 	}
 	tmpl, err := template.New("templateUnmarshalledState").Parse(templateUnmarshalledState)
 	if err != nil {

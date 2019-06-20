@@ -14,9 +14,11 @@ generate/command/modificationTime/modificationTime
 generate/command/unmarshalledState/unmarshalledState
 generate/dao/dao/dao
 generate/dao/modificationTime/modificationTime
+generate/model/model
 generate/util/util
 major/inputScript
 major/major
+model/tmp
 portal/portal
 portal/*.txt
 portal/documents

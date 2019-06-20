@@ -185,6 +185,66 @@ func daoThreadReferenceToCommandReferenceThread(
 	return result
 }
 
+func GetCommandWritePositiveReview(
+	reviewCreate *ReviewCreate,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) (*Command, string) {
+	return getCommandWriteReview(
+		reviewCreate,
+		model.Judgement_POSITIVE,
+		signerId,
+		cryptoIdentity,
+		price)
+}
+
+func GetCommandWriteNegativeReview(
+	reviewCreate *ReviewCreate,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) (*Command, string) {
+	return getCommandWriteReview(
+		reviewCreate,
+		model.Judgement_NEGATIVE,
+		signerId,
+		cryptoIdentity,
+		price)
+}
+
+func getCommandWriteReview(
+	reviewCreate *ReviewCreate,
+	judgement model.Judgement,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) (*Command, string) {
+	reviewId := model.CreateReviewAddress()
+	hash := model.HashBytes(reviewCreate.TheReview)
+	return &Command{
+		InputAddresses: []string{
+			reviewCreate.ManuscriptId, reviewId, signerId, model.GetSettingsAddress()},
+		OutputAddresses: []string{reviewId, signerId},
+		CryptoIdentity:  cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
+			Price:     price,
+			Timestamp: model.GetCurrentTime(),
+			Body: &model.Command_CommandWriteReview{
+				CommandWriteReview: &model.CommandWriteReview{
+					ReviewId:     reviewId,
+					ManuscriptId: reviewCreate.ManuscriptId,
+					Hash:         hash,
+					Judgement:    judgement,
+				},
+			},
+		},
+	}, reviewId
+}
+
+type ReviewCreate struct {
+	ManuscriptId string
+	TheReview    []byte
+}
+
 func (nbce *nonBootstrapCommandExecution) checkManuscriptCreate(c *model.CommandManuscriptCreate) (*updater, error) {
 	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceAuthorSubmitNewManuscript
 	if nbce.price != expectedPrice {
@@ -918,6 +978,121 @@ func (u *singleUpdateManuscriptThreadAllowReview) issueEvent(
 			{
 				Key:   model.EV_KEY_MANUSCRIPT_THREAD_ID,
 				Value: u.threadId,
+			},
+		}, []byte{})
+}
+
+func (nbce *nonBootstrapCommandExecution) checkWriteReview(c *model.CommandWriteReview) (
+	*updater, error) {
+	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceReviewerSubmit
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("PriceReviewerSubmit", expectedPrice)
+	}
+	if err := checkSanityWriteReview(c); err != nil {
+		return nil, err
+	}
+	err := nbce.readAndCheckAddresses(
+		[]string{c.ManuscriptId},
+		[]string{c.ReviewId})
+	if err != nil {
+		return nil, err
+	}
+	status := nbce.unmarshalledState.manuscripts[c.ManuscriptId].Status
+	if !statusAllowsReview(status) {
+		return nil, errors.New(fmt.Sprintf("Reviews are not allowed yet because manuscript %s has status %s",
+			c.ManuscriptId, model.GetManuscriptStatusString(status)))
+	}
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates: []singleUpdate{
+			&singleUpdateWriteReview{
+				signerId:  nbce.verifiedSignerId,
+				c:         c,
+				timestamp: nbce.timestamp,
+			},
+		},
+	}, nil
+}
+
+func checkSanityWriteReview(c *model.CommandWriteReview) error {
+	if !model.IsReviewAddress(c.ReviewId) {
+		return errors.New("Not a review address: " + c.ReviewId)
+	}
+	if !model.IsManuscriptAddress(c.ManuscriptId) {
+		return errors.New("Not a manuscript address: " + c.ManuscriptId)
+	}
+	if c.Hash == "" {
+		return errors.New("Hash should not be omitted")
+	}
+	if int32(c.Judgement) < model.MinJudgement || int32(c.Judgement) > model.MaxJudgement {
+		return errors.New("Invalid judgement value")
+	}
+	return nil
+}
+
+func statusAllowsReview(status model.ManuscriptStatus) bool {
+	return status == model.ManuscriptStatus_reviewable ||
+		status == model.ManuscriptStatus_rejected ||
+		status == model.ManuscriptStatus_published ||
+		status == model.ManuscriptStatus_assigned
+}
+
+type singleUpdateWriteReview struct {
+	signerId  string
+	c         *model.CommandWriteReview
+	timestamp int64
+}
+
+var _ singleUpdate = new(singleUpdateWriteReview)
+
+func (u *singleUpdateWriteReview) updateState(state *unmarshalledState) (writtenAddresses []string) {
+	state.reviews[u.c.ReviewId] = &model.StateReview{
+		Id:             u.c.ReviewId,
+		CreatedOn:      u.timestamp,
+		ManuscriptId:   u.c.ManuscriptId,
+		ReviewAuthorId: u.signerId,
+		Hash:           u.c.Hash,
+		Judgement:      u.c.Judgement,
+	}
+	return []string{u.c.ReviewId}
+}
+
+func (u *singleUpdateWriteReview) issueEvent(
+	eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.AlexandriaPrefix+model.EV_TYPE_REVIEW_CREATE,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_ID,
+				Value: u.c.ReviewId,
+			},
+			{
+				Key:   model.EV_KEY_MANUSCRIPT_ID,
+				Value: u.c.ManuscriptId,
+			},
+			{
+				Key:   model.EV_KEY_REVIEW_AUTHOR_ID,
+				Value: u.signerId,
+			},
+			{
+				Key:   model.EV_KEY_REVIEW_HASH,
+				Value: u.c.Hash,
+			},
+			{
+				Key:   model.EV_KEY_REVIEW_JUDGEMENT,
+				Value: model.GetJudgementString(u.c.Judgement),
 			},
 		}, []byte{})
 }

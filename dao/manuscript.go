@@ -259,6 +259,65 @@ func (dm *dataManipulationManuscriptThreadUpdate) apply(tx *sqlx.Tx) error {
 	return err
 }
 
+func createReviewCreateEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationReviewCreate{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var err error
+	var i64 int64
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_TIMESTAMP:
+			i64, err = strconv.ParseInt(a.Value, 10, 64)
+			dm.timestamp = i64
+		case model.EV_KEY_ID:
+			dm.id = a.Value
+		case model.EV_KEY_MANUSCRIPT_ID:
+			dm.manuscriptId = a.Value
+		case model.EV_KEY_REVIEW_AUTHOR_ID:
+			dm.reviewAuthorId = a.Value
+		case model.EV_KEY_REVIEW_HASH:
+			dm.hash = a.Value
+		case model.EV_KEY_REVIEW_JUDGEMENT:
+			dm.judgement = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationReviewCreate struct {
+	id             string
+	timestamp      int64
+	manuscriptId   string
+	reviewAuthorId string
+	hash           string
+	judgement      string
+}
+
+var _ dataManipulation = new(dataManipulationReviewCreate)
+
+func (dm *dataManipulationReviewCreate) apply(tx *sqlx.Tx) error {
+	query := fmt.Sprintf("INSERT INTO review VALUES (%s)", GetPlaceHolders(7))
+	_, err := tx.Exec(query,
+		dm.id,
+		dm.timestamp,
+		dm.manuscriptId,
+		dm.reviewAuthorId,
+		dm.hash,
+		dm.judgement,
+		false)
+	return err
+}
+
 func GetManuscript(manuscriptId string) (*Manuscript, error) {
 	tx, err := db.Beginx()
 	if err != nil {
@@ -411,4 +470,28 @@ FROM manuscript
 WHERE threadid = ?
 ORDER BY id
 `
+}
+
+func GetReview(reviewId string) (*Review, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	result := Review{}
+	err = tx.Get(&result, "SELECT * FROM review WHERE id = ?", reviewId)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+type Review struct {
+	Id             string
+	CreatedOn      int64
+	ManuscriptId   string
+	ReviewAuthorId string
+	Hash           string
+	Judgement      string
+	IsUsedByEditor bool
 }

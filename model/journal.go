@@ -44,18 +44,6 @@ const (
 	EV_KEY_EDITOR_STATE             = "editorState"
 )
 
-const journalAddressPrefix = "20"
-
-func CreateJournalAddress() string {
-	var theUuid uuid.UUID = uuid.New()
-	uuidDigest := hexdigestOfUuid(theUuid)
-	return Namespace + journalAddressPrefix + uuidDigest[:62]
-}
-
-func IsJournalAddress(address string) bool {
-	return getAddressPrefixFromAddress(address) == journalAddressPrefix
-}
-
 func GetEditorStateString(value EditorState) string {
 	switch value {
 	case EditorState_editorProposed:

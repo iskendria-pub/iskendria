@@ -16,6 +16,7 @@ type unmarshalledState struct {
 	volumes           map[string]*model.StateVolume
 	manuscripts       map[string]*model.StateManuscript
 	manuscriptThreads map[string]*model.StateManuscriptThread
+	reviews           map[string]*model.StateReview
 }
 
 func newUnmarshalledState() *unmarshalledState {
@@ -27,6 +28,7 @@ func newUnmarshalledState() *unmarshalledState {
 		volumes:           make(map[string]*model.StateVolume),
 		manuscripts:       make(map[string]*model.StateManuscript),
 		manuscriptThreads: make(map[string]*model.StateManuscriptThread),
+		reviews:           make(map[string]*model.StateReview),
 	}
 }
 
@@ -65,6 +67,11 @@ func (us *unmarshalledState) getAddressState(address string) addressState {
 		if found {
 			return ADDRESS_FILLED
 		}
+	case model.IsReviewAddress(address):
+		_, found := us.reviews[address]
+		if found {
+			return ADDRESS_FILLED
+		}
 	}
 	return ADDRESS_UNKNOWN
 }
@@ -100,6 +107,8 @@ func (us *unmarshalledState) addAvailable(address string, contents []byte) error
 		err = us.addManuscript(address, contents)
 	case model.IsManuscriptThreadAddress(address):
 		err = us.addManuscriptThread(address, contents)
+	case model.IsReviewAddress(address):
+		err = us.addReview(address, contents)
 	}
 	return err
 }
@@ -159,6 +168,15 @@ func (us *unmarshalledState) addManuscriptThread(theId string, contents []byte) 
 	us.manuscriptThreads[theId] = modelContainer
 	return nil
 }
+func (us *unmarshalledState) addReview(theId string, contents []byte) error {
+	modelContainer := &model.StateReview{}
+	err := proto.Unmarshal(contents, modelContainer)
+	if err != nil {
+		return err
+	}
+	us.reviews[theId] = modelContainer
+	return nil
+}
 func (us *unmarshalledState) read(addresses []string) (map[string][]byte, error) {
 	result := make(map[string][]byte)
 	var err error
@@ -176,6 +194,8 @@ func (us *unmarshalledState) read(addresses []string) (map[string][]byte, error)
 			err = us.readManuscript(address, result)
 		case model.IsManuscriptThreadAddress(address):
 			err = us.readManuscriptThread(address, result)
+		case model.IsReviewAddress(address):
+			err = us.readReview(address, result)
 		}
 		if err != nil {
 			return result, err
@@ -227,6 +247,14 @@ func (us *unmarshalledState) readManuscript(theId string, result map[string][]by
 }
 func (us *unmarshalledState) readManuscriptThread(theId string, result map[string][]byte) error {
 	marshalled, err := proto.Marshal(us.manuscriptThreads[theId])
+	if err != nil {
+		return err
+	}
+	result[theId] = marshalled
+	return nil
+}
+func (us *unmarshalledState) readReview(theId string, result map[string][]byte) error {
+	marshalled, err := proto.Marshal(us.reviews[theId])
 	if err != nil {
 		return err
 	}

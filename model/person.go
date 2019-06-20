@@ -1,7 +1,5 @@
 package model
 
-import "github.com/google/uuid"
-
 // The field names are derived from the event keys.
 // When an event key is taken to lower case, the
 // corresponding field name is obtained.
@@ -46,15 +44,3 @@ const (
 	EV_KEY_PERSON_COUNTRY        = "country"
 	EV_KEY_PERSON_EXTRA_INFO     = "extraInfo"
 )
-
-const personAddressPrefix = "01"
-
-func CreatePersonAddress() string {
-	var theUuid uuid.UUID = uuid.New()
-	uuidDigest := hexdigestOfUuid(theUuid)
-	return Namespace + personAddressPrefix + uuidDigest[:62]
-}
-
-func IsPersonAddress(address string) bool {
-	return getAddressPrefixFromAddress(address) == personAddressPrefix
-}

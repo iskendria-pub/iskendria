@@ -30,6 +30,10 @@ const AlexandriaPrefix = FamilyName + "/"
 
 var Namespace string = Hexdigest(FamilyName)[:6]
 
+func init() {
+	initAllEnumMinMax()
+}
+
 func Hexdigest(s string) string {
 	hash := sha512.New()
 	hash.Write([]byte([]byte(s)))

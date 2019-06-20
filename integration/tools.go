@@ -30,6 +30,7 @@ const pricePersonEdit int32 = 105
 const priceAuthorSubmitNewManuscript int32 = 106
 const priceAuthorSubmitNewVersion int32 = 107
 const priceAuthorAcceptAuthorship int32 = 108
+const priceReviewerSubmit int32 = 109
 const priceEditorAllowManuscriptReview int32 = 110
 const priceEditorCreateJournal int32 = 114
 const priceEditorCreateVolume int32 = 115
@@ -276,7 +277,7 @@ func getBootstrap() *command.Bootstrap {
 		PriceAuthorSubmitNewManuscript:       priceAuthorSubmitNewManuscript,
 		PriceAuthorSubmitNewVersion:          priceAuthorSubmitNewVersion,
 		PriceAuthorAcceptAuthorship:          priceAuthorAcceptAuthorship,
-		PriceReviewerSubmit:                  109,
+		PriceReviewerSubmit:                  priceReviewerSubmit,
 		PriceEditorAllowManuscriptReview:     priceEditorAllowManuscriptReview,
 		PriceEditorRejectManuscript:          111,
 		PriceEditorPublishManuscript:         112,
@@ -322,7 +323,7 @@ func checkBootstrapStateSettings(settings *model.StateSettings, t *testing.T) {
 	if settings.PriceList.PriceAuthorAcceptAuthorship != priceAuthorAcceptAuthorship {
 		t.Error("PriceAuthorAcceptAuthorship mismatch")
 	}
-	if settings.PriceList.PriceReviewerSubmit != 109 {
+	if settings.PriceList.PriceReviewerSubmit != priceReviewerSubmit {
 		t.Error("PriceReviewerSubmit mismatch")
 	}
 	if settings.PriceList.PriceEditorAllowManuscriptReview != priceEditorAllowManuscriptReview {
@@ -379,7 +380,7 @@ func checkBootstrapDaoSettings(settings *dao.Settings, t *testing.T) {
 	if settings.PriceAuthorAcceptAuthorship != priceAuthorAcceptAuthorship {
 		t.Error("PriceAuthorAcceptAuthorship mismatch")
 	}
-	if settings.PriceReviewerSubmit != 109 {
+	if settings.PriceReviewerSubmit != priceReviewerSubmit {
 		t.Error("PriceReviewerSubmit mismatch")
 	}
 	if settings.PriceEditorAllowManuscriptReview != priceEditorAllowManuscriptReview {
@@ -981,6 +982,23 @@ func getStateThread(threadId string, t *testing.T) *model.StateManuscriptThread 
 		t.Error(errors.New("Thread address was not filled: " + threadId))
 	}
 	state := &model.StateManuscriptThread{}
+	err = proto.Unmarshal(stateBytes, state)
+	if err != nil {
+		t.Error(err)
+	}
+	return state
+}
+
+func getStateReview(reviewId string, t *testing.T) *model.StateReview {
+	data, err := blockchainAccess.GetState([]string{reviewId})
+	if err != nil {
+		t.Error(err)
+	}
+	stateBytes, ok := data[reviewId]
+	if !ok {
+		t.Error(errors.New("Review address was not filled: " + reviewId))
+	}
+	state := &model.StateReview{}
 	err = proto.Unmarshal(stateBytes, state)
 	if err != nil {
 		t.Error(err)

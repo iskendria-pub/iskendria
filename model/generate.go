@@ -6,3 +6,5 @@ package model
 //go:generate protoc --go_out=. person.proto
 //go:generate protoc --go_out=. settings.proto
 //go:generate protoc --go_out=. manuscript.proto
+
+//go:generate ./generate.sh

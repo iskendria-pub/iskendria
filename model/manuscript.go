@@ -1,7 +1,5 @@
 package model
 
-import "github.com/google/uuid"
-
 var TableCreateManuscript = `
 CREATE TABLE manuscript (
     id VARCHAR primary key not null,
@@ -37,7 +35,20 @@ CREATE TABLE author (
 )
 `
 
-// TODO: review
+var TableCreateReview = `
+CREATE TABLE review (
+	id VARCHAR not null,
+    createdon integer not null,
+    manuscriptid VARCHAR not null,
+    reviewauthorid VARCHAR not null,
+    hash VARCHAR not null,
+    judgement VARCHAR not null,
+    isusedbyeditor bool not null,
+    PRIMARY KEY (id),
+    FOREIGN KEY (manuscriptid) REFERENCES manuscript(id),
+    FOREIGN KEY (reviewauthorid) REFERENCES person(id)
+)
+`
 
 const (
 	EV_TYPE_MANUSCRIPT_CREATE            = "evManuscriptCreate"
@@ -46,6 +57,8 @@ const (
 	EV_TYPE_AUTHOR_CREATE                = "evAuthorCreate"
 	EV_TYPE_AUTHOR_UPDATE                = "evAuthorUpdate"
 	EV_TYPE_MANUSCRIPT_THREAD_UPDATE     = "evManuscriptThreadUpdate"
+	EV_TYPE_REVIEW_CREATE                = "evTypeReviewCreate"
+	EV_TYPE_REVIEW_USE_BY_EDITOR         = "evTypeReviewUpdate"
 )
 
 const (
@@ -68,17 +81,11 @@ const (
 	EV_KEY_AUTHOR_NUMBER   = "authorNumber"
 )
 
-const manuscriptAddressPrefix = "10"
-
-func CreateManuscriptAddress() string {
-	var theUuid uuid.UUID = uuid.New()
-	uuidDigest := hexdigestOfUuid(theUuid)
-	return Namespace + manuscriptAddressPrefix + uuidDigest[:62]
-}
-
-func IsManuscriptAddress(address string) bool {
-	return getAddressPrefixFromAddress(address) == manuscriptAddressPrefix
-}
+const (
+	EV_KEY_REVIEW_AUTHOR_ID = "reviewAuthorId"
+	EV_KEY_REVIEW_HASH      = "hash"
+	EV_KEY_REVIEW_JUDGEMENT = "judgement"
+)
 
 func GetManuscriptStatusString(status ManuscriptStatus) string {
 	switch status {
@@ -116,27 +123,6 @@ func GetManuscriptStatusCode(s string) ManuscriptStatus {
 	panic("String is not a manuscript status: " + s)
 }
 
-var MinManuscriptStatus int32
-var MaxManuscriptStatus int32
-
-func init() {
-	isFirst := true
-	for status := range ManuscriptStatus_name {
-		if isFirst {
-			MinManuscriptStatus = status
-			MaxManuscriptStatus = status
-			isFirst = false
-		} else {
-			if status < MinManuscriptStatus {
-				MinManuscriptStatus = status
-			}
-			if status > MaxManuscriptStatus {
-				MaxManuscriptStatus = status
-			}
-		}
-	}
-}
-
 func GetManuscriptJudgementString(judgement ManuscriptJudgement) string {
 	switch judgement {
 	case ManuscriptJudgement_judgementAccepted:
@@ -148,14 +134,13 @@ func GetManuscriptJudgementString(judgement ManuscriptJudgement) string {
 	}
 }
 
-const manuscriptThreadAddressPrefix = "18"
-
-func CreateManuscriptThreadAddress() string {
-	var theUuid uuid.UUID = uuid.New()
-	uuidDigest := hexdigestOfUuid(theUuid)
-	return Namespace + manuscriptThreadAddressPrefix + uuidDigest[:62]
-}
-
-func IsManuscriptThreadAddress(address string) bool {
-	return getAddressPrefixFromAddress(address) == manuscriptThreadAddressPrefix
+func GetJudgementString(judgement Judgement) string {
+	switch judgement {
+	case Judgement_NEGATIVE:
+		return "NEGATIVE"
+	case Judgement_POSITIVE:
+		return "POSITIVE"
+	default:
+		panic("Invalid review judgement")
+	}
 }
