@@ -318,6 +318,42 @@ func (dm *dataManipulationReviewCreate) apply(tx *sqlx.Tx) error {
 	return err
 }
 
+func createReviewUseByEditorEvent(ev *events_pb2.Event) (event, error) {
+	dm := &dataManipulationReviewUseByEditor{}
+	result := &dataManipulationEvent{
+		dataManipulation: dm,
+	}
+	var i64 int64
+	var err error
+	for _, a := range ev.Attributes {
+		switch a.Key {
+		case model.EV_KEY_TRANSACTION_ID:
+			result.transactionId = a.Value
+		case model.EV_KEY_EVENT_SEQ:
+			i64, err = strconv.ParseInt(a.Value, 10, 32)
+			result.eventSeq = int32(i64)
+		case model.EV_KEY_ID:
+			dm.reviewId = a.Value
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+type dataManipulationReviewUseByEditor struct {
+	reviewId string
+}
+
+var _ dataManipulation = new(dataManipulationReviewUseByEditor)
+
+func (dm *dataManipulationReviewUseByEditor) apply(tx *sqlx.Tx) error {
+	_, err := tx.Exec("UPDATE review SET isusedbyeditor = ? WHERE id = ?",
+		true, dm.reviewId)
+	return err
+}
+
 func GetManuscript(manuscriptId string) (*Manuscript, error) {
 	tx, err := db.Beginx()
 	if err != nil {

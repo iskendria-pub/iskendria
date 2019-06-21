@@ -30,5 +30,6 @@ message Command {
         CommandManuscriptAcceptAuthorship commandManuscriptAcceptAuthorship = 19;
         CommandManuscriptAllowReview commandManuscriptAllowReview = 20;
         CommandWriteReview commandWriteReview = 21;
+        CommandManuscriptJudge commandManuscriptJudge = 22;
     }
 }

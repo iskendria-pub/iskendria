@@ -76,7 +76,7 @@ func Is{{.AddressTypeTitle}}Address(address string) bool {
 func main() {
 	c := &Config{
 		EnumNames: []string{
-			"ManuscriptStatus", "Judgement",
+			"ManuscriptStatus", "Judgement", "ManuscriptJudgement",
 		},
 		AddressDefs: []AddressDef{
 			getAddressDef("Journal", "20"),

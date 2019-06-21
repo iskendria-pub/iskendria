@@ -49,6 +49,7 @@ message StateReview {
     string reviewAuthorId = 4;
     string hash = 5;
     Judgement judgement = 6;
+    bool isUsedByEditor = 7;
 }
 
 message CommandManuscriptCreate {

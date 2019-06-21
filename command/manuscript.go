@@ -245,6 +245,69 @@ type ReviewCreate struct {
 	TheReview    []byte
 }
 
+func GetCommandManuscriptReject(
+	manuscriptJudge *ManuscriptJudge,
+	journalId string,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
+	return getCommandManuscriptJudge(
+		manuscriptJudge,
+		journalId,
+		model.ManuscriptJudgement_judgementRejected,
+		signerId,
+		cryptoIdentity,
+		price)
+}
+
+func GetCommandManuscriptPublish(
+	manuscriptJudge *ManuscriptJudge,
+	journalId string,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
+	return getCommandManuscriptJudge(
+		manuscriptJudge,
+		journalId,
+		model.ManuscriptJudgement_judgementAccepted,
+		signerId,
+		cryptoIdentity,
+		price)
+}
+
+func getCommandManuscriptJudge(
+	manuscriptJudge *ManuscriptJudge,
+	journalId string,
+	judgement model.ManuscriptJudgement,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
+	return &Command{
+		InputAddresses: append(
+			manuscriptJudge.ReviewId, manuscriptJudge.ManuscriptId, signerId, model.GetSettingsAddress(), journalId),
+		OutputAddresses: append(
+			manuscriptJudge.ReviewId, manuscriptJudge.ManuscriptId, signerId),
+		CryptoIdentity: cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
+			Price:     price,
+			Timestamp: model.GetCurrentTime(),
+			Body: &model.Command_CommandManuscriptJudge{
+				CommandManuscriptJudge: &model.CommandManuscriptJudge{
+					ManuscriptId: manuscriptJudge.ManuscriptId,
+					ReviewId:     manuscriptJudge.ReviewId,
+					Judgement:    judgement,
+				},
+			},
+		},
+	}
+}
+
+type ManuscriptJudge struct {
+	ManuscriptId string
+	ReviewId     []string
+}
+
 func (nbce *nonBootstrapCommandExecution) checkManuscriptCreate(c *model.CommandManuscriptCreate) (*updater, error) {
 	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceAuthorSubmitNewManuscript
 	if nbce.price != expectedPrice {
@@ -833,7 +896,7 @@ func (nbce *nonBootstrapCommandExecution) checkManuscriptAllowReview(c *model.Co
 	if err != nil {
 		return nil, err
 	}
-	err = nbce.checkAllowReviewSignerIsJournalEditor(c)
+	err = nbce.checkManuscriptJournalHasSignerAsEditor(c.ThreadReference[0].ManuscriptId)
 	if err != nil {
 		return nil, err
 	}
@@ -847,11 +910,12 @@ func (nbce *nonBootstrapCommandExecution) checkManuscriptAllowReview(c *model.Co
 		allAuthorsSigned := nbce.IsAllAuthorsOfThreadReferenceItemSigned(threadReferenceItem)
 		newStatus := getNewManuscriptStatus(allAuthorsSigned, true)
 		if newStatus != threadReferenceItem.ManuscriptStatus {
-			updates = append(updates, &singleUpdateManuscriptUpdateStatus{
-				manuscriptId: threadReferenceItem.ManuscriptId,
-				newStatus:    newStatus,
-				timestamp:    nbce.timestamp,
-			},
+			updates = append(updates,
+				&singleUpdateManuscriptUpdateStatus{
+					manuscriptId: threadReferenceItem.ManuscriptId,
+					newStatus:    newStatus,
+					timestamp:    nbce.timestamp,
+				},
 				&singleUpdateManuscriptModificationTime{
 					id:        threadReferenceItem.ManuscriptId,
 					timestamp: nbce.timestamp,
@@ -915,9 +979,9 @@ func (nbce *nonBootstrapCommandExecution) checkThreadReference(
 	return nil
 }
 
-func (nbce *nonBootstrapCommandExecution) checkAllowReviewSignerIsJournalEditor(
-	c *model.CommandManuscriptAllowReview) error {
-	journalId := nbce.unmarshalledState.manuscripts[c.ThreadReference[0].ManuscriptId].JournalId
+func (nbce *nonBootstrapCommandExecution) checkManuscriptJournalHasSignerAsEditor(
+	manuscriptId string) error {
+	journalId := nbce.unmarshalledState.manuscripts[manuscriptId].JournalId
 	err := nbce.readAndCheckAddresses([]string{journalId}, []string{})
 	if err != nil {
 		return err
@@ -1093,6 +1157,123 @@ func (u *singleUpdateWriteReview) issueEvent(
 			{
 				Key:   model.EV_KEY_REVIEW_JUDGEMENT,
 				Value: model.GetJudgementString(u.c.Judgement),
+			},
+		}, []byte{})
+}
+
+func (nbce *nonBootstrapCommandExecution) checkManuscriptJudge(
+	c *model.CommandManuscriptJudge) (*updater, error) {
+	if err := checkSanityManuscriptJudge(c); err != nil {
+		return nil, err
+	}
+	expectedPrice, priceName := getExpectedPriceOfJudgement(
+		c.Judgement, nbce.unmarshalledState.settings.PriceList)
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError(priceName, expectedPrice)
+	}
+	err := nbce.readAndCheckAddresses(
+		append(c.ReviewId, c.ManuscriptId),
+		[]string{})
+	if err != nil {
+		return nil, err
+	}
+	if err := nbce.checkManuscriptJournalHasSignerAsEditor(c.ManuscriptId); err != nil {
+		return nil, err
+	}
+	actualManuscriptStatus := nbce.unmarshalledState.manuscripts[c.ManuscriptId].Status
+	if actualManuscriptStatus != model.ManuscriptStatus_reviewable {
+		return nil, errors.New(fmt.Sprintf("Manuscript %s cannot be judged because its status is %s",
+			c.ManuscriptId, model.GetManuscriptStatusString(actualManuscriptStatus)))
+	}
+	updates := []singleUpdate{
+		&singleUpdateManuscriptUpdateStatus{
+			manuscriptId: c.ManuscriptId,
+			newStatus:    judgementToStatus(c.Judgement),
+			timestamp:    nbce.timestamp,
+		},
+	}
+	for _, r := range c.ReviewId {
+		updates = append(updates, &singleUpdateReviewUseByEditor{
+			reviewId:  r,
+			timestamp: nbce.timestamp,
+		})
+	}
+	updates = nbce.addSingleUpdateManuscriptModificationTimeIfNeeded(updates, c.ManuscriptId)
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           updates,
+	}, nil
+}
+
+func checkSanityManuscriptJudge(c *model.CommandManuscriptJudge) error {
+	if !model.IsManuscriptAddress(c.ManuscriptId) {
+		return errors.New("Not a manuscript:" + c.ManuscriptId)
+	}
+	for _, r := range c.ReviewId {
+		if !model.IsReviewAddress(r) {
+			return errors.New("Not a review: " + r)
+		}
+	}
+	if int32(c.Judgement) < model.MinManuscriptJudgement || int32(c.Judgement) > model.MaxManuscriptJudgement {
+		return errors.New(fmt.Sprintf("ManuscriptJudgement out of range: %d", c.Judgement))
+	}
+	return nil
+}
+
+func getExpectedPriceOfJudgement(
+	judgement model.ManuscriptJudgement, pl *model.PriceList) (int32, string) {
+	switch judgement {
+	case model.ManuscriptJudgement_judgementRejected:
+		return pl.PriceEditorRejectManuscript, "PriceEditorRejectManuscript"
+	case model.ManuscriptJudgement_judgementAccepted:
+		return pl.PriceEditorPublishManuscript, "PriceEditorPublishManuscript"
+	default:
+		panic("checkSanityManuscriptJudge has not been called")
+	}
+}
+
+func judgementToStatus(judgement model.ManuscriptJudgement) model.ManuscriptStatus {
+	switch judgement {
+	case model.ManuscriptJudgement_judgementRejected:
+		return model.ManuscriptStatus_rejected
+	case model.ManuscriptJudgement_judgementAccepted:
+		return model.ManuscriptStatus_published
+	default:
+		panic("checkSanityManuscriptJudge has not been called")
+	}
+}
+
+type singleUpdateReviewUseByEditor struct {
+	reviewId  string
+	timestamp int64
+}
+
+var _ singleUpdate = new(singleUpdateReviewUseByEditor)
+
+func (u *singleUpdateReviewUseByEditor) updateState(state *unmarshalledState) (writtenAddresses []string) {
+	state.reviews[u.reviewId].IsUsedByEditor = true
+	return []string{u.reviewId}
+}
+
+func (u *singleUpdateReviewUseByEditor) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.AlexandriaPrefix+model.EV_TYPE_REVIEW_USE_BY_EDITOR,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_ID,
+				Value: u.reviewId,
 			},
 		}, []byte{})
 }

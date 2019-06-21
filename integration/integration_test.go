@@ -1265,30 +1265,6 @@ func TestManuscriptAllowReview(t *testing.T) {
 	withNewManuscriptCreate(f, 1, t)
 }
 
-func runEditorAllowReview(manuscriptId string, t *testing.T) *dao.Manuscript {
-	manuscript, err := dao.GetManuscript(manuscriptId)
-	if err != nil {
-		t.Error(err)
-	}
-	threadReference, err := dao.GetReferenceThread(manuscript.ThreadId)
-	if err != nil {
-		t.Error(err)
-	}
-	cmdAllowReview := command.GetCommandManuscriptAllowReview(
-		manuscript.ThreadId,
-		threadReference,
-		getTheOnlyDaoJournal(t).JournalId,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
-		priceEditorAllowManuscriptReview)
-	err = command.RunCommandForTest(
-		cmdAllowReview, "transactionIdManuscriptAllowReview", blockchainAccess)
-	if err != nil {
-		t.Error(err)
-	}
-	return manuscript
-}
-
 func checkDaoManuscriptAllowReview(manuscript *dao.Manuscript, t *testing.T) {
 	if manuscript.IsReviewable != true {
 		t.Error("Expected that manuscript is reviewable")
@@ -1319,84 +1295,97 @@ func TestWriteReview(t *testing.T) {
 		personCreate *command.PersonCreate,
 		initialBalance int32,
 		t *testing.T) {
-		cmdManuscriptCreate, manuscriptId := command.GetCommandManuscriptCreate(
-			manuscriptCreate,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
-			priceAuthorSubmitNewManuscript)
-		err := command.RunCommandForTest(
-			cmdManuscriptCreate, "transactionIdManuscriptCreateOneAuthor", blockchainAccess)
-		if err != nil {
-			t.Error(err)
-		}
-		_ = runEditorAllowReview(manuscriptId, t)
-		reviewCreate := &command.ReviewCreate{
-			ManuscriptId: manuscriptId,
-			TheReview:    []byte("My review"),
-		}
-		cmdWriteReview, reviewId := command.GetCommandWritePositiveReview(
-			reviewCreate,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
-			priceReviewerSubmit)
-		err = command.RunCommandForTest(cmdWriteReview, "transactionIdWriteReview", blockchainAccess)
-		if err != nil {
-			t.Error(err)
-		}
-		daoReview, err := dao.GetReview(reviewId)
-		if err != nil {
-			t.Error(err)
-		}
-		checkStateReview(getStateReview(reviewId, t), reviewId, manuscriptId, t)
-		checkDaoReview(daoReview, reviewId, manuscriptId, t)
-		expectedBalance := initialBalance -
-			priceAuthorSubmitNewManuscript -
-			priceEditorAllowManuscriptReview -
-			priceReviewerSubmit
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		doTestWriteReview(manuscriptCreate, initialBalance, t)
 	}
 	withNewManuscriptCreate(f, 1, t)
 }
 
-func checkStateReview(r *model.StateReview, reviewId, manuscriptId string, t *testing.T) {
-	if r.Id != reviewId {
-		t.Error("ReviewId mismatch")
+func TestManuscriptPublish(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestManuscriptPublish", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(initialReview *dao.Review, initialManuscript *dao.Manuscript, initialBalance int32, t *testing.T) {
+		manuscriptJudge := &command.ManuscriptJudge{
+			ManuscriptId: initialManuscript.Id,
+			ReviewId:     []string{initialReview.Id},
+		}
+		cmd := command.GetCommandManuscriptPublish(
+			manuscriptJudge,
+			initialManuscript.JournalId,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorPublishManuscript)
+		err := command.RunCommandForTest(cmd, "transactionIdManuscriptPublish", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		daoReview, err := dao.GetReview(initialReview.Id)
+		if err != nil {
+			t.Error(err)
+		}
+		daoManuscript, err := dao.GetManuscript(initialManuscript.Id)
+		if err != nil {
+			t.Error(err)
+		}
+		if getStateReview(initialReview.Id, t).IsUsedByEditor != true {
+			t.Error("IsUsedByEditor mismatch")
+		}
+		if daoReview.IsUsedByEditor != true {
+			t.Error("IsUsedByEditor mismatch")
+		}
+		if getStateManuscript(initialManuscript.Id).Status != model.ManuscriptStatus_published {
+			t.Error("Status mismatch")
+		}
+		if daoManuscript.Status != model.GetManuscriptStatusString(model.ManuscriptStatus_published) {
+			t.Error("Status mismatch")
+		}
+		expectedBalance := initialBalance - priceEditorPublishManuscript
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 	}
-	if util.Abs(r.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
-		t.Error("CreatedOn mismatch")
-	}
-	if r.ManuscriptId != manuscriptId {
-		t.Error("ManuscriptId mismatch")
-	}
-	if r.ReviewAuthorId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
-		t.Error("ReviewAuthorId mismatch")
-	}
-	if r.Hash != model.HashBytes([]byte("My review")) {
-		t.Error("Hash mismatch")
-	}
-	if r.Judgement != model.Judgement_POSITIVE {
-		t.Error("Judgement mismatch")
-	}
+	withReviewCreated(f, t)
 }
 
-func checkDaoReview(r *dao.Review, reviewId, manuscriptId string, t *testing.T) {
-	if r.Id != reviewId {
-		t.Error("ReviewId mismatch")
+func TestManuscriptReject(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestManuscriptReject", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(initialReview *dao.Review, initialManuscript *dao.Manuscript, initialBalance int32, t *testing.T) {
+		manuscriptJudge := &command.ManuscriptJudge{
+			ManuscriptId: initialManuscript.Id,
+			ReviewId:     []string{initialReview.Id},
+		}
+		cmd := command.GetCommandManuscriptReject(
+			manuscriptJudge,
+			initialManuscript.JournalId,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorRejectManuscript)
+		err := command.RunCommandForTest(cmd, "transactionIdManuscriptReject", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		daoReview, err := dao.GetReview(initialReview.Id)
+		if err != nil {
+			t.Error(err)
+		}
+		daoManuscript, err := dao.GetManuscript(initialManuscript.Id)
+		if err != nil {
+			t.Error(err)
+		}
+		if getStateReview(initialReview.Id, t).IsUsedByEditor != true {
+			t.Error("IsUsedByEditor mismatch")
+		}
+		if daoReview.IsUsedByEditor != true {
+			t.Error("IsUsedByEditor mismatch")
+		}
+		if getStateManuscript(initialManuscript.Id).Status != model.ManuscriptStatus_rejected {
+			t.Error("Status mismatch")
+		}
+		if daoManuscript.Status != model.GetManuscriptStatusString(model.ManuscriptStatus_rejected) {
+			t.Error("Status mismatch")
+		}
+		expectedBalance := initialBalance - priceEditorRejectManuscript
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
 	}
-	if util.Abs(r.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
-		t.Error("CreatedOn mismatch")
-	}
-	if r.ManuscriptId != manuscriptId {
-		t.Error("ManuscriptId mismatch")
-	}
-	if r.ReviewAuthorId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
-		t.Error("ReviewAuthorId mismatch")
-	}
-	if r.Hash != model.HashBytes([]byte("My review")) {
-		t.Error("Hash mismatch")
-	}
-	if r.Judgement != model.GetJudgementString(model.Judgement_POSITIVE) {
-		t.Error("Judgement mismatch")
-	}
+	withReviewCreated(f, t)
 }

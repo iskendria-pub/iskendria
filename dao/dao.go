@@ -37,6 +37,7 @@ var AllEventTypes = []string{
 	model.AlexandriaPrefix + model.EV_TYPE_MANUSCRIPT_MODIFICATION_TIME,
 	model.AlexandriaPrefix + model.EV_TYPE_MANUSCRIPT_THREAD_UPDATE,
 	model.AlexandriaPrefix + model.EV_TYPE_REVIEW_CREATE,
+	model.AlexandriaPrefix + model.EV_TYPE_REVIEW_USE_BY_EDITOR,
 }
 
 func Init(fname string, logger *log.Logger) {
@@ -146,6 +147,8 @@ func parseEvent(input *events_pb2.Event, logger *log.Logger) (event, error) {
 		return createManuscriptThreadUpdateEvent(input)
 	case model.EV_TYPE_REVIEW_CREATE:
 		return createReviewCreateEvent(input)
+	case model.EV_TYPE_REVIEW_USE_BY_EDITOR:
+		return createReviewUseByEditorEvent(input)
 	default:
 		return nil, errors.New("Unknown event type: " + input.EventType)
 	}

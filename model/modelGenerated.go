@@ -13,6 +13,9 @@ func initAllEnumMinMax() {
 	minimum, maximum = getJudgementMinMax()
 	MinJudgement = minimum
 	MaxJudgement = maximum
+	minimum, maximum = getManuscriptJudgementMinMax()
+	MinManuscriptJudgement = minimum
+	MaxManuscriptJudgement = maximum
 }
 
 var MinManuscriptStatus int32
@@ -47,6 +50,30 @@ func getJudgementMinMax() (int32, int32) {
 	var maximum int32
 	isFirst := true
 	for testValue := range Judgement_name {
+		if isFirst {
+			minimum = testValue
+			maximum = testValue
+			isFirst = false
+		} else {
+			if testValue < minimum {
+				minimum = testValue
+			}
+			if testValue > maximum {
+				maximum = testValue
+			}
+		}
+	}
+	return minimum, maximum
+}
+
+var MinManuscriptJudgement int32
+var MaxManuscriptJudgement int32
+
+func getManuscriptJudgementMinMax() (int32, int32) {
+	var minimum int32
+	var maximum int32
+	isFirst := true
+	for testValue := range ManuscriptJudgement_name {
 		if isFirst {
 			minimum = testValue
 			maximum = testValue
