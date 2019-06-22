@@ -71,7 +71,6 @@ const (
 	EV_KEY_VOLUME_ID                 = "volumeId"
 	EV_KEY_MANUSCRIPT_FIRST_PAGE     = "firstPage"
 	EV_KEY_MANUSCRIPT_LAST_PAGE      = "lastPage"
-	EV_KEY_MANUSCRIPT_IS_REVIEWABLE  = "isReviewable"
 )
 
 const (

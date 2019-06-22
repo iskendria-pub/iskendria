@@ -242,7 +242,7 @@ func getNonBootstrapCommandExecutionWithInitialManuscript(
 			context.journal.Id: context.journal,
 		},
 		manuscripts: map[string]*model.StateManuscript{
-			context.initialManuscriptId: &model.StateManuscript{
+			context.initialManuscriptId: {
 				Id:            context.initialManuscriptId,
 				Hash:          "2468ace0",
 				ThreadId:      context.threadId,
@@ -265,7 +265,7 @@ func getNonBootstrapCommandExecutionWithInitialManuscript(
 			},
 		},
 		manuscriptThreads: map[string]*model.StateManuscriptThread{
-			context.threadId: &model.StateManuscriptThread{
+			context.threadId: {
 				Id:           context.threadId,
 				ManuscriptId: []string{context.initialManuscriptId},
 				IsReviewable: context.isThreadReviewable,
