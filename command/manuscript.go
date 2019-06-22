@@ -308,6 +308,48 @@ type ManuscriptJudge struct {
 	ReviewId     []string
 }
 
+func GetCommandManuscriptAssign(
+	manuscriptAssign *ManuscriptAssign,
+	journalId string,
+	signerId string,
+	cryptoIdentity *CryptoIdentity,
+	price int32) *Command {
+	return &Command{
+		InputAddresses: []string{
+			signerId,
+			manuscriptAssign.ManuscriptId,
+			manuscriptAssign.VolumeId,
+			journalId,
+			model.GetSettingsAddress(),
+		},
+		OutputAddresses: []string{
+			signerId,
+			manuscriptAssign.ManuscriptId,
+		},
+		CryptoIdentity: cryptoIdentity,
+		Command: &model.Command{
+			Signer:    signerId,
+			Timestamp: model.GetCurrentTime(),
+			Price:     price,
+			Body: &model.Command_CommandManuscriptAssign{
+				CommandManuscriptAssign: &model.CommandManuscriptAssign{
+					ManuscriptId: manuscriptAssign.ManuscriptId,
+					VolumeId:     manuscriptAssign.VolumeId,
+					FirstPage:    manuscriptAssign.FirstPage,
+					LastPage:     manuscriptAssign.LastPage,
+				},
+			},
+		},
+	}
+}
+
+type ManuscriptAssign struct {
+	ManuscriptId string
+	VolumeId     string
+	FirstPage    string
+	LastPage     string
+}
+
 func (nbce *nonBootstrapCommandExecution) checkManuscriptCreate(c *model.CommandManuscriptCreate) (*updater, error) {
 	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceAuthorSubmitNewManuscript
 	if nbce.price != expectedPrice {
@@ -1274,6 +1316,131 @@ func (u *singleUpdateReviewUseByEditor) issueEvent(eventSeq int32, transactionId
 			{
 				Key:   model.EV_KEY_ID,
 				Value: u.reviewId,
+			},
+		}, []byte{})
+}
+
+func (nbce *nonBootstrapCommandExecution) checkManuscriptAssign(
+	c *model.CommandManuscriptAssign) (*updater, error) {
+	expectedPrice := nbce.unmarshalledState.settings.PriceList.PriceEditorAssignManuscript
+	if nbce.price != expectedPrice {
+		return nil, formatPriceError("PriceEditorAssignManuscript", expectedPrice)
+	}
+	if err := checkSanityManuscriptAssign(c); err != nil {
+		return nil, err
+	}
+	err := nbce.readAndCheckAddresses(
+		[]string{c.ManuscriptId, c.VolumeId},
+		[]string{})
+	if err != nil {
+		return nil, err
+	}
+	if err := nbce.checkManuscriptJournalHasSignerAsEditor(c.ManuscriptId); err != nil {
+		return nil, err
+	}
+	volume := nbce.unmarshalledState.volumes[c.VolumeId]
+	manuscript := nbce.unmarshalledState.manuscripts[c.ManuscriptId]
+	journal := nbce.unmarshalledState.journals[manuscript.JournalId]
+	if volume.JournalId != journal.Id {
+		return nil, errors.New(fmt.Sprintf("Volume %s does not belong to journal %s",
+			c.VolumeId, manuscript.JournalId))
+	}
+	updates := nbce.getManuscriptAssignUpdates(c)
+	updates = nbce.addSingleUpdateManuscriptModificationTimeIfNeeded(updates, c.ManuscriptId)
+	return &updater{
+		unmarshalledState: nbce.unmarshalledState,
+		updates:           updates,
+	}, nil
+}
+
+func checkSanityManuscriptAssign(c *model.CommandManuscriptAssign) error {
+	if !model.IsManuscriptAddress(c.ManuscriptId) {
+		return errors.New("Not a manuscript: " + c.ManuscriptId)
+	}
+	if !model.IsVolumeAddress(c.VolumeId) {
+		return errors.New("Not a volume: " + c.VolumeId)
+	}
+	if c.FirstPage == "" {
+		return errors.New("FirstPage not set")
+	}
+	if c.LastPage == "" {
+		return errors.New("LastPage not set")
+	}
+	return nil
+}
+
+func (nbce *nonBootstrapCommandExecution) getManuscriptAssignUpdates(
+	c *model.CommandManuscriptAssign) []singleUpdate {
+	manuscript := nbce.unmarshalledState.manuscripts[c.ManuscriptId]
+	return []singleUpdate{
+		&singleUpdateManuscriptUpdateStatus{
+			manuscriptId: c.ManuscriptId,
+			newStatus:    model.ManuscriptStatus_assigned,
+			timestamp:    nbce.timestamp,
+		},
+		&singleUpdateManuscriptUpdate{
+			manuscriptId: c.ManuscriptId,
+			field:        &manuscript.VolumeId,
+			eventKey:     model.EV_KEY_VOLUME_ID,
+			value:        c.VolumeId,
+			timestamp:    nbce.timestamp,
+		},
+		&singleUpdateManuscriptUpdate{
+			manuscriptId: c.ManuscriptId,
+			field:        &manuscript.FirstPage,
+			eventKey:     model.EV_KEY_MANUSCRIPT_FIRST_PAGE,
+			value:        c.FirstPage,
+			timestamp:    nbce.timestamp,
+		},
+		&singleUpdateManuscriptUpdate{
+			manuscriptId: c.ManuscriptId,
+			field:        &manuscript.LastPage,
+			eventKey:     model.EV_KEY_MANUSCRIPT_LAST_PAGE,
+			value:        c.LastPage,
+			timestamp:    nbce.timestamp,
+		},
+	}
+}
+
+type singleUpdateManuscriptUpdate struct {
+	manuscriptId string
+	field        *string
+	eventKey     string
+	value        string
+	timestamp    int64
+}
+
+var _ singleUpdate = new(singleUpdateManuscriptUpdate)
+
+func (u *singleUpdateManuscriptUpdate) updateState(
+	state *unmarshalledState) (writtenAddresses []string) {
+	*u.field = u.value
+	return []string{u.manuscriptId}
+}
+
+func (u *singleUpdateManuscriptUpdate) issueEvent(eventSeq int32, transactionId string, ba BlockchainAccess) error {
+	return ba.AddEvent(
+		model.AlexandriaPrefix+model.EV_TYPE_MANUSCRIPT_UPDATE,
+		[]processor.Attribute{
+			{
+				Key:   model.EV_KEY_TRANSACTION_ID,
+				Value: transactionId,
+			},
+			{
+				Key:   model.EV_KEY_EVENT_SEQ,
+				Value: fmt.Sprintf("%d", eventSeq),
+			},
+			{
+				Key:   model.EV_KEY_TIMESTAMP,
+				Value: fmt.Sprintf("%d", u.timestamp),
+			},
+			{
+				Key:   model.EV_KEY_ID,
+				Value: u.manuscriptId,
+			},
+			{
+				Key:   u.eventKey,
+				Value: u.value,
 			},
 		}, []byte{})
 }

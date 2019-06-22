@@ -34,6 +34,7 @@ const priceReviewerSubmit int32 = 109
 const priceEditorAllowManuscriptReview int32 = 110
 const priceEditorRejectManuscript int32 = 111
 const priceEditorPublishManuscript int32 = 112
+const priceEditorAssignManuscript int32 = 113
 const priceEditorCreateJournal int32 = 114
 const priceEditorCreateVolume int32 = 115
 const priceEditorEditJournal int32 = 116
@@ -298,7 +299,7 @@ func getBootstrap() *command.Bootstrap {
 		PriceEditorAllowManuscriptReview:     priceEditorAllowManuscriptReview,
 		PriceEditorRejectManuscript:          priceEditorRejectManuscript,
 		PriceEditorPublishManuscript:         priceEditorPublishManuscript,
-		PriceEditorAssignManuscript:          113,
+		PriceEditorAssignManuscript:          priceEditorAssignManuscript,
 		PriceEditorCreateJournal:             priceEditorCreateJournal,
 		PriceEditorCreateVolume:              priceEditorCreateVolume,
 		PriceEditorEditJournal:               priceEditorEditJournal,
@@ -352,7 +353,7 @@ func checkBootstrapStateSettings(settings *model.StateSettings, t *testing.T) {
 	if settings.PriceList.PriceEditorPublishManuscript != priceEditorPublishManuscript {
 		t.Error("PriceEditorPublishManuscript mismatch")
 	}
-	if settings.PriceList.PriceEditorAssignManuscript != 113 {
+	if settings.PriceList.PriceEditorAssignManuscript != priceEditorAssignManuscript {
 		t.Error("PriceEditorAssignManuscript mismatch")
 	}
 	if settings.PriceList.PriceEditorCreateJournal != priceEditorCreateJournal {
@@ -409,7 +410,7 @@ func checkBootstrapDaoSettings(settings *dao.Settings, t *testing.T) {
 	if settings.PriceEditorPublishManuscript != priceEditorPublishManuscript {
 		t.Error("PriceEditorPublishManuscript mismatch")
 	}
-	if settings.PriceEditorAssignManuscript != 113 {
+	if settings.PriceEditorAssignManuscript != priceEditorAssignManuscript {
 		t.Error("PriceEditorAssignManuscript mismatch")
 	}
 	if settings.PriceEditorCreateJournal != priceEditorCreateJournal {

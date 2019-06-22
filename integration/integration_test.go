@@ -1389,3 +1389,115 @@ func TestManuscriptReject(t *testing.T) {
 	}
 	withReviewCreated(f, t)
 }
+
+func TestManuscriptAssign(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestManuscriptPublish", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(initialReview *dao.Review, initialManuscript *dao.Manuscript, initialBalance int32, t *testing.T) {
+		manuscriptJudge := &command.ManuscriptJudge{
+			ManuscriptId: initialManuscript.Id,
+			ReviewId:     []string{initialReview.Id},
+		}
+		cmd := command.GetCommandManuscriptPublish(
+			manuscriptJudge,
+			initialManuscript.JournalId,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorPublishManuscript)
+		err := command.RunCommandForTest(cmd, "transactionIdManuscriptPublish", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		volume := &command.Volume{
+			JournalId: initialManuscript.JournalId,
+			Issue:     "2019-01-01",
+		}
+		cmd, volumeId := command.GetCommandVolumeCreate(
+			volume,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorCreateVolume)
+		err = command.RunCommandForTest(cmd, "transactionIdVolumeCreate", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		manuscriptAssign := &command.ManuscriptAssign{
+			ManuscriptId: initialManuscript.Id,
+			VolumeId:     volumeId,
+			FirstPage:    "3",
+			LastPage:     "5",
+		}
+		cmd = command.GetCommandManuscriptAssign(
+			manuscriptAssign,
+			initialManuscript.JournalId,
+			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+			cliAlexandria.LoggedIn(),
+			priceEditorAssignManuscript)
+		err = command.RunCommandForTest(cmd, "transactionIdManuscriptAssign", blockchainAccess)
+		if err != nil {
+			t.Error(err)
+		}
+		daoManuscript, err := dao.GetManuscript(initialManuscript.Id)
+		checkStateAssignedManuscript(
+			getStateManuscript(initialManuscript.Id),
+			initialManuscript.Id,
+			volumeId,
+			t)
+		checkDaoAssignedManuscript(
+			daoManuscript,
+			initialManuscript.Id,
+			volumeId,
+			t)
+		expectedBalance := initialBalance -
+			priceEditorPublishManuscript -
+			priceEditorCreateVolume -
+			priceEditorAssignManuscript
+		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	}
+	withReviewCreated(f, t)
+}
+
+func checkStateAssignedManuscript(
+	manuscript *model.StateManuscript,
+	manuscriptId string,
+	volumeId string,
+	t *testing.T) {
+	if manuscript.Id != manuscriptId {
+		t.Error("Id mismatch")
+	}
+	if manuscript.Status != model.ManuscriptStatus_assigned {
+		t.Error("Status mismatch")
+	}
+	if manuscript.VolumeId != volumeId {
+		t.Error("VolumeId mismatch")
+	}
+	if manuscript.FirstPage != "3" {
+		t.Error("FirstPage mismatch")
+	}
+	if manuscript.LastPage != "5" {
+		t.Error("LastPage mismatch")
+	}
+}
+
+func checkDaoAssignedManuscript(
+	manuscript *dao.Manuscript,
+	manuscriptId string,
+	volumeId string,
+	t *testing.T) {
+	if manuscript.Id != manuscriptId {
+		t.Error("Id mismatch")
+	}
+	if manuscript.Status != model.GetManuscriptStatusString(model.ManuscriptStatus_assigned) {
+		t.Error("Status mismatch")
+	}
+	if manuscript.VolumeId != volumeId {
+		t.Error("VolumeId mismatch")
+	}
+	if manuscript.FirstPage != "3" {
+		t.Error("FirstPage mismatch")
+	}
+	if manuscript.LastPage != "5" {
+		t.Error("LastPage mismatch")
+	}
+}

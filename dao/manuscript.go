@@ -152,7 +152,11 @@ func createManuscriptUpdateEvent(ev *events_pb2.Event) (event, error) {
 			result.eventSeq = int32(i64)
 		case model.EV_KEY_ID:
 			dm.manuscriptId = a.Value
-		case model.EV_KEY_MANUSCRIPT_STATUS:
+		case
+			model.EV_KEY_MANUSCRIPT_STATUS,
+			model.EV_KEY_VOLUME_ID,
+			model.EV_KEY_MANUSCRIPT_FIRST_PAGE,
+			model.EV_KEY_MANUSCRIPT_LAST_PAGE:
 			dm.field = strings.ToLower(a.Key)
 			dm.newValue = a.Value
 		}
