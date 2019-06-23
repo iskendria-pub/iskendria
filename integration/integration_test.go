@@ -1286,8 +1286,8 @@ func checkThreadStateManuscriptAllowReview(state *model.StateManuscriptThread, t
 	}
 }
 
-func TestWriteReview(t *testing.T) {
-	logger = log.New(os.Stdout, "integration.TestWriteReview", log.Flags())
+func TestWritePositiveReview(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestWritePositiveReview", log.Flags())
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(
 		manuscriptCreate *command.ManuscriptCreate,
@@ -1295,7 +1295,21 @@ func TestWriteReview(t *testing.T) {
 		personCreate *command.PersonCreate,
 		initialBalance int32,
 		t *testing.T) {
-		doTestWriteReview(manuscriptCreate, initialBalance, t)
+		doTestWritePositiveReview(manuscriptCreate, initialBalance, t)
+	}
+	withNewManuscriptCreate(f, 1, t)
+}
+
+func TestWriteNegativeReview(t *testing.T) {
+	logger = log.New(os.Stdout, "integration.TestWriteNegativeReview", log.Flags())
+	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
+	f := func(
+		manuscriptCreate *command.ManuscriptCreate,
+		journal *command.Journal,
+		personCreate *command.PersonCreate,
+		initialBalance int32,
+		t *testing.T) {
+		doTestWriteNegativeReview(manuscriptCreate, initialBalance, t)
 	}
 	withNewManuscriptCreate(f, 1, t)
 }
