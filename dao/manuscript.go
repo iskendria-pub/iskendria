@@ -508,7 +508,7 @@ SELECT
   status
 FROM manuscript
 WHERE threadid = ?
-ORDER BY id
+ORDER BY versionnumber
 `
 }
 

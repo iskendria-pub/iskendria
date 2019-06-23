@@ -1079,14 +1079,6 @@ func checkCreatedThreadStateManuscriptNewVersion(
 	if len(expectedManuscripts) != 2 {
 		t.Fail()
 	}
-	var orderedExpectedManuscripts []string
-	if expectedManuscripts[0] < expectedManuscripts[1] {
-		orderedExpectedManuscripts = []string{
-			expectedManuscripts[0], expectedManuscripts[1]}
-	} else {
-		orderedExpectedManuscripts = []string{
-			expectedManuscripts[1], expectedManuscripts[0]}
-	}
 	stateThread := getStateThread(threadId, t)
 	if stateThread.Id != threadId {
 		t.Error("Thread state id does not match its address: " + threadId)
@@ -1098,7 +1090,7 @@ func checkCreatedThreadStateManuscriptNewVersion(
 		t.Error("Expected that thread has two manuscripts")
 	}
 	for i, m := range stateThread.ManuscriptId {
-		if m != orderedExpectedManuscripts[i] {
+		if m != expectedManuscripts[i] {
 			t.Error("In thread, manuscript id mismatch")
 		}
 	}

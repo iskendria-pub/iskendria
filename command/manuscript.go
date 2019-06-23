@@ -7,7 +7,6 @@ import (
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
 	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"gitlab.bbinfra.net/3estack/alexandria/util"
-	"sort"
 	"strconv"
 )
 
@@ -690,9 +689,6 @@ func (u *singleUpdateManuscriptCreateNewVersion) updateState(state *unmarshalled
 	thread := state.manuscriptThreads[u.manuscriptThreadId]
 	thread.ManuscriptId = util.EconomicStringSliceAppend(
 		thread.ManuscriptId, u.manuscriptId)
-	sort.Slice(thread.ManuscriptId, func(i, j int) bool {
-		return thread.ManuscriptId[i] < thread.ManuscriptId[j]
-	})
 	return []string{u.manuscriptId, u.manuscriptThreadId}
 }
 
