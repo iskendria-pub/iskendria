@@ -25,6 +25,15 @@ var editorsTemplate = `
 {{- end -}}
 `
 
+var authorsTemplate = `
+{{- define "authors" -}}
+{{- range $index, $element := . -}}
+{{- if $index -}}, {{end -}}
+<a href="/person/{{.PersonId}}" {{if not .DidSign}}class="muted"{{end}}>{{.PersonName}}</a>
+{{- end -}}
+{{- end -}}
+`
+
 var journalsTemplate = `
 <head>
   <title>Alexandria</title>
@@ -161,6 +170,41 @@ var volumeTemplate = `
 </body>
 `
 
+var manuscriptTemplate = `
+<head>
+  <title>Alexandria</title>
+  <link rel="stylesheet" href="/public/alexandria.css"/>
+</head>
+<body>
+  <h1>Alexandria</h1>
+  <h2>{{.Title}}</h2>
+  <div class="authors">{{template "authors" .Authors}}</div>
+  <p/>
+  <table>
+    <tr>
+      <td>Status:</td>
+      <td>{{.Status}}</td>
+    </tr>
+    <tr>
+      <td>Version number:</td>
+      <td>{{.VersionNumber}}</td>
+    </tr>
+    <tr>
+      <td>Commit message:</td>
+      <td>{{.CommitMsg}}</td>
+    </tr>
+    <tr>
+      <td>Id:</td>
+      <td>{{.Id}}</td>
+    </tr>
+    <tr>
+      <td>Thread id:</td>
+      <td>{{.ThreadId}}</td>
+    </tr>
+  </table>
+</body>
+`
+
 const manageDocumentsJsUrl = "/manageDocument/manageDocument.js"
 
 func main() {
@@ -191,6 +235,7 @@ func runHttpServer() {
 	r.HandleFunc("/personUpdate/{id}", personUpdate)
 	r.HandleFunc("/personVerifyAndRefresh/{id}", personVerifyAndRefresh)
 	r.HandleFunc("/volume/{journalId}/{volumeId}", handleVolume)
+	r.HandleFunc("/manuscript/{manuscriptId}", handleManuscript)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	r.PathPrefix("/manageDocument/").Handler(
 		http.StripPrefix("/manageDocument/", http.FileServer(http.Dir("./components/manageDocument"))))
@@ -677,3 +722,24 @@ func handleVolume(w http.ResponseWriter, r *http.Request) {
 }
 
 var parsedVolumeTemplate = util.ParseTemplates("volume", volumeTemplate)
+
+func handleManuscript(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering handleManuscript...\n")
+	defer log.Printf("Left handleManuscript\n")
+	vars := mux.Vars(r)
+	manuscriptId := vars["manuscriptId"]
+	manuscript, err := dao.GetManuscript(manuscriptId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprintf(w, "Could not find manuscript for manuscriptId"+manuscriptId)
+		return
+	}
+	err = parsedManuscriptTemplate.Execute(w, &manuscript)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprintf(w, "Could not parse manuscript template: "+err.Error())
+		return
+	}
+}
+
+var parsedManuscriptTemplate = util.ParseTemplates("manuscript", authorsTemplate, manuscriptTemplate)

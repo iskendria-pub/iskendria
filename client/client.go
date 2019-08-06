@@ -146,6 +146,19 @@ func main() {
 					},
 				),
 			},
+			&cli.Cli{
+				FullDescription:    "Welcome to the manuscript commands",
+				OneLineDescription: "Manuscript",
+				Name:               "manuscript",
+				Handlers: []cli.Handler{
+					&cli.StructRunnerHandler{
+						FullDescription:    "Create new manuscript",
+						OneLineDescription: "Create new manuscript",
+						Name:               "create",
+						Action:             manuscriptCreate,
+					},
+				},
+			},
 		),
 	}
 	fmt.Print(makeGreen)
@@ -398,4 +411,37 @@ func volumeCreate(outputter cli.Outputter, volume *command.Volume) {
 		return
 	}
 	outputter("The volumeId of the created volume is: " + volumeId + "\n")
+}
+
+func manuscriptCreate(outputter cli.Outputter, manuscriptCreate *ManuscriptCreate) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	manuscriptData, err := ioutil.ReadFile(manuscriptCreate.ManuscriptFileName)
+	if err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+	}
+	cmd, manuscriptId := command.GetCommandManuscriptCreate(
+		&command.ManuscriptCreate{
+			TheManuscript: manuscriptData,
+			CommitMsg:     manuscriptCreate.CommitMsg,
+			Title:         manuscriptCreate.Title,
+			AuthorId:      manuscriptCreate.AuthorId,
+			JournalId:     manuscriptCreate.JournalId,
+		},
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceAuthorSubmitNewManuscript)
+	if err := blockchain.SendCommand(cmd, outputter); err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+	}
+	outputter("The manuscriptId of the created manuscript is: " + manuscriptId + "\n")
+}
+
+type ManuscriptCreate struct {
+	ManuscriptFileName string
+	CommitMsg          string
+	Title              string
+	AuthorId           []string
+	JournalId          string
 }
