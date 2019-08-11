@@ -9,12 +9,15 @@ import (
 	"gitlab.bbinfra.net/3estack/alexandria/portal/components/manageDocument"
 	"gitlab.bbinfra.net/3estack/alexandria/portal/util"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 )
+
+const CONTENT_DISPOSITION = "Content-Disposition"
 
 var editorsTemplate = `
 {{- define "editors" -}}
@@ -236,6 +239,7 @@ func runHttpServer() {
 	r.HandleFunc("/personVerifyAndRefresh/{id}", personVerifyAndRefresh)
 	r.HandleFunc("/volume/{journalId}/{volumeId}", handleVolume)
 	r.HandleFunc("/manuscript/{manuscriptId}", handleManuscript)
+	r.HandleFunc("/thaddeustalk.pdf", handleTryDownload)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	r.PathPrefix("/manageDocument/").Handler(
 		http.StripPrefix("/manageDocument/", http.FileServer(http.Dir("./components/manageDocument"))))
@@ -743,3 +747,21 @@ func handleManuscript(w http.ResponseWriter, r *http.Request) {
 }
 
 var parsedManuscriptTemplate = util.ParseTemplates("manuscript", authorsTemplate, manuscriptTemplate)
+
+func handleTryDownload(w http.ResponseWriter, _ *http.Request) {
+	log.Printf("Entering handleTryDownload...\n")
+	defer log.Printf("Left handleTryDownload\n")
+	w.Header().Set(CONTENT_DISPOSITION, "attachment")
+	in, err := os.Open("thaddeustalk.pdf")
+	if err != nil {
+		log.Printf("Could not open file to download: %s\n", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	defer func() { _ = in.Close() }()
+	_, err = io.Copy(w, in)
+	if err != nil {
+		log.Printf("Could not copy downloaded file to response stream: %s\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
