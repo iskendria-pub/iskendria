@@ -482,6 +482,19 @@ func combinationsToManuscript(combinations *[]ManuscriptAuthorCombination) *Manu
 	return result
 }
 
+func VerifyManuscript(manuscriptId string, data []byte) error {
+	manuscript, err := GetManuscript(manuscriptId)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Could not get manuscript with manuscriptId %s, error is %s",
+			manuscriptId, err.Error()))
+	}
+	hashOfData := model.HashBytes(data)
+	if manuscript.Hash != hashOfData {
+		return errors.New("Verification failed")
+	}
+	return nil
+}
+
 func GetReferenceThread(threadId string) ([]ReferenceThreadItem, error) {
 	tx, err := db.Beginx()
 	if err != nil {

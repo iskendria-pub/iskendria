@@ -6,7 +6,9 @@ import (
 	"github.com/gorilla/mux"
 	"gitlab.bbinfra.net/3estack/alexandria/cliAlexandria"
 	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"gitlab.bbinfra.net/3estack/alexandria/model"
 	"gitlab.bbinfra.net/3estack/alexandria/portal/components/manageDocument"
+	"gitlab.bbinfra.net/3estack/alexandria/portal/components/manageManuscript"
 	"gitlab.bbinfra.net/3estack/alexandria/portal/util"
 	"html/template"
 	"io"
@@ -179,6 +181,7 @@ var manuscriptTemplate = `
   <link rel="stylesheet" href="/public/alexandria.css"/>
 </head>
 <body>
+  {{with .Manuscript}}
   <h1>Alexandria</h1>
   <h2>{{.Title}}</h2>
   <div class="authors">{{template "authors" .Authors}}</div>
@@ -205,10 +208,18 @@ var manuscriptTemplate = `
       <td>{{.ThreadId}}</td>
     </tr>
   </table>
+  <p>
+  <form>
+    <input type="button" value="Download" id="manuscriptDownload" onclick="window.location.href='/manuscriptDownload/{{.Id}}.pdf'" disabled/>
+  </form> 
+  <p>
+  {{end}}
+  {{template "manageManuscript" .ManageManuscript}}
 </body>
 `
 
 const manageDocumentsJsUrl = "/manageDocument/manageDocument.js"
+const manageManuscriptsJsUrl = "/manageManuscript/manageManuscript.js"
 
 func main() {
 	dbLogger := log.New(os.Stdout, "db", log.Flags())
@@ -239,10 +250,13 @@ func runHttpServer() {
 	r.HandleFunc("/personVerifyAndRefresh/{id}", personVerifyAndRefresh)
 	r.HandleFunc("/volume/{journalId}/{volumeId}", handleVolume)
 	r.HandleFunc("/manuscript/{manuscriptId}", handleManuscript)
-	r.HandleFunc("/thaddeustalk.pdf", handleTryDownload)
+	r.HandleFunc("/manuscriptUpdate/{id}", manuscriptUpdate)
+	r.HandleFunc("/manuscriptDownload/{id}.pdf", handleManuscriptDownload)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	r.PathPrefix("/manageDocument/").Handler(
 		http.StripPrefix("/manageDocument/", http.FileServer(http.Dir("./components/manageDocument"))))
+	r.PathPrefix("/manageManuscript/").Handler(
+		http.StripPrefix("/manageManuscript/", http.FileServer(http.Dir("./components/manageManuscript"))))
 	http.Handle("/", r)
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
@@ -738,21 +752,133 @@ func handleManuscript(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprintf(w, "Could not find manuscript for manuscriptId"+manuscriptId)
 		return
 	}
-	err = parsedManuscriptTemplate.Execute(w, &manuscript)
+	_, hasExistingManuscript, err := theDocuments.searchDescription(manuscript.Hash)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = fmt.Fprintf(w, "Could not parse manuscript template: "+err.Error())
+		_, _ = fmt.Fprintf(w, "Could not check whether manuscript file is present")
+		return
+	}
+	err = parsedManuscriptTemplate.Execute(w, manuscriptToManuscriptContext(manuscript, hasExistingManuscript))
+	if err != nil {
+		log.Printf("Could not parse manuscript template: " + err.Error())
 		return
 	}
 }
 
-var parsedManuscriptTemplate = util.ParseTemplates("manuscript", authorsTemplate, manuscriptTemplate)
+var parsedManuscriptTemplate = parseManuscriptTemplate()
 
-func handleTryDownload(w http.ResponseWriter, _ *http.Request) {
-	log.Printf("Entering handleTryDownload...\n")
-	defer log.Printf("Left handleTryDownload\n")
+func parseManuscriptTemplate() *template.Template {
+	result := manageManuscript.ParseManageManuscriptTemplate("manuscript")
+	var err error
+	extraTemplates := []string{authorsTemplate, manuscriptTemplate}
+	for _, t := range extraTemplates {
+		result, err = result.Parse(t)
+		if err != nil {
+			log.Printf("Could not parse template: %s, error: %s\n", t, err.Error())
+			return nil
+		}
+	}
+	return result
+}
+
+type ManuscriptContext struct {
+	Manuscript       *dao.Manuscript
+	ManageManuscript *manageManuscript.ManageManuscriptContext
+}
+
+func manuscriptToManuscriptContext(manuscript *dao.Manuscript, hasExistingManuscript bool) *ManuscriptContext {
+	return &ManuscriptContext{
+		Manuscript: manuscript,
+		ManageManuscript: &manageManuscript.ManageManuscriptContext{
+			SubjectId:             manuscript.Id,
+			JsUrl:                 manageManuscriptsJsUrl,
+			UpdateUrlComponent:    "manuscriptUpdate",
+			DownloadControlId:     "manuscriptDownload",
+			InitialIsUploadNeeded: !hasExistingManuscript,
+		},
+	}
+}
+
+func manuscriptUpdate(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering manuscriptUpdate...\n")
+	defer log.Printf("Leaving manuscriptUpdate\n")
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
+		return
+	}
+	vars := mux.Vars(r)
+	id := vars["id"]
+	log.Printf("Uploading file and verifying for manuscript id " + id)
+	manuscript, err := dao.GetManuscript(id)
+	if err != nil {
+		jsonResponse(w, http.StatusNotFound, fmt.Sprintf("Manuscript not found: %s", id))
+		return
+	}
+	expectedHash := manuscript.Hash
+	file, _, err := r.FormFile("file")
+	defer func() { _ = file.Close() }()
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, "Could not read uploaded file: "+err.Error())
+		return
+	}
+	actualHash := model.HashBytes(data)
+	if actualHash != expectedHash {
+		jsonManuscriptSuccessResponse(w, &manageManuscript.PortalManuscriptResponse{
+			Message:      "Verification failed",
+			UploadNeeded: true,
+			IsWarning:    true,
+		})
+		return
+	}
+	existingManuscriptData, alreadyPresent, err := theDocuments.searchDescription(expectedHash)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError,
+			"Could not search for existing manuscript: "+err.Error())
+		return
+	}
+	if alreadyPresent {
+		hashOfStoredManuscript := model.HashBytes(existingManuscriptData)
+		if hashOfStoredManuscript == expectedHash {
+			jsonManuscriptSuccessResponse(w, &manageManuscript.PortalManuscriptResponse{
+				Message:      "Verification successful",
+				UploadNeeded: false,
+				IsWarning:    false,
+			})
+			return
+		}
+	}
+	err = theDocuments.save(actualHash, data)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError,
+			"Could not save uploaded manuscript: "+err.Error())
+		return
+	}
+	jsonManuscriptSuccessResponse(w, &manageManuscript.PortalManuscriptResponse{
+		Message: "Manuscript uploaded successfully!",
+	})
+}
+
+func jsonManuscriptSuccessResponse(w http.ResponseWriter, jsonMessage *manageManuscript.PortalManuscriptResponse) {
+	body, err := json.Marshal(jsonMessage)
+	if err != nil {
+		panic(err)
+	}
+	jsonResponse(w, http.StatusOK, string(body))
+}
+
+func handleManuscriptDownload(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering handleManuscriptDownload...\n")
+	defer log.Printf("Left handleManuscriptDownload\n")
+	vars := mux.Vars(r)
+	id := vars["id"]
+	manuscript, err := dao.GetManuscript(id)
+	if err != nil {
+		jsonResponse(w, http.StatusNotFound, "Unknown manuscript id: "+id)
+		return
+	}
 	w.Header().Set(CONTENT_DISPOSITION, "attachment")
-	in, err := os.Open("thaddeustalk.pdf")
+	in, err := theDocuments.open(manuscript.Hash)
 	if err != nil {
 		log.Printf("Could not open file to download: %s\n", err)
 		w.WriteHeader(http.StatusNotFound)

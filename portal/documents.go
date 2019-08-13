@@ -83,3 +83,7 @@ func (d *documents) save(theHash string, data []byte) error {
 	}
 	return ioutil.WriteFile(d.getPath(theHash), data, 0644)
 }
+
+func (d *documents) open(theHash string) (*os.File, error) {
+	return os.Open(d.getPath(theHash))
+}
