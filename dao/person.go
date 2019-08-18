@@ -44,8 +44,17 @@ func SearchPersonByKey(key string) ([]*Person, error) {
 }
 
 func GetPersonById(id string) (*Person, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	return getPersonByIdFromTransaction(id, tx)
+}
+
+func getPersonByIdFromTransaction(id string, tx *sqlx.Tx) (*Person, error) {
 	var person = new(Person)
-	err := db.QueryRowx("SELECT * FROM person WHERE id = ?", id).StructScan(person)
+	err := tx.QueryRowx("SELECT * FROM person WHERE id = ?", id).StructScan(person)
 	if err == nil {
 		return person, nil
 	}
@@ -98,6 +107,35 @@ func VerifyPersonBiography(personId string, data []byte) error {
 		return errors.New("Verification failed")
 	}
 	return nil
+}
+
+func GetCV(personId string) (*CV, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	var cv = new(CV)
+	cv.Person, err = getPersonByIdFromTransaction(personId, tx)
+	if err != nil {
+		return nil, err
+	}
+	if cv.Person == nil {
+		return nil, errors.New("Person id not found: " + personId)
+	}
+	cv.Journals, err = getJournalsHavingSpecificEditor(tx, personId)
+	if err != nil {
+		return nil, err
+	}
+	if cv.Journals == nil {
+		cv.Journals = []*Journal{}
+	}
+	return cv, nil
+}
+
+type CV struct {
+	Person   *Person
+	Journals []*Journal
 }
 
 func createPersonCreateEvent(event *events_pb2.Event) (event, error) {

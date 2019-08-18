@@ -157,6 +157,22 @@ func main() {
 						Name:               "create",
 						Action:             manuscriptCreate,
 					},
+					&cli.StructRunnerHandler{
+						FullDescription:    "Create a new manuscript version",
+						OneLineDescription: "Create new manuscript version",
+						Name:               "createNewVersion",
+						Action:             manuscriptCreateNewVersion,
+					},
+					&cli.SingleLineHandler{
+						Name:     "acceptAuthorship",
+						Handler:  manuscriptAcceptAuthorship,
+						ArgNames: []string{"manuscript id"},
+					},
+					&cli.SingleLineHandler{
+						Name:     "allowReview",
+						Handler:  manuscriptAllowReview,
+						ArgNames: []string{"manuscript id"},
+					},
 				},
 			},
 		),
@@ -444,4 +460,96 @@ type ManuscriptCreate struct {
 	Title              string
 	AuthorId           []string
 	JournalId          string
+}
+
+func manuscriptCreateNewVersion(outputter cli.Outputter, manuscriptCreateNewVersion *ManuscriptCreateNewVersion) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	manuscriptData, err := ioutil.ReadFile(manuscriptCreateNewVersion.ManuscriptFileName)
+	if err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+		return
+	}
+	previousManuscript, err := dao.GetManuscript(manuscriptCreateNewVersion.PreviousManuscriptId)
+	if err != nil {
+		outputter(fmt.Sprintf("Invalid previous manuscript id: %s, error msg: %s",
+			manuscriptCreateNewVersion.PreviousManuscriptId, err))
+		return
+	}
+	cmd, manuscriptId := command.GetCommandManuscriptCreateNewVersion(
+		&command.ManuscriptCreateNewVersion{
+			TheManuscript:        manuscriptData,
+			CommitMsg:            manuscriptCreateNewVersion.CommitMsg,
+			Title:                manuscriptCreateNewVersion.Title,
+			AuthorId:             manuscriptCreateNewVersion.AuthorId,
+			PreviousManuscriptId: manuscriptCreateNewVersion.PreviousManuscriptId,
+			ThreadId:             previousManuscript.ThreadId,
+			JournalId:            previousManuscript.JournalId,
+		},
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceAuthorSubmitNewVersion)
+	if err := blockchain.SendCommand(cmd, outputter); err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+		return
+	}
+	outputter("The manuscriptId of the created manuscript is: " + manuscriptId + "\n")
+}
+
+type ManuscriptCreateNewVersion struct {
+	ManuscriptFileName   string
+	CommitMsg            string
+	Title                string
+	AuthorId             []string
+	PreviousManuscriptId string
+}
+
+func manuscriptAcceptAuthorship(outputter cli.Outputter, manuscriptId string) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	manuscript, err := dao.GetManuscript(manuscriptId)
+	if err != nil {
+		outputter(fmt.Sprintf("Unknown manuscript id: %s, error message: %s",
+			manuscriptId, err.Error()))
+		return
+	}
+	cmd := command.GetCommandManuscriptAcceptAuthorship(
+		manuscript,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceAuthorAcceptAuthorship)
+	if err := blockchain.SendCommand(cmd, outputter); err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+		return
+	}
+}
+
+func manuscriptAllowReview(outputter cli.Outputter, manuscriptId string) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	manuscript, err := dao.GetManuscript(manuscriptId)
+	if err != nil {
+		outputter(fmt.Sprintf("Unknown manuscript id: %s, error message: %s",
+			manuscriptId, err.Error()))
+		return
+	}
+	referenceThread, err := dao.GetReferenceThread(manuscript.ThreadId)
+	if err != nil {
+		outputter(fmt.Sprintf("Error getting version history of manuscript: %s", err.Error()))
+		return
+	}
+	cmd := command.GetCommandManuscriptAllowReview(
+		manuscript.ThreadId,
+		referenceThread,
+		manuscript.JournalId,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceEditorAllowManuscriptReview)
+	if err := blockchain.SendCommand(cmd, outputter); err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+		return
+	}
 }

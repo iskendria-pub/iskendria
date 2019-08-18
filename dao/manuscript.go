@@ -364,8 +364,12 @@ func GetManuscript(manuscriptId string) (*Manuscript, error) {
 		return nil, err
 	}
 	defer func() { _ = tx.Commit() }()
+	return getManuscriptFromTransaction(tx, manuscriptId)
+}
+
+func getManuscriptFromTransaction(tx *sqlx.Tx, manuscriptId string) (*Manuscript, error) {
 	combinations := &[]ManuscriptAuthorCombination{}
-	err = tx.Select(combinations, getGetManuscriptQuery(), manuscriptId)
+	err := tx.Select(combinations, getGetManuscriptQuery(), manuscriptId)
 	if err != nil {
 		return nil, err
 	}
@@ -547,4 +551,27 @@ type Review struct {
 	Hash           string
 	Judgement      string
 	IsUsedByEditor bool
+}
+
+func GetManuscriptView(manuscriptId string) (*ManuscriptView, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	result := new(ManuscriptView)
+	result.Manuscript, err = getManuscriptFromTransaction(tx, manuscriptId)
+	if err != nil {
+		return nil, err
+	}
+	result.Journal, err = getJournalFromTransaction(tx, result.Manuscript.JournalId)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type ManuscriptView struct {
+	Manuscript *Manuscript
+	Journal    *Journal
 }

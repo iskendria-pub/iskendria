@@ -40,18 +40,24 @@ var authorsTemplate = `
 `
 
 var journalsTemplate = `
-<head>
-  <title>Alexandria</title>
-  <link rel="stylesheet" href="/public/alexandria.css"/>
-</head>
-<body>
-  <h1>Alexandria</h1>
+{{- define "journalsTemplate" -}}
   {{range .}}
   <div class="journal">
     <div class="title"><a href="/journal/{{.JournalId}}" {{if not .IsSigned}}class="muted"{{end}}>{{.Title}}</a></div>
     <div class="editors">{{template "editors" .AcceptedEditors}}</div>
   </div>
   {{end}}
+{{- end -}}
+`
+
+var journalsPageTemplate = `
+<head>
+  <title>Alexandria</title>
+  <link rel="stylesheet" href="/public/alexandria.css"/>
+</head>
+<body>
+  <h1>Alexandria</h1>
+  {{template "journalsTemplate" .}} 
 </body>
 `
 
@@ -96,7 +102,7 @@ var journalTemplate = `
 </body>
 `
 
-var personTemplate = `
+var cvTemplate = `
 <head>
   <title>Alexandria</title>
   <link rel="stylesheet" href="/public/alexandria.css"/>
@@ -160,6 +166,8 @@ var personTemplate = `
   <p>
   {{end}}
   {{template "manageDocument" .ManageDocument}}
+  <h2>Editor of:</h2>
+  {{template "journalsTemplate" .Journals}}
 </body>
 `
 
@@ -214,6 +222,9 @@ var manuscriptTemplate = `
   </form> 
   <p>
   {{end}}
+  <h2>Journal</h2>
+  {{template "journalsTemplate" .Journals}}
+  <h2>Manage</h2>
   {{template "manageManuscript" .ManageManuscript}}
 </body>
 `
@@ -264,7 +275,8 @@ func runHttpServer() {
 	}
 }
 
-var parsedJournalsTemplate = util.ParseTemplates("journalsTemplate", editorsTemplate, journalsTemplate)
+var parsedJournalsPageTemplate = util.ParseTemplates("journalsPageTemplate",
+	editorsTemplate, journalsTemplate, journalsPageTemplate)
 
 func handleJournals(w http.ResponseWriter, _ *http.Request) {
 	journals, err := dao.GetAllJournals()
@@ -273,7 +285,7 @@ func handleJournals(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(("Error reading journals from database: " + err.Error())))
 		return
 	}
-	err = parsedJournalsTemplate.Execute(w, journals)
+	err = parsedJournalsPageTemplate.Execute(w, journals)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("Error executing template: " + err.Error()))
@@ -535,51 +547,53 @@ func handlePerson(w http.ResponseWriter, r *http.Request) {
 	defer log.Println("Left handlePerson")
 	vars := mux.Vars(r)
 	personId := vars["id"]
-	person, err := dao.GetPersonById(personId)
+	cv, err := dao.GetCV(personId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("Error reading journal from database: " + err.Error()))
+		_, _ = w.Write([]byte("Error reading person cv from database: " + err.Error()))
 		return
 	}
-	err = parsedPersonTemplate.Execute(w, personToPersonContext(person))
+	err = parsedPersonTemplate.Execute(w, personToCVContext(cv))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("Error executing template: " + err.Error()))
 	}
 }
 
-var parsedPersonTemplate = parseTemplatesWithManageDocument("personTemplate", personTemplate)
+var parsedPersonTemplate = parseTemplatesWithManageDocument("cvTemplate",
+	editorsTemplate, journalsTemplate, cvTemplate)
 
-func personToPersonContext(person *dao.Person) *PersonContext {
-	result := &PersonContext{
+func personToCVContext(cv *dao.CV) *CVContext {
+	result := &CVContext{
 		PersonView: PersonView{
-			Id:           person.Id,
-			PublicKey:    person.PublicKey,
-			Name:         person.Name,
-			Email:        person.Email,
-			IsMajor:      person.IsMajor,
-			IsSigned:     person.IsSigned,
-			Balance:      person.Balance,
-			Organization: person.Organization,
-			Telephone:    person.Telephone,
-			Address:      person.Address,
-			PostalCode:   person.PostalCode,
-			Country:      person.Country,
-			ExtraInfo:    person.ExtraInfo,
+			Id:           cv.Person.Id,
+			PublicKey:    cv.Person.PublicKey,
+			Name:         cv.Person.Name,
+			Email:        cv.Person.Email,
+			IsMajor:      cv.Person.IsMajor,
+			IsSigned:     cv.Person.IsSigned,
+			Balance:      cv.Person.Balance,
+			Organization: cv.Person.Organization,
+			Telephone:    cv.Person.Telephone,
+			Address:      cv.Person.Address,
+			PostalCode:   cv.Person.PostalCode,
+			Country:      cv.Person.Country,
+			ExtraInfo:    cv.Person.ExtraInfo,
 		},
 		ManageDocument: manageDocument.ManageDocumentContext{
-			SubjectId:            person.Id,
+			SubjectId:            cv.Person.Id,
 			JsUrl:                manageDocumentsJsUrl,
 			DescriptionControlId: "biographyId",
 			UpdateUrlComponent:   "personUpdate",
 			VerifyUrlComponent:   "personVerifyAndRefresh",
 			SubjectWord:          "biography",
 		},
+		Journals: cv.Journals,
 	}
-	if person.BiographyHash == "" {
+	if cv.Person.BiographyHash == "" {
 		return result
 	}
-	description, isAvailable, err := theDocuments.searchDescription(person.BiographyHash)
+	description, isAvailable, err := theDocuments.searchDescription(cv.Person.BiographyHash)
 	if err != nil {
 		result.ManageDocument.InitialIsUploadNeeded = true
 		result.ManageDocument.HasInitialDescriptionError = true
@@ -594,8 +608,9 @@ func personToPersonContext(person *dao.Person) *PersonContext {
 	return result
 }
 
-type PersonContext struct {
+type CVContext struct {
 	PersonView     PersonView
+	Journals       []*dao.Journal
 	ManageDocument manageDocument.ManageDocumentContext
 }
 
@@ -746,13 +761,13 @@ func handleManuscript(w http.ResponseWriter, r *http.Request) {
 	defer log.Printf("Left handleManuscript\n")
 	vars := mux.Vars(r)
 	manuscriptId := vars["manuscriptId"]
-	manuscript, err := dao.GetManuscript(manuscriptId)
+	manuscript, err := dao.GetManuscriptView(manuscriptId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = fmt.Fprintf(w, "Could not find manuscript for manuscriptId"+manuscriptId)
 		return
 	}
-	_, hasExistingManuscript, err := theDocuments.searchDescription(manuscript.Hash)
+	_, hasExistingManuscript, err := theDocuments.searchDescription(manuscript.Manuscript.Hash)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = fmt.Fprintf(w, "Could not check whether manuscript file is present")
@@ -770,7 +785,7 @@ var parsedManuscriptTemplate = parseManuscriptTemplate()
 func parseManuscriptTemplate() *template.Template {
 	result := manageManuscript.ParseManageManuscriptTemplate("manuscript")
 	var err error
-	extraTemplates := []string{authorsTemplate, manuscriptTemplate}
+	extraTemplates := []string{authorsTemplate, editorsTemplate, journalsTemplate, manuscriptTemplate}
 	for _, t := range extraTemplates {
 		result, err = result.Parse(t)
 		if err != nil {
@@ -784,13 +799,17 @@ func parseManuscriptTemplate() *template.Template {
 type ManuscriptContext struct {
 	Manuscript       *dao.Manuscript
 	ManageManuscript *manageManuscript.ManageManuscriptContext
+	// This is a list for technical reason. In fact a manuscript
+	// is only published in one journal.
+	Journals []*dao.Journal
 }
 
-func manuscriptToManuscriptContext(manuscript *dao.Manuscript, hasExistingManuscript bool) *ManuscriptContext {
+func manuscriptToManuscriptContext(manuscript *dao.ManuscriptView, hasExistingManuscript bool) *ManuscriptContext {
 	return &ManuscriptContext{
-		Manuscript: manuscript,
+		Manuscript: manuscript.Manuscript,
+		Journals:   []*dao.Journal{manuscript.Journal},
 		ManageManuscript: &manageManuscript.ManageManuscriptContext{
-			SubjectId:             manuscript.Id,
+			SubjectId:             manuscript.Manuscript.Id,
 			JsUrl:                 manageManuscriptsJsUrl,
 			UpdateUrlComponent:    "manuscriptUpdate",
 			DownloadControlId:     "manuscriptDownload",

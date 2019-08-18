@@ -273,8 +273,34 @@ func GetAllJournals() ([]*Journal, error) {
 }
 
 func getAllJournalsHavingEditors(tx *sqlx.Tx) ([]*Journal, error) {
+	return getJournalsWithEditorsForQuery(tx, getJournalEditorCombinationsQuery())
+}
+
+func getJournalsHavingSpecificEditor(tx *sqlx.Tx, editorId string) ([]*Journal, error) {
+	journalIds := []JournalId{}
+	err := tx.Select(&journalIds, getJournalIdsWithSpecificEditorQuery(editorId))
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*Journal, 0)
+	for _, journalId := range journalIds {
+		journal, err := getJournalFromTransaction(tx, journalId.JournalId)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, journal)
+	}
+	sortJournals(result)
+	return result, nil
+}
+
+type JournalId struct {
+	JournalId string
+}
+
+func getJournalsWithEditorsForQuery(tx *sqlx.Tx, query string) ([]*Journal, error) {
 	journalEditorCombinations := []JournalEditorCombination{}
-	err := tx.Select(&journalEditorCombinations, getJournalEditorCombinationsQuery())
+	err := tx.Select(&journalEditorCombinations, query)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Could not get journal editor combinations: %s", err.Error()))
 	}
@@ -341,6 +367,19 @@ WHERE editor.journalid = journal.journalid
   AND person.id = editor.personid
 ORDER BY journal.title, journal.journalId, person.name, editor.personId
 `, model.GetEditorStateString(model.EditorState_editorAccepted)))
+}
+
+func getJournalIdsWithSpecificEditorQuery(personId string) string {
+	return strings.TrimSpace(fmt.Sprintf(`
+SELECT DISTINCT
+  journal.journalid
+FROM journal, editor, person
+WHERE editor.journalid = journal.journalid
+  AND editor.editorState = "%s"
+  AND person.id = editor.personid
+  AND person.id = "%s"
+ORDER BY journal.title, journal.journalId, person.name, editor.personId
+`, model.GetEditorStateString(model.EditorState_editorAccepted), personId))
 }
 
 func journalEditorCombinationToJournal(jec *JournalEditorCombination) *Journal {
@@ -433,6 +472,10 @@ func GetJournal(journalId string) (*Journal, error) {
 		return nil, errors.New("Could not start database transaction")
 	}
 	defer func() { _ = tx.Commit() }()
+	return getJournalFromTransaction(tx, journalId)
+}
+
+func getJournalFromTransaction(tx *sqlx.Tx, journalId string) (*Journal, error) {
 	jwe, err := getJournalExcludingEditors(journalId, tx)
 	if err != nil {
 		return nil, err
