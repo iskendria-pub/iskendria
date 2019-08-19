@@ -582,9 +582,10 @@ func getManuscriptReviewsFromTransaction(tx *sqlx.Tx, manuscriptId string) ([]*E
 	if err != nil {
 		return nil, err
 	}
-	result := []*ExtendedReview{}
-	for _, r := range *reviews {
-		result = append(result, &r)
+	result := make([]*ExtendedReview, len(*reviews))
+	for i, r := range *reviews {
+		result[i] = new(ExtendedReview)
+		*result[i] = r
 	}
 	return result, err
 }
