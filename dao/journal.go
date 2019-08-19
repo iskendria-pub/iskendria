@@ -690,8 +690,12 @@ func GetVolume(volumeId string) (*Volume, error) {
 		return nil, err
 	}
 	defer func() { _ = tx.Commit() }()
+	return getVolumeFromTransaction(tx, volumeId)
+}
+
+func getVolumeFromTransaction(tx *sqlx.Tx, volumeId string) (*Volume, error) {
 	result := &Volume{}
-	err = tx.Get(result, "SELECT * FROM volume WHERE volumeId = ? ORDER BY issue DESC",
+	err := tx.Get(result, "SELECT * FROM volume WHERE volumeId = ? ORDER BY issue DESC",
 		volumeId)
 	if err != nil {
 		return nil, err

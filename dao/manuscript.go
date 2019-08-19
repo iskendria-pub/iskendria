@@ -573,6 +573,12 @@ func GetManuscriptView(manuscriptId string) (*ManuscriptView, error) {
 	if err != nil {
 		return nil, err
 	}
+	if result.Manuscript.VolumeId != "" {
+		result.Volume, err = getVolumeFromTransaction(tx, result.Manuscript.VolumeId)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return result, nil
 }
 
@@ -593,6 +599,7 @@ func getManuscriptReviewsFromTransaction(tx *sqlx.Tx, manuscriptId string) ([]*E
 type ManuscriptView struct {
 	Manuscript *Manuscript
 	Journal    *Journal
+	Volume     *Volume
 	Reviews    []*ExtendedReview
 }
 

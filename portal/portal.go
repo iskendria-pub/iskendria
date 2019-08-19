@@ -215,6 +215,14 @@ var manuscriptTemplate = `
       <td>Thread id:</td>
       <td>{{.ThreadId}}</td>
     </tr>
+    <tr>
+      <td>First page</td>
+      <td>{{.FirstPage}}</td>
+    </tr>
+    <tr>
+      <td>Last page</td>
+      <td>{{.LastPage}}</td>
+    </tr>
   </table>
   <p>
   <form>
@@ -224,6 +232,11 @@ var manuscriptTemplate = `
   {{end}}
   <h2>Journal</h2>
   {{template "journalsTemplate" .Journals}}
+  {{if .Volumes}}
+  {{template "volumes" .Volumes}}
+  {{else}}
+  Not assigned to volume.
+  {{end}}
   <h2>Reviews</h2>
   {{template "reviewList" .Reviews}}
   <h2>Manage</h2>
@@ -878,6 +891,7 @@ func parseManuscriptTemplate() *template.Template {
 		editorsTemplate,
 		journalsTemplate,
 		reviewListTemplate,
+		volumesTemplate,
 		manuscriptTemplate}
 	for _, t := range extraTemplates {
 		result, err = result.Parse(t)
@@ -896,6 +910,7 @@ type ManuscriptContext struct {
 	// is only published in one journal.
 	Journals []*dao.Journal
 	Reviews  []*ReviewListItem
+	Volumes  []*VolumeView
 }
 
 type ReviewListItem struct {
@@ -920,6 +935,10 @@ func manuscriptToManuscriptContext(manuscript *dao.ManuscriptView, hasExistingMa
 			InitialIsUploadNeeded: !hasExistingManuscript,
 		},
 		Reviews: extendedReviewsToReviewListItems(manuscript.Reviews),
+		Volumes: getManuscriptVolumes(
+			manuscript.Volume,
+			manuscript.Journal.JournalId,
+			manuscript.Journal.Title),
 	}
 }
 
@@ -941,6 +960,16 @@ func extendedReviewsToReviewListItems(source []*dao.ExtendedReview) []*ReviewLis
 		}
 	}
 	return result
+}
+
+func getManuscriptVolumes(volume *dao.Volume, journalId, journalTitle string) []*VolumeView {
+	if volume == nil {
+		return []*VolumeView{}
+	}
+	return volumesToVolumeViews(
+		[]dao.Volume{*volume},
+		journalId,
+		journalTitle)
 }
 
 func manuscriptUpdate(w http.ResponseWriter, r *http.Request) {

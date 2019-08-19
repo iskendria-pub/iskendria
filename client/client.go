@@ -197,6 +197,12 @@ func main() {
 						Name:               "reject",
 						Action:             manuscriptReject,
 					},
+					&cli.StructRunnerHandler{
+						FullDescription:    "Assign manuscript to volume",
+						OneLineDescription: "Assign manuscript to volume",
+						Name:               "assign",
+						Action:             manuscriptAssign,
+					},
 				},
 			},
 		),
@@ -680,4 +686,25 @@ func getNegativeJudgeCommand(judge *command.ManuscriptJudge, journalId string) *
 		cliAlexandria.LoggedInPerson.Id,
 		cliAlexandria.LoggedIn(),
 		cliAlexandria.Settings.PriceEditorRejectManuscript)
+}
+
+func manuscriptAssign(outputter cli.Outputter, manuscriptAssign *command.ManuscriptAssign) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	manuscript, err := dao.GetManuscript(manuscriptAssign.ManuscriptId)
+	if err != nil {
+		outputter(err.Error() + "\n")
+		return
+	}
+	cmd := command.GetCommandManuscriptAssign(
+		manuscriptAssign,
+		manuscript.JournalId,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceEditorAssignManuscript)
+	err = blockchain.SendCommand(cmd, outputter)
+	if err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+	}
 }
