@@ -185,6 +185,18 @@ func main() {
 						Name:               "addReviewNegative",
 						Action:             addNegativeReview,
 					},
+					&cli.StructRunnerHandler{
+						FullDescription:    "Publish manuscript",
+						OneLineDescription: "Publish manuscript",
+						Name:               "publish",
+						Action:             manuscriptPublish,
+					},
+					&cli.StructRunnerHandler{
+						FullDescription:    "Reject manuscript",
+						OneLineDescription: "Reject manuscript",
+						Name:               "reject",
+						Action:             manuscriptReject,
+					},
 				},
 			},
 		),
@@ -623,4 +635,49 @@ func getCommandReviewSubmitNegative(cr *command.ReviewCreate) (*command.Command,
 		cliAlexandria.LoggedInPerson.Id,
 		cliAlexandria.LoggedIn(),
 		cliAlexandria.Settings.PriceReviewerSubmit)
+}
+
+func manuscriptPublish(outputter cli.Outputter, judge *command.ManuscriptJudge) {
+	manuscriptJudge(outputter, judge, getPositiveJudgeCommand)
+}
+
+func manuscriptReject(outputter cli.Outputter, judge *command.ManuscriptJudge) {
+	manuscriptJudge(outputter, judge, getNegativeJudgeCommand)
+}
+
+func manuscriptJudge(outputter cli.Outputter, judge *command.ManuscriptJudge, commandGetter judgeCommandGetter) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	manuscript, err := dao.GetManuscript(judge.ManuscriptId)
+	if err != nil {
+		outputter(err.Error() + "\n")
+		return
+	}
+	cmd := commandGetter(judge, manuscript.JournalId)
+	err = blockchain.SendCommand(cmd, outputter)
+	if err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+		return
+	}
+}
+
+type judgeCommandGetter func(*command.ManuscriptJudge, string) *command.Command
+
+func getPositiveJudgeCommand(judge *command.ManuscriptJudge, journalId string) *command.Command {
+	return command.GetCommandManuscriptPublish(
+		judge,
+		journalId,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceEditorPublishManuscript)
+}
+
+func getNegativeJudgeCommand(judge *command.ManuscriptJudge, journalId string) *command.Command {
+	return command.GetCommandManuscriptReject(
+		judge,
+		journalId,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceEditorRejectManuscript)
 }
