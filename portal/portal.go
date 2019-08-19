@@ -224,6 +224,8 @@ var manuscriptTemplate = `
   {{end}}
   <h2>Journal</h2>
   {{template "journalsTemplate" .Journals}}
+  <h2>Reviews</h2>
+  {{template "reviewList" .Reviews}}
   <h2>Manage</h2>
   {{template "manageManuscript" .ManageManuscript}}
 </body>
@@ -266,7 +268,7 @@ var reviewPageTemplate = `
     <tr>
       {{- with .Review -}}
       <td>Judgement:</td>
-      <td>{{.Judgement}}
+      <td>{{.Judgement}}</td>
     </tr>
     <tr>
       <td>Used by editor:</td>
@@ -279,6 +281,31 @@ var reviewPageTemplate = `
   <p>
   {{template "manageDocument" .ManageDocument}}
 </body>
+`
+
+var reviewListTemplate = `
+{{define "reviewList"}}
+{{range .}}
+<table>
+<tr><td>
+<a href="/person/{{.PersonId}}" {{if not .PersonIsSigned}}class="muted"{{end}}>{{.PersonName}}</a>
+</td></tr>
+<tr><td>
+<div id="reviewTextId">{{.ReviewText}}</div>
+</td></tr>
+<tr><td>
+{{.Judgement}}
+</td></tr>
+<tr><td>
+{{if .IsUsedByEditor}}Used by editor to judge{{end}}
+</td></tr>
+<tr><td>
+<a href="/review/{{.Id}}">Manage</a>
+</tr></td>
+</table>
+<p>
+{{end}}
+{{end}}
 `
 
 const manageDocumentsJsUrl = "/manageDocument/manageDocument.js"
@@ -821,7 +848,11 @@ func handleManuscript(w http.ResponseWriter, r *http.Request) {
 	manuscript, err := dao.GetManuscriptView(manuscriptId)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = fmt.Fprintf(w, "Could not find manuscript for manuscriptId"+manuscriptId)
+		_, _ = fmt.Fprintf(
+			w,
+			"Could not find manuscript for manuscriptId %s, error %s",
+			manuscriptId,
+			err.Error())
 		return
 	}
 	_, hasExistingManuscript, err := theDocuments.searchDescription(manuscript.Manuscript.Hash)
@@ -842,7 +873,12 @@ var parsedManuscriptTemplate = parseManuscriptTemplate()
 func parseManuscriptTemplate() *template.Template {
 	result := manageManuscript.ParseManageManuscriptTemplate("manuscript")
 	var err error
-	extraTemplates := []string{authorsTemplate, editorsTemplate, journalsTemplate, manuscriptTemplate}
+	extraTemplates := []string{
+		authorsTemplate,
+		editorsTemplate,
+		journalsTemplate,
+		reviewListTemplate,
+		manuscriptTemplate}
 	for _, t := range extraTemplates {
 		result, err = result.Parse(t)
 		if err != nil {
@@ -859,6 +895,17 @@ type ManuscriptContext struct {
 	// This is a list for technical reason. In fact a manuscript
 	// is only published in one journal.
 	Journals []*dao.Journal
+	Reviews  []*ReviewListItem
+}
+
+type ReviewListItem struct {
+	PersonId       string
+	PersonIsSigned bool
+	PersonName     string
+	Id             string
+	ReviewText     string
+	Judgement      string
+	IsUsedByEditor bool
 }
 
 func manuscriptToManuscriptContext(manuscript *dao.ManuscriptView, hasExistingManuscript bool) *ManuscriptContext {
@@ -872,7 +919,28 @@ func manuscriptToManuscriptContext(manuscript *dao.ManuscriptView, hasExistingMa
 			DownloadControlId:     "manuscriptDownload",
 			InitialIsUploadNeeded: !hasExistingManuscript,
 		},
+		Reviews: extendedReviewsToReviewListItems(manuscript.Reviews),
 	}
+}
+
+func extendedReviewsToReviewListItems(source []*dao.ExtendedReview) []*ReviewListItem {
+	result := make([]*ReviewListItem, len(source))
+	for i, s := range source {
+		reviewText, _, err := theDocuments.searchDescription(s.Hash)
+		if err != nil {
+			reviewText = []byte("ERROR getting review text: " + err.Error())
+		}
+		result[i] = &ReviewListItem{
+			PersonId:       s.PersonId,
+			PersonIsSigned: s.PersonIsSigned,
+			PersonName:     s.PersonName,
+			Id:             s.Id,
+			ReviewText:     string(reviewText),
+			Judgement:      s.Judgement,
+			IsUsedByEditor: s.IsUsedByEditor,
+		}
+	}
+	return result
 }
 
 func manuscriptUpdate(w http.ResponseWriter, r *http.Request) {
@@ -990,7 +1058,6 @@ func handleReviewDetail(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Could not parse manuscript template: " + err.Error())
 		return
 	}
-
 }
 
 type ManuscriptReference struct {

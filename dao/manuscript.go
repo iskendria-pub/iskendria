@@ -569,12 +569,63 @@ func GetManuscriptView(manuscriptId string) (*ManuscriptView, error) {
 	if err != nil {
 		return nil, err
 	}
+	result.Reviews, err = getManuscriptReviewsFromTransaction(tx, manuscriptId)
+	if err != nil {
+		return nil, err
+	}
 	return result, nil
+}
+
+func getManuscriptReviewsFromTransaction(tx *sqlx.Tx, manuscriptId string) ([]*ExtendedReview, error) {
+	reviews := &[]ExtendedReview{}
+	err := tx.Select(reviews, getExtendedReviewQuery(), manuscriptId)
+	if err != nil {
+		return nil, err
+	}
+	result := []*ExtendedReview{}
+	for _, r := range *reviews {
+		result = append(result, &r)
+	}
+	return result, err
 }
 
 type ManuscriptView struct {
 	Manuscript *Manuscript
 	Journal    *Journal
+	Reviews    []*ExtendedReview
+}
+
+type ExtendedReview struct {
+	Id             string
+	CreatedOn      int64
+	ManuscriptId   string
+	ReviewAuthorId string
+	Hash           string
+	Judgement      string
+	IsUsedByEditor bool
+	PersonId       string
+	PersonIsSigned bool
+	PersonName     string
+}
+
+func getExtendedReviewQuery() string {
+	return `
+SELECT
+	review.id,
+    review.createdon,
+    review.manuscriptid,
+    review.reviewauthorid,
+    review.hash,
+    review.judgement,
+    review.isusedbyeditor,
+    person.id AS personid,
+    person.issigned AS personissigned,
+    person.name AS personname
+FROM review, person
+WHERE review.reviewauthorid = person.id
+AND review.manuscriptid = ?
+ORDER BY review.createdon
+`
 }
 
 func GetReviewDetailsView(reviewId string) (*ReviewView, error) {
