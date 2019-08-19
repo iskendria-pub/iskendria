@@ -229,6 +229,58 @@ var manuscriptTemplate = `
 </body>
 `
 
+var manuscriptsTemplate = `
+{{- define "manuscriptsTemplate" -}}
+  {{range .}}
+  <div class="manuscript">
+    <div class="title"><a href="/manuscript/{{.ManuscriptId}}">{{.Title}}</a></div>
+    <div class="authors">{{template "authors" .Authors}}</div>
+  </div>
+  {{end}}
+{{- end -}}
+`
+
+var reviewPageTemplate = `
+<head>
+  <title>Alexandria</title>
+  <link rel="stylesheet" href="/public/alexandria.css"/>
+</head>
+<body>
+  <h1>Alexandria</h1>
+  <h2>Subject of review</h2>
+  {{template "manuscriptsTemplate" .Manuscripts}}
+  <h2>Review</h2>
+  {{with .Review}}
+  <table>
+    <tr>
+      <td>Id:</td>
+      <td>{{.Id}}
+    </tr>
+    <tr>
+      <td>Review author:</td>
+      {{- end -}}
+      {{- with .ReviewAuthor -}}
+      <td><a href="/person/{{.PersonId}}" {{if not .PersonIsSigned}}class="muted"{{end}}>{{.PersonName}}</a></td>
+      {{- end -}}
+    </tr>
+    <tr>
+      {{- with .Review -}}
+      <td>Judgement:</td>
+      <td>{{.Judgement}}
+    </tr>
+    <tr>
+      <td>Used by editor:</td>
+      <td>{{.IsUsedByEditor}}
+    </tr>
+  </table>
+  {{- end -}}
+  <h2>Review text</h2>
+  <div id="reviewTextId">{{.ReviewText}}</div>
+  <p>
+  {{template "manageDocument" .ManageDocument}}
+</body>
+`
+
 const manageDocumentsJsUrl = "/manageDocument/manageDocument.js"
 const manageManuscriptsJsUrl = "/manageManuscript/manageManuscript.js"
 
@@ -263,6 +315,9 @@ func runHttpServer() {
 	r.HandleFunc("/manuscript/{manuscriptId}", handleManuscript)
 	r.HandleFunc("/manuscriptUpdate/{id}", manuscriptUpdate)
 	r.HandleFunc("/manuscriptDownload/{id}.pdf", handleManuscriptDownload)
+	r.HandleFunc("/review/{id}", handleReviewDetail)
+	r.HandleFunc("/reviewUpdate/{id}", reviewUpdate)
+	r.HandleFunc("/reviewVerifyAndRefresh/{id}", reviewVerifyAndRefresh)
 	r.PathPrefix("/public/").Handler(http.StripPrefix("/public/", http.FileServer(http.Dir("./public"))))
 	r.PathPrefix("/manageDocument/").Handler(
 		http.StripPrefix("/manageDocument/", http.FileServer(http.Dir("./components/manageDocument"))))
@@ -298,9 +353,11 @@ var parsedJournalTemplate = parseTemplatesWithManageDocument(
 func parseTemplatesWithManageDocument(name string, templatesToAdd ...string) *template.Template {
 	result := manageDocument.ParseManageDocumentTemplate(name)
 	for _, toAdd := range templatesToAdd {
+		log.Printf("Parsing added template: %s\n", toAdd)
 		var err error
 		result, err = result.Parse(toAdd)
 		if err != nil {
+			fmt.Println("Error parsing " + toAdd)
 			panic(err)
 		}
 	}
@@ -910,3 +967,162 @@ func handleManuscriptDownload(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
+
+func handleReviewDetail(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering handleReviewDetail...\n")
+	defer log.Printf("Left handleReviewDetail\n")
+	vars := mux.Vars(r)
+	reviewId := vars["id"]
+	review, err := dao.GetReviewDetailsView(reviewId)
+	if err != nil {
+		log.Printf("Could not get review for id: %s, error: %s\n",
+			reviewId, err.Error())
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	reviewText, hasReviewText, err := theDocuments.searchDescription(review.Review.Hash)
+	if err != nil {
+		log.Printf("Could not search review text: %s\n", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	err = parsedReviewDetailsTemplate.Execute(w, reviewToReviewDetailsView(review, hasReviewText, string(reviewText)))
+	if err != nil {
+		log.Printf("Could not parse manuscript template: " + err.Error())
+		return
+	}
+
+}
+
+type ManuscriptReference struct {
+	ManuscriptId string
+	Title        string
+	Authors      []*dao.Author
+}
+
+type ReviewDetailsView struct {
+	Manuscripts    []*ManuscriptReference
+	Review         *dao.Review
+	ReviewAuthor   *dao.ReviewEditor
+	ReviewText     string
+	ManageDocument *manageDocument.ManageDocumentContext
+}
+
+func reviewToReviewDetailsView(reviewView *dao.ReviewView, hasReviewText bool, reviewText string) *ReviewDetailsView {
+	return &ReviewDetailsView{
+		Manuscripts: []*ManuscriptReference{
+			{
+				ManuscriptId: reviewView.Manuscript.Id,
+				Title:        reviewView.Manuscript.Title,
+				Authors:      reviewView.Manuscript.Authors,
+			},
+		},
+		Review: reviewView.Review,
+		ReviewAuthor: &dao.ReviewEditor{
+			PersonId:       reviewView.ReviewAuthor.Id,
+			PersonName:     reviewView.ReviewAuthor.Name,
+			PersonIsSigned: reviewView.ReviewAuthor.IsSigned,
+		},
+		ReviewText: reviewText,
+		ManageDocument: &manageDocument.ManageDocumentContext{
+			SubjectId:             reviewView.Review.Id,
+			InitialIsUploadNeeded: !hasReviewText,
+			JsUrl:                 manageDocumentsJsUrl,
+			DescriptionControlId:  "reviewTextId",
+			UpdateUrlComponent:    "reviewUpdate",
+			VerifyUrlComponent:    "reviewVerifyAndRefresh",
+			SubjectWord:           "review text",
+		},
+	}
+}
+
+func reviewUpdate(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering reviewUpdate...\n")
+	defer log.Printf("Leaving reviewUpdate\n")
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
+		return
+	}
+	vars := mux.Vars(r)
+	reviewId := vars["id"]
+	log.Printf("Uploading file for review id " + reviewId)
+	review, err := dao.GetReview(reviewId)
+	if err != nil {
+		jsonResponse(w, http.StatusNotFound, fmt.Sprintf("Journal not found: %s", reviewId))
+		return
+	}
+	theHash := review.Hash
+	if !checkNoReviewCorrectDescriptionOverwritten(reviewId, theHash, w) {
+		return
+	}
+	file, handle, err := r.FormFile("file")
+	defer func() { _ = file.Close() }()
+	saveFile(theHash, w, file, handle)
+}
+
+func checkNoReviewCorrectDescriptionOverwritten(
+	reviewId,
+	theHash string,
+	w http.ResponseWriter) bool {
+	return checkNoDescriptionOverwritten(theHash, w, func(oldDescription []byte) error {
+		return dao.VerifyReview(reviewId, oldDescription)
+	})
+}
+
+func reviewVerifyAndRefresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/index.html", http.StatusSeeOther)
+		return
+	}
+	vars := mux.Vars(r)
+	reviewId := vars["id"]
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, fmt.Sprintf(
+			"Could not read body of POST request: %s", err.Error()))
+		return
+	}
+	defer func() { _ = r.Body.Close() }()
+	request := &manageDocument.PortalRequest{}
+	err = json.Unmarshal(body, request)
+	if err != nil {
+		jsonResponse(w, http.StatusBadRequest, fmt.Sprintf(
+			"Could not parse body of POST request as PortalRequest: %s", err.Error()))
+		return
+	}
+	if err = dao.VerifyReview(reviewId, []byte(request.Description)); err == nil {
+		jsonSuccessResponse(w, &manageDocument.PortalResponse{
+			Description: request.Description,
+			Message:     "Verification successful, description was correct",
+		})
+		return
+	}
+	log.Printf("Verification failed, setting up upload\n")
+	review, err := dao.GetReview(reviewId)
+	if err != nil {
+		jsonResponse(w, http.StatusNotFound, fmt.Sprintf(
+			"Review not found: %s, detailed message is: %s", reviewId, err))
+		return
+	}
+	theHash := review.Hash
+	log.Printf("The hash is: " + theHash)
+	updatedDescription, hasUpdatedDescription, err := theDocuments.searchDescription(theHash)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if hasUpdatedDescription {
+		jsonSuccessResponse(w, &manageDocument.PortalResponse{
+			Description: string(updatedDescription),
+			Message:     "Updated the review text",
+		})
+		return
+	}
+	jsonSuccessResponse(w, &manageDocument.PortalResponse{
+		Message:      "Please upload the review",
+		UploadNeeded: true,
+		IsWarning:    true,
+	})
+}
+
+var parsedReviewDetailsTemplate = parseTemplatesWithManageDocument(
+	"reviewDetailsTemplate", authorsTemplate, manuscriptsTemplate, reviewPageTemplate)

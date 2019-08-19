@@ -173,6 +173,18 @@ func main() {
 						Handler:  manuscriptAllowReview,
 						ArgNames: []string{"manuscript id"},
 					},
+					&cli.StructRunnerHandler{
+						FullDescription:    "Add positive review about manuscript",
+						OneLineDescription: "Add positive review about manuscript",
+						Name:               "addReviewPositive",
+						Action:             addPositiveReview,
+					},
+					&cli.StructRunnerHandler{
+						FullDescription:    "Add negative review about manuscript",
+						OneLineDescription: "Add negative review about manuscript",
+						Name:               "addReviewNegative",
+						Action:             addNegativeReview,
+					},
 				},
 			},
 		),
@@ -552,4 +564,63 @@ func manuscriptAllowReview(outputter cli.Outputter, manuscriptId string) {
 		outputter(cliAlexandria.ToIoError(err))
 		return
 	}
+}
+
+func addPositiveReview(outputter cli.Outputter, r *ReviewCreation) {
+	addReview(outputter, r, getCommandReviewSubmitPositive)
+}
+
+func addNegativeReview(outputter cli.Outputter, r *ReviewCreation) {
+	addReview(outputter, r, getCommandReviewSubmitNegative)
+}
+
+func addReview(outputter cli.Outputter, r *ReviewCreation, commandCreator reviewCreatorType) {
+	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+		return
+	}
+	cr, err := getCommandReviewCreate(r)
+	if err != nil {
+		outputter(err.Error() + "\n")
+	}
+	cmd, reviewId := commandCreator(cr)
+	err = blockchain.SendCommand(cmd, outputter)
+	if err != nil {
+		outputter(cliAlexandria.ToIoError(err))
+		return
+	}
+	outputter(fmt.Sprintf("The id of the created review is: %s\n", reviewId))
+}
+
+type ReviewCreation struct {
+	ManuscriptId string
+	FileName     string
+}
+
+type reviewCreatorType func(*command.ReviewCreate) (*command.Command, string)
+
+func getCommandReviewCreate(r *ReviewCreation) (*command.ReviewCreate, error) {
+	reviewData, err := ioutil.ReadFile(r.FileName)
+	if err != nil {
+		return nil, err
+	}
+	return &command.ReviewCreate{
+		ManuscriptId: r.ManuscriptId,
+		TheReview:    reviewData,
+	}, nil
+}
+
+func getCommandReviewSubmitPositive(cr *command.ReviewCreate) (*command.Command, string) {
+	return command.GetCommandWritePositiveReview(
+		cr,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceReviewerSubmit)
+}
+
+func getCommandReviewSubmitNegative(cr *command.ReviewCreate) (*command.Command, string) {
+	return command.GetCommandWriteNegativeReview(
+		cr,
+		cliAlexandria.LoggedInPerson.Id,
+		cliAlexandria.LoggedIn(),
+		cliAlexandria.Settings.PriceReviewerSubmit)
 }

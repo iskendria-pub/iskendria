@@ -535,12 +535,13 @@ func GetReview(reviewId string) (*Review, error) {
 		return nil, err
 	}
 	defer func() { _ = tx.Commit() }()
+	return getReviewFromTransaction(tx, reviewId)
+}
+
+func getReviewFromTransaction(tx *sqlx.Tx, reviewId string) (*Review, error) {
 	result := Review{}
-	err = tx.Get(&result, "SELECT * FROM review WHERE id = ?", reviewId)
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
+	err := tx.Get(&result, "SELECT * FROM review WHERE id = ?", reviewId)
+	return &result, err
 }
 
 type Review struct {
@@ -574,4 +575,56 @@ func GetManuscriptView(manuscriptId string) (*ManuscriptView, error) {
 type ManuscriptView struct {
 	Manuscript *Manuscript
 	Journal    *Journal
+}
+
+func GetReviewDetailsView(reviewId string) (*ReviewView, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	result := new(ReviewView)
+	result.Review, err = getReviewFromTransaction(tx, reviewId)
+	if err != nil {
+		return nil, err
+	}
+	result.ReviewAuthor, err = getPersonByIdFromTransaction(result.Review.ReviewAuthorId, tx)
+	if err != nil {
+		return nil, err
+	}
+	result.Manuscript, err = getManuscriptFromTransaction(tx, result.Review.ManuscriptId)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type ReviewView struct {
+	Review       *Review
+	ReviewAuthor *Person
+	Manuscript   *Manuscript
+}
+
+type ReviewEditor struct {
+	PersonId       string
+	PersonName     string
+	PersonIsSigned bool
+}
+
+func VerifyReview(reviewId string, data []byte) error {
+	tx, err := db.Beginx()
+	if err != nil {
+		return errors.New("Could not start database transaction")
+	}
+	defer func() { _ = tx.Commit() }()
+	review, err := getReviewFromTransaction(tx, reviewId)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Could not get review with reviewId %s, error is %s",
+			reviewId, err.Error()))
+	}
+	hashOfData := model.HashBytes(data)
+	if review.Hash != hashOfData {
+		return errors.New("Verification failed")
+	}
+	return nil
 }
