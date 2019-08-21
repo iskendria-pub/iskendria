@@ -22,3 +22,7 @@
 a.muted {
     color: gray;
 }
+
+td {
+    vertical-align: top;
+}

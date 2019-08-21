@@ -702,3 +702,40 @@ func getVolumeFromTransaction(tx *sqlx.Tx, volumeId string) (*Volume, error) {
 	}
 	return result, nil
 }
+
+func GetVolumeView(volumeId string) (*VolumeView, error) {
+	result := new(VolumeView)
+	var err error
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	result.Volume, err = getVolumeFromTransaction(tx, volumeId)
+	if err != nil {
+		return nil, err
+	}
+	result.Journal, err = getJournalFromTransaction(tx, result.Volume.JournalId)
+	if err != nil {
+		return nil, err
+	}
+	manuscriptIds, err := getManuscriptsOfVolumeFromTransaction(volumeId, tx)
+	if err != nil {
+		return nil, err
+	}
+	manuscripts := make([]*Manuscript, len(manuscriptIds))
+	for index, id := range manuscriptIds {
+		manuscripts[index], err = getManuscriptFromTransaction(tx, id)
+		if err != nil {
+			return nil, err
+		}
+	}
+	result.Manuscripts = manuscripts
+	return result, nil
+}
+
+type VolumeView struct {
+	Volume      *Volume
+	Journal     *Journal
+	Manuscripts []*Manuscript
+}

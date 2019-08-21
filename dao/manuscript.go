@@ -486,6 +486,35 @@ func combinationsToManuscript(combinations *[]ManuscriptAuthorCombination) *Manu
 	return result
 }
 
+func getManuscriptsOfVolumeFromTransaction(volumeId string, tx *sqlx.Tx) ([]string, error) {
+	manuscriptIds := &[]ManuscriptIds{}
+	err := tx.Select(manuscriptIds, getQueryManuscriptsOfVolume(), volumeId)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, len(*manuscriptIds))
+	for i, m := range *manuscriptIds {
+		result[i] = m.Id
+	}
+	return result, nil
+}
+
+type ManuscriptIds struct {
+	Id string
+}
+
+func getQueryManuscriptsOfVolume() string {
+	return `
+SELECT
+  manuscript.id
+FROM manuscript
+WHERE
+  volumeid = ?
+ORDER BY
+  firstpage
+`
+}
+
 func VerifyManuscript(manuscriptId string, data []byte) error {
 	manuscript, err := GetManuscript(manuscriptId)
 	if err != nil {
