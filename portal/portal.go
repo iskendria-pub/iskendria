@@ -248,7 +248,7 @@ var manuscriptsTemplate = `
 {{- define "manuscriptsTemplate" -}}
   {{range .}}
   <div class="manuscript">
-    <div class="title"><a href="/manuscript/{{.ManuscriptId}}">{{.Title}}</a></div>
+    <div class="title"><a href="/manuscript/{{.Id}}">{{.Title}}</a></div>
     <div class="authors">{{template "authors" .Authors}}</div>
   </div>
   {{end}}
@@ -1089,14 +1089,8 @@ func handleReviewDetail(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type ManuscriptReference struct {
-	ManuscriptId string
-	Title        string
-	Authors      []*dao.Author
-}
-
 type ReviewDetailsView struct {
-	Manuscripts    []*ManuscriptReference
+	Manuscripts    []*dao.Manuscript
 	Review         *dao.Review
 	ReviewAuthor   *dao.ReviewEditor
 	ReviewText     string
@@ -1105,12 +1099,8 @@ type ReviewDetailsView struct {
 
 func reviewToReviewDetailsView(reviewView *dao.ReviewView, hasReviewText bool, reviewText string) *ReviewDetailsView {
 	return &ReviewDetailsView{
-		Manuscripts: []*ManuscriptReference{
-			{
-				ManuscriptId: reviewView.Manuscript.Id,
-				Title:        reviewView.Manuscript.Title,
-				Authors:      reviewView.Manuscript.Authors,
-			},
+		Manuscripts: []*dao.Manuscript{
+			reviewView.Manuscript,
 		},
 		Review: reviewView.Review,
 		ReviewAuthor: &dao.ReviewEditor{
