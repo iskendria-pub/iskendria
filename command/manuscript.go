@@ -97,6 +97,7 @@ func GetCommandManuscriptCreateNewVersion(
 					CommitMsg:            manuscriptCreateNewVersion.CommitMsg,
 					Title:                manuscriptCreateNewVersion.Title,
 					AuthorId:             manuscriptCreateNewVersion.AuthorId,
+					ThreadReference:      daoThreadReferenceToCommandReferenceThread(daoThreadReference),
 					HistoricAuthorId:     historicAuthors,
 				},
 			},
@@ -627,7 +628,7 @@ func (nbce *nonBootstrapCommandExecution) checkManuscriptCreateNewVersion(
 		return nil, errors.New("A manuscript should be submitted by one of its authors")
 	}
 	err := nbce.readAndCheckAddresses(
-		append(append(c.AuthorId, c.PreviousManuscriptId), c.HistoricAuthorId...),
+		append(append(getManuscriptIds(c.ThreadReference), c.PreviousManuscriptId), c.AuthorId...),
 		[]string{c.ManuscriptId})
 	if err != nil {
 		return nil, err
