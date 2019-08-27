@@ -67,18 +67,22 @@ type ManuscriptCreateNewVersion struct {
 
 func GetCommandManuscriptCreateNewVersion(
 	manuscriptCreateNewVersion *ManuscriptCreateNewVersion,
+	daoThreadReference []dao.ReferenceThreadItem,
+	historicAuthors []string,
 	signerId string,
 	cryptoIdentity *CryptoIdentity,
 	price int32) (*Command, string) {
 	manuscriptId := model.CreateManuscriptAddress()
+	threadManuscriptIds := threadReferenceToAuthorIds(daoThreadReference)
 	return &Command{
-		InputAddresses: append(manuscriptCreateNewVersion.AuthorId,
+		InputAddresses: append(append(manuscriptCreateNewVersion.AuthorId,
 			model.GetSettingsAddress(),
 			signerId,
 			manuscriptCreateNewVersion.JournalId,
 			manuscriptId,
 			manuscriptCreateNewVersion.PreviousManuscriptId,
 			manuscriptCreateNewVersion.ThreadId),
+			threadManuscriptIds...),
 		OutputAddresses: []string{signerId, manuscriptId, manuscriptCreateNewVersion.ThreadId},
 		CryptoIdentity:  cryptoIdentity,
 		Command: &model.Command{
@@ -93,10 +97,19 @@ func GetCommandManuscriptCreateNewVersion(
 					CommitMsg:            manuscriptCreateNewVersion.CommitMsg,
 					Title:                manuscriptCreateNewVersion.Title,
 					AuthorId:             manuscriptCreateNewVersion.AuthorId,
+					HistoricAuthorId:     historicAuthors,
 				},
 			},
 		},
 	}, manuscriptId
+}
+
+func threadReferenceToAuthorIds(threadReference []dao.ReferenceThreadItem) []string {
+	result := make([]string, len(threadReference))
+	for i, r := range threadReference {
+		result[i] = r.Id
+	}
+	return result
 }
 
 func GetCommandManuscriptAcceptAuthorship(
@@ -614,7 +627,7 @@ func (nbce *nonBootstrapCommandExecution) checkManuscriptCreateNewVersion(
 		return nil, errors.New("A manuscript should be submitted by one of its authors")
 	}
 	err := nbce.readAndCheckAddresses(
-		append(c.AuthorId, c.PreviousManuscriptId),
+		append(append(c.AuthorId, c.PreviousManuscriptId), c.HistoricAuthorId...),
 		[]string{c.ManuscriptId})
 	if err != nil {
 		return nil, err
@@ -629,6 +642,27 @@ func (nbce *nonBootstrapCommandExecution) checkManuscriptCreateNewVersion(
 	manuscriptThread := nbce.unmarshalledState.manuscriptThreads[previousManuscript.ThreadId]
 	if manuscriptThread.ManuscriptId[len(manuscriptThread.ManuscriptId)-1] != c.PreviousManuscriptId {
 		return nil, errors.New("You can only add a manuscript to the end of its thread")
+	}
+	blockchainHistoricAuthors := nbce.getBlockchainSignedHistoricAuthors(manuscriptThread.Id)
+	if len(c.HistoricAuthorId) != len(blockchainHistoricAuthors) {
+		return nil, errors.New(fmt.Sprintf("Unexpected number of historic signed authors. Expected %d, got %d",
+			len(blockchainHistoricAuthors), len(c.HistoricAuthorId)))
+	}
+	for i := range blockchainHistoricAuthors {
+		if c.HistoricAuthorId[i] != blockchainHistoricAuthors[i] {
+			return nil, errors.New(fmt.Sprintf("Unexpected historic author #%d. Expected %s, got %s",
+				i, blockchainHistoricAuthors[i], c.HistoricAuthorId[i]))
+		}
+	}
+	signerIsHistoricAuthor := false
+	for _, historicAuthor := range blockchainHistoricAuthors {
+		if nbce.verifiedSignerId == historicAuthor {
+			signerIsHistoricAuthor = true
+			break
+		}
+	}
+	if !signerIsHistoricAuthor {
+		return nil, errors.New("You are not allowed to submit a new version, because you are not the author of any existing version")
 	}
 	status := getNewManuscriptStatus(len(c.AuthorId) == 1, manuscriptThread.IsReviewable)
 	versionNumber := int32(len(manuscriptThread.ManuscriptId))
@@ -676,6 +710,18 @@ func checkSanityManuscriptCreateNewVersion(c *model.CommandManuscriptCreateNewVe
 		}
 	}
 	return nil
+}
+
+func (nbce *nonBootstrapCommandExecution) getBlockchainSignedHistoricAuthors(threadId string) []string {
+	result := make([]string, 0)
+	for _, m := range nbce.unmarshalledState.manuscriptThreads[threadId].ManuscriptId {
+		for _, a := range nbce.unmarshalledState.manuscripts[m].Author {
+			if a.DidSign {
+				result = append(result, a.AuthorId)
+			}
+		}
+	}
+	return result
 }
 
 type singleUpdateManuscriptCreateNewVersion struct {

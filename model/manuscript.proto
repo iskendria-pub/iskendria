@@ -69,6 +69,7 @@ message CommandManuscriptCreateNewVersion {
     string commitMsg = 4;
     string title = 5;
     repeated string authorId = 6;
+    repeated string historicAuthorId = 7;
 }
 
 message CommandManuscriptAcceptAuthorship {

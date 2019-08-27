@@ -988,12 +988,26 @@ func TestManuscriptCreateNewVersion(t *testing.T) {
 			ThreadId:             threadId,
 			JournalId:            getTheOnlyDaoJournal(t).JournalId,
 		}
+		threadReference, err := dao.GetReferenceThread(threadId)
+		if err != nil {
+			t.Error(fmt.Sprintf("Could not get list of manuscripts in thread %s: %s",
+				threadId, err.Error()))
+			return
+		}
+		historicAuthors, err := dao.GetHistoricSignedAuthors(threadId)
+		if err != nil {
+			t.Error(fmt.Sprintf("Could not get list of historic signed authors for thead %s: %s",
+				threadId, err.Error()))
+			return
+		}
 		cmd, newManuscriptId := command.GetCommandManuscriptCreateNewVersion(
 			manuscriptCreateNewVersion,
+			threadReference,
+			historicAuthors,
 			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
 			cliAlexandria.LoggedIn(),
 			priceAuthorSubmitNewVersion)
-		err := command.RunCommandForTest(cmd, "transactionIdManuscriptCreateNewVersion", blockchainAccess)
+		err = command.RunCommandForTest(cmd, "transactionIdManuscriptCreateNewVersion", blockchainAccess)
 		if err != nil {
 			t.Error(err)
 		}

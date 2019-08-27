@@ -93,3 +93,64 @@ type acceptAuthorshipContext struct {
 	expectedAllAuthorsWillHaveSigned bool
 	expectedNewStatus                model.ManuscriptStatus
 }
+
+func TestGetBlockchainSignedHistoricAuthors(t *testing.T) {
+	nbce := &nonBootstrapCommandExecution{
+		unmarshalledState: &unmarshalledState{
+			manuscriptThreads: map[string]*model.StateManuscriptThread{
+				"thread": {
+					Id:           "thread",
+					ManuscriptId: []string{"m1", "m2"},
+				},
+			},
+			manuscripts: map[string]*model.StateManuscript{
+				"m1": &model.StateManuscript{
+					Id:            "m1",
+					ThreadId:      "thread",
+					VersionNumber: 0,
+					Author: []*model.Author{
+						{
+							AuthorId:     "a1",
+							DidSign:      true,
+							AuthorNumber: 0,
+						},
+						{
+							AuthorId:     "a2",
+							DidSign:      false,
+							AuthorNumber: 1,
+						},
+					},
+				},
+				"m2": &model.StateManuscript{
+					Id:            "m2",
+					ThreadId:      "thread",
+					VersionNumber: 1,
+					Author: []*model.Author{
+						{
+							AuthorId:     "a3",
+							DidSign:      true,
+							AuthorNumber: 2,
+						},
+						{
+							AuthorId:     "a4",
+							DidSign:      true,
+							AuthorNumber: 3,
+						},
+					},
+				},
+			},
+		},
+	}
+	actual := nbce.getBlockchainSignedHistoricAuthors("thread")
+	expected := []string{"a1", "a3", "a4"}
+	if len(actual) != len(expected) {
+		t.Error(fmt.Sprintf("Invalid number of historic authors. Expected %d, got %d",
+			len(expected), len(actual)))
+	}
+	for i := range expected {
+		if actual[i] != expected[i] {
+			t.Error(fmt.Sprintf("Historic signer author mismatch for index %d. Expected %s, got %s",
+				i, expected[i], actual[i]))
+		}
+	}
+}

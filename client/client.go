@@ -507,6 +507,18 @@ func manuscriptCreateNewVersion(outputter cli.Outputter, manuscriptCreateNewVers
 			manuscriptCreateNewVersion.PreviousManuscriptId, err))
 		return
 	}
+	threadReference, err := dao.GetReferenceThread(previousManuscript.ThreadId)
+	if err != nil {
+		outputter(fmt.Sprintf("Could not get list of manuscripts in thread %s: %s",
+			previousManuscript.ThreadId, err.Error()))
+		return
+	}
+	historicAuthors, err := dao.GetHistoricSignedAuthors(previousManuscript.ThreadId)
+	if err != nil {
+		outputter(fmt.Sprintf("Could not get list of historic signed authors for thead %s: %s",
+			previousManuscript.ThreadId, err.Error()))
+		return
+	}
 	cmd, manuscriptId := command.GetCommandManuscriptCreateNewVersion(
 		&command.ManuscriptCreateNewVersion{
 			TheManuscript:        manuscriptData,
@@ -517,6 +529,8 @@ func manuscriptCreateNewVersion(outputter cli.Outputter, manuscriptCreateNewVers
 			ThreadId:             previousManuscript.ThreadId,
 			JournalId:            previousManuscript.JournalId,
 		},
+		threadReference,
+		historicAuthors,
 		cliAlexandria.LoggedInPerson.Id,
 		cliAlexandria.LoggedIn(),
 		cliAlexandria.Settings.PriceAuthorSubmitNewVersion)

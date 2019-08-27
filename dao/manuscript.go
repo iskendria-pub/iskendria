@@ -558,6 +558,43 @@ ORDER BY versionnumber
 `
 }
 
+func GetHistoricSignedAuthors(threadId string) ([]string, error) {
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	rawResult := make([]HistoricAuthor, 0)
+	err = tx.Select(&rawResult, getQuerySignedHistoricAuthors(), threadId)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, len(rawResult))
+	for i, r := range rawResult {
+		result[i] = r.PersonId
+	}
+	return result, nil
+}
+
+type HistoricAuthor struct {
+	VersionNumber int32
+	PersonId      string
+}
+
+func getQuerySignedHistoricAuthors() string {
+	return `
+SELECT
+  manuscript.versionnumber,
+  author.personid
+FROM manuscript, author
+WHERE
+  manuscript.threadid = ?
+  AND author.manuscriptid = manuscript.id
+  AND author.didsign = true
+ORDER BY manuscript.versionnumber, author.authornumber
+`
+}
+
 func GetReview(reviewId string) (*Review, error) {
 	tx, err := db.Beginx()
 	if err != nil {
