@@ -104,7 +104,7 @@ func TestGetBlockchainSignedHistoricAuthors(t *testing.T) {
 				},
 			},
 			manuscripts: map[string]*model.StateManuscript{
-				"m1": &model.StateManuscript{
+				"m1": {
 					Id:            "m1",
 					ThreadId:      "thread",
 					VersionNumber: 0,
@@ -121,7 +121,7 @@ func TestGetBlockchainSignedHistoricAuthors(t *testing.T) {
 						},
 					},
 				},
-				"m2": &model.StateManuscript{
+				"m2": {
 					Id:            "m2",
 					ThreadId:      "thread",
 					VersionNumber: 1,
