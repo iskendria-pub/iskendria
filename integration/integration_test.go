@@ -856,8 +856,9 @@ func TestCreateVolume(t *testing.T) {
 		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		journalId := getTheOnlyDaoJournal(t).JournalId
 		vol := &command.Volume{
-			JournalId: journalId,
-			Issue:     "My issue",
+			JournalId:              journalId,
+			Issue:                  "My issue",
+			LogicalPublicationTime: THE_LOGICAL_PUBLICATION_TIME,
 		}
 		cmd, volumeId := command.GetCommandVolumeCreate(
 			vol,
@@ -903,6 +904,9 @@ func checkDaoVolumeContents(actual *dao.Volume, expectedVolumeId, expectedJourna
 	if util.Abs(actual.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
 		t.Error("CreatedOn mismatch")
 	}
+	if actual.LogicalPublicationTime != THE_LOGICAL_PUBLICATION_TIME {
+		t.Error("LogicalPublicationTime mismatch")
+	}
 }
 
 func checkCreatedStateVolume(theVolume *model.StateVolume, volumeId, journalId string, t *testing.T) {
@@ -917,6 +921,9 @@ func checkCreatedStateVolume(theVolume *model.StateVolume, volumeId, journalId s
 	}
 	if util.Abs(theVolume.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
 		t.Error("CreatedOn mismatch")
+	}
+	if theVolume.LogicalPublicationTime != THE_LOGICAL_PUBLICATION_TIME {
+		t.Error("LogicalPublicationTime mismatch")
 	}
 }
 

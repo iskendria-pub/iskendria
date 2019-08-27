@@ -60,6 +60,7 @@ CREATE TABLE volume (
 	createdon integer not null,
     journalid VARCHAR not null,
     issue VARCHAR not null,
+    logicalpublicationtime integer not null,
     PRIMARY KEY (volumeid),
     FOREIGN KEY (journalid) REFERENCES journal(journalid)
 )
@@ -68,7 +69,8 @@ CREATE TABLE volume (
 const EV_TYPE_VOLUME_CREATE = "evVolumeCreate"
 
 const (
-	EV_KEY_VOLUME_ISSUE = "issue"
+	EV_KEY_VOLUME_ISSUE                    = "issue"
+	EV_KEY_VOLUME_LOGICAL_PUBLICATION_TIME = "logicalPublicationTime"
 )
 
 func CreateVolumeAddress() string {

@@ -22,6 +22,8 @@ var majorName = "Brita"
 
 const SUFFICIENT_BALANCE = int32(1000)
 
+const THE_LOGICAL_PUBLICATION_TIME = int64(481)
+
 const priceMajorEditSettings int32 = 101
 const priceMajorCreatePerson int32 = 102
 const priceMajorChangePersonAuthorization int32 = 103

@@ -766,8 +766,9 @@ func (u *singleUpdateEditorAcceptDuty) issueEvent(
 }
 
 type Volume struct {
-	JournalId string
-	Issue     string
+	JournalId              string
+	Issue                  string
+	LogicalPublicationTime int64
 }
 
 func GetCommandVolumeCreate(
@@ -786,9 +787,10 @@ func GetCommandVolumeCreate(
 			Timestamp: model.GetCurrentTime(),
 			Body: &model.Command_CommandVolumeCreate{
 				CommandVolumeCreate: &model.CommandVolumeCreate{
-					VolumeId:  volumeId,
-					JournalId: v.JournalId,
-					Issue:     v.Issue,
+					VolumeId:               volumeId,
+					JournalId:              v.JournalId,
+					Issue:                  v.Issue,
+					LogicalPublicationTime: v.LogicalPublicationTime,
 				},
 			},
 		},
@@ -824,30 +826,33 @@ func (nbce *nonBootstrapCommandExecution) checkVolumeCreate(c *model.CommandVolu
 		unmarshalledState: nbce.unmarshalledState,
 		updates: []singleUpdate{
 			&singleUpdateVolumeCreate{
-				volumeId:  c.VolumeId,
-				journalId: c.JournalId,
-				issue:     c.Issue,
-				timestamp: nbce.timestamp,
+				volumeId:               c.VolumeId,
+				journalId:              c.JournalId,
+				issue:                  c.Issue,
+				timestamp:              nbce.timestamp,
+				logicalPublicationTime: c.LogicalPublicationTime,
 			},
 		},
 	}, nil
 }
 
 type singleUpdateVolumeCreate struct {
-	volumeId  string
-	journalId string
-	issue     string
-	timestamp int64
+	volumeId               string
+	journalId              string
+	issue                  string
+	timestamp              int64
+	logicalPublicationTime int64
 }
 
 var _ singleUpdate = new(singleUpdateVolumeCreate)
 
 func (u *singleUpdateVolumeCreate) updateState(state *unmarshalledState) (writtenAddresses []string) {
 	state.volumes[u.volumeId] = &model.StateVolume{
-		Id:        u.volumeId,
-		CreatedOn: u.timestamp,
-		JournalId: u.journalId,
-		Issue:     u.issue,
+		Id:                     u.volumeId,
+		CreatedOn:              u.timestamp,
+		JournalId:              u.journalId,
+		Issue:                  u.issue,
+		LogicalPublicationTime: u.logicalPublicationTime,
 	}
 	return []string{u.volumeId}
 }
@@ -878,6 +883,10 @@ func (u *singleUpdateVolumeCreate) issueEvent(eventSeq int32, transactionId stri
 			{
 				Key:   model.EV_KEY_VOLUME_ISSUE,
 				Value: u.issue,
+			},
+			{
+				Key:   model.EV_KEY_VOLUME_LOGICAL_PUBLICATION_TIME,
+				Value: fmt.Sprintf("%d", u.logicalPublicationTime),
 			},
 		}, []byte{})
 }

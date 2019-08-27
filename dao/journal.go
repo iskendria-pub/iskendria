@@ -642,6 +642,9 @@ func createVolumeCreateEvent(ev *events_pb2.Event) (event, error) {
 			dm.journalId = a.Value
 		case model.EV_KEY_VOLUME_ISSUE:
 			dm.issue = a.Value
+		case model.EV_KEY_VOLUME_LOGICAL_PUBLICATION_TIME:
+			i64, err = strconv.ParseInt(a.Value, 10, 64)
+			dm.logicalPublicationTime = i64
 		}
 		if err != nil {
 			return nil, err
@@ -651,17 +654,18 @@ func createVolumeCreateEvent(ev *events_pb2.Event) (event, error) {
 }
 
 type dataManipulationVolumeCreate struct {
-	volumeId  string
-	journalId string
-	createdOn int64
-	issue     string
+	volumeId               string
+	journalId              string
+	createdOn              int64
+	issue                  string
+	logicalPublicationTime int64
 }
 
 var _ dataManipulation = new(dataManipulationVolumeCreate)
 
 func (dm *dataManipulationVolumeCreate) apply(tx *sqlx.Tx) error {
-	_, err := tx.Exec("INSERT INTO volume VALUES(?, ?, ?, ?)",
-		dm.volumeId, dm.createdOn, dm.journalId, dm.issue)
+	_, err := tx.Exec("INSERT INTO volume VALUES(?, ?, ?, ?, ?)",
+		dm.volumeId, dm.createdOn, dm.journalId, dm.issue, dm.logicalPublicationTime)
 	return err
 }
 
@@ -672,16 +676,17 @@ func GetVolumesOfJournal(journalId string) ([]Volume, error) {
 	}
 	defer func() { _ = tx.Commit() }()
 	result := []Volume{}
-	err = tx.Select(&result, "SELECT * FROM volume WHERE journalId = ? ORDER BY issue DESC",
+	err = tx.Select(&result, "SELECT * FROM volume WHERE journalId = ? ORDER BY logicalpublicationtime DESC",
 		journalId)
 	return result, err
 }
 
 type Volume struct {
-	VolumeId  string
-	CreatedOn int64
-	JournalId string
-	Issue     string
+	VolumeId               string
+	CreatedOn              int64
+	JournalId              string
+	Issue                  string
+	LogicalPublicationTime int64
 }
 
 func GetVolume(volumeId string) (*Volume, error) {
@@ -695,7 +700,7 @@ func GetVolume(volumeId string) (*Volume, error) {
 
 func getVolumeFromTransaction(tx *sqlx.Tx, volumeId string) (*Volume, error) {
 	result := &Volume{}
-	err := tx.Get(result, "SELECT * FROM volume WHERE volumeId = ? ORDER BY issue DESC",
+	err := tx.Get(result, "SELECT * FROM volume WHERE volumeId = ? ORDER BY logicalpublicationtime DESC",
 		volumeId)
 	if err != nil {
 		return nil, err
