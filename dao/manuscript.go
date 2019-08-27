@@ -515,6 +515,34 @@ ORDER BY
 `
 }
 
+func getPublishedManuscriptsFromTransaction(journalId string, tx *sqlx.Tx) ([]string, error) {
+	manuscriptIds := &[]ManuscriptIds{}
+	err := tx.Select(manuscriptIds, getQueryManuscriptsOfVolume(),
+		journalId,
+		model.GetManuscriptStatusString(model.ManuscriptStatus_published))
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, len(*manuscriptIds))
+	for i, m := range *manuscriptIds {
+		result[i] = m.Id
+	}
+	return result, nil
+}
+
+func getQueryUnpublishedManuscripts() string {
+	return `
+SELECT
+  id
+FROM manuscript
+WHERE
+  journalid = ?
+  AND status = ?
+ORDER BY
+  title
+`
+}
+
 func GetReferenceThread(threadId string) ([]ReferenceThreadItem, error) {
 	tx, err := db.Beginx()
 	if err != nil {

@@ -744,3 +744,35 @@ type VolumeView struct {
 	Journal     *Journal
 	Manuscripts []*Manuscript
 }
+
+type PublishedManuscriptView struct {
+	Journal     *Journal
+	Manuscripts []*Manuscript
+}
+
+func GetPublishedManuscriptView(journalId string) (*PublishedManuscriptView, error) {
+	result := new(PublishedManuscriptView)
+	var err error
+	tx, err := db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Commit() }()
+	result.Journal, err = getJournalFromTransaction(tx, journalId)
+	if err != nil {
+		return nil, err
+	}
+	manuscriptIds, err := getPublishedManuscriptsFromTransaction(journalId, tx)
+	if err != nil {
+		return nil, err
+	}
+	manuscripts := make([]*Manuscript, len(manuscriptIds))
+	for index, id := range manuscriptIds {
+		manuscripts[index], err = getManuscriptFromTransaction(tx, id)
+		if err != nil {
+			return nil, err
+		}
+	}
+	result.Manuscripts = manuscripts
+	return result, nil
+}

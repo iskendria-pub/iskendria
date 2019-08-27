@@ -98,7 +98,16 @@ var journalTemplate = `
   {{end}}
   {{template "manageDocument" .ManageDocument}}
   <h2>Volumes</h2>
-  {{template "volumes" .Volumes}}
+  <table>
+  <tr>
+    <td><a href="/published/{{.JournalView.JournalId}}">Published, not yet assigned to volume</a></td>
+  </tr>
+  {{range .Volumes}}
+  <tr>
+    <td><a href="/volume/{{.VolumeId}}">{{.Issue}}</a></td>
+  </tr>
+  {{end}}
+  </table>
 </body>
 `
 
@@ -186,6 +195,29 @@ var volumeTemplate = `
     <tr>
       <td>{{.FirstPage}} &hyphen; {{.LastPage}}</td>
       <td>&#x2005;</td>
+      <td><a href="/manuscript/{{.Id}}">{{.Title}}</a>
+        <div class="authors">{{template "authors" .Authors}}</div>
+      </td>
+    </tr>
+    {{- end -}}
+  </table>
+  {{end}}
+</body>
+`
+
+var publishedManuscriptsPageTemplate = `
+<head>
+  <title>Alexandria</title>
+  <link rel="stylesheet" href="/public/alexandria.css"/>
+</head>
+<body>
+  <h1>Alexandria</h1>
+  {{template "journalsTemplate" .Journal}}
+  <h2>Published, not yet assigned to volume</h2>
+  {{with .Manuscripts}}
+  <table>
+    {{- range . -}}
+    <tr>
       <td><a href="/manuscript/{{.Id}}">{{.Title}}</a>
         <div class="authors">{{template "authors" .Authors}}</div>
       </td>
@@ -365,6 +397,7 @@ func runHttpServer() {
 	r.HandleFunc("/personUpdate/{id}", personUpdate)
 	r.HandleFunc("/personVerifyAndRefresh/{id}", personVerifyAndRefresh)
 	r.HandleFunc("/volume/{volumeId}", handleVolume)
+	r.HandleFunc("/published/{journalId}", handlePublished)
 	r.HandleFunc("/manuscript/{manuscriptId}", handleManuscript)
 	r.HandleFunc("/manuscriptUpdate/{id}", manuscriptUpdate)
 	r.HandleFunc("/manuscriptDownload/{id}.pdf", handleManuscriptDownload)
@@ -873,6 +906,40 @@ type VolumeContext struct {
 
 var parsedVolumeTemplate = util.ParseTemplates("volume",
 	editorsTemplate, journalsTemplate, authorsTemplate, volumeTemplate)
+
+func handlePublished(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Entering handlePublished...\n")
+	defer log.Printf("Left handlePublished\n")
+	vars := mux.Vars(r)
+	journalId := vars["journalId"]
+	published, err := dao.GetPublishedManuscriptView(journalId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprintf(w, "Could not find journal for journalId: "+journalId)
+		return
+	}
+	err = parsedPublishedTemplate.Execute(w, publishedToPublishedContext(published))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprintf(w, "Could not parse volume template: "+err.Error())
+		return
+	}
+}
+
+func publishedToPublishedContext(published *dao.PublishedManuscriptView) *PublishedContext {
+	return &PublishedContext{
+		Journal:     []*dao.Journal{published.Journal},
+		Manuscripts: published.Manuscripts,
+	}
+}
+
+type PublishedContext struct {
+	Journal     []*dao.Journal
+	Manuscripts []*dao.Manuscript
+}
+
+var parsedPublishedTemplate = util.ParseTemplates("published",
+	editorsTemplate, journalsTemplate, authorsTemplate, publishedManuscriptsPageTemplate)
 
 func handleManuscript(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Entering handleManuscript...\n")
