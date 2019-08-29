@@ -517,7 +517,7 @@ ORDER BY
 
 func getPublishedManuscriptsFromTransaction(journalId string, tx *sqlx.Tx) ([]string, error) {
 	manuscriptIds := &[]ManuscriptIds{}
-	err := tx.Select(manuscriptIds, getQueryManuscriptsOfVolume(),
+	err := tx.Select(manuscriptIds, getQueryPublishedManuscripts(),
 		journalId,
 		model.GetManuscriptStatusString(model.ManuscriptStatus_published))
 	if err != nil {
@@ -530,7 +530,7 @@ func getPublishedManuscriptsFromTransaction(journalId string, tx *sqlx.Tx) ([]st
 	return result, nil
 }
 
-func getQueryUnpublishedManuscripts() string {
+func getQueryPublishedManuscripts() string {
 	return `
 SELECT
   id
