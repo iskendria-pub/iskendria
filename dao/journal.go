@@ -728,12 +728,9 @@ func GetVolumeView(volumeId string) (*VolumeView, error) {
 	if err != nil {
 		return nil, err
 	}
-	manuscripts := make([]*Manuscript, len(manuscriptIds))
-	for index, id := range manuscriptIds {
-		manuscripts[index], err = getManuscriptFromTransaction(tx, id)
-		if err != nil {
-			return nil, err
-		}
+	manuscripts, err := readManuscriptsFromTransaction(tx, manuscriptIds)
+	if err != nil {
+		return nil, err
 	}
 	result.Manuscripts = manuscripts
 	return result, nil

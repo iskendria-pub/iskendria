@@ -177,6 +177,8 @@ var cvTemplate = `
   {{template "manageDocument" .ManageDocument}}
   <h2>Editor of:</h2>
   {{template "journalsTemplate" .Journals}}
+  <h2>Publications</h2>
+  {{template "manuscriptsTemplate" .Manuscripts}}
 </body>
 `
 
@@ -189,6 +191,13 @@ var volumeTemplate = `
   <h1>Alexandria</h1>
   {{template "journalsTemplate" .Journal}}
   <h2>{{.Volume.Issue}}</h2>
+  <table>
+    <tr>
+      <td>Volume id:</td>
+      <td>{{.Volume.VolumeId}}</td>
+    </tr>
+  </table>
+  <br />
   {{with .Manuscripts}}
   <table>
     {{- range . -}}
@@ -704,7 +713,7 @@ func handlePerson(w http.ResponseWriter, r *http.Request) {
 }
 
 var parsedPersonTemplate = parseTemplatesWithManageDocument("cvTemplate",
-	editorsTemplate, journalsTemplate, cvTemplate)
+	editorsTemplate, journalsTemplate, authorsTemplate, manuscriptsTemplate, cvTemplate)
 
 func personToCVContext(cv *dao.CV) *CVContext {
 	result := &CVContext{
@@ -731,7 +740,8 @@ func personToCVContext(cv *dao.CV) *CVContext {
 			VerifyUrlComponent:   "personVerifyAndRefresh",
 			SubjectWord:          "biography",
 		},
-		Journals: cv.Journals,
+		Journals:    cv.Journals,
+		Manuscripts: cv.Manuscripts,
 	}
 	if cv.Person.BiographyHash == "" {
 		return result
@@ -754,6 +764,7 @@ func personToCVContext(cv *dao.CV) *CVContext {
 type CVContext struct {
 	PersonView     PersonView
 	Journals       []*dao.Journal
+	Manuscripts    []*dao.Manuscript
 	ManageDocument manageDocument.ManageDocumentContext
 }
 

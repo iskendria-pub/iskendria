@@ -523,11 +523,15 @@ func getPublishedManuscriptsFromTransaction(journalId string, tx *sqlx.Tx) ([]st
 	if err != nil {
 		return nil, err
 	}
+	return manuscriptIdsToStringSlice(manuscriptIds), nil
+}
+
+func manuscriptIdsToStringSlice(manuscriptIds *[]ManuscriptIds) []string {
 	result := make([]string, len(*manuscriptIds))
 	for i, m := range *manuscriptIds {
 		result[i] = m.Id
 	}
-	return result, nil
+	return result
 }
 
 func getQueryPublishedManuscripts() string {
@@ -541,6 +545,44 @@ WHERE
 ORDER BY
   title
 `
+}
+
+func getCVManuscriptsFromTransaction(personId string, tx *sqlx.Tx) ([]string, error) {
+	manuscriptIds := &[]ManuscriptIds{}
+	err := tx.Select(manuscriptIds, getQueryCVManuscripts(),
+		personId,
+		model.GetManuscriptStatusString(model.ManuscriptStatus_published),
+		model.GetManuscriptStatusString(model.ManuscriptStatus_assigned))
+	if err != nil {
+		return nil, err
+	}
+	return manuscriptIdsToStringSlice(manuscriptIds), nil
+}
+
+func getQueryCVManuscripts() string {
+	return `
+SELECT
+  manuscript.id
+FROM manuscript, author
+WHERE
+  author.manuscriptid = manuscript.id
+  AND author.personid = ?
+  AND manuscript.status IN (?, ?)
+ORDER BY
+  title
+`
+}
+
+func readManuscriptsFromTransaction(tx *sqlx.Tx, manuscriptIds []string) ([]*Manuscript, error) {
+	var err error
+	manuscripts := make([]*Manuscript, len(manuscriptIds))
+	for index, id := range manuscriptIds {
+		manuscripts[index], err = getManuscriptFromTransaction(tx, id)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return manuscripts, nil
 }
 
 func GetReferenceThread(threadId string) ([]ReferenceThreadItem, error) {

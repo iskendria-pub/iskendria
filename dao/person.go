@@ -130,12 +130,22 @@ func GetCV(personId string) (*CV, error) {
 	if cv.Journals == nil {
 		cv.Journals = []*Journal{}
 	}
+	manuscriptIds, err := getCVManuscriptsFromTransaction(personId, tx)
+	if err != nil {
+		return nil, err
+	}
+	manuscripts, err := readManuscriptsFromTransaction(tx, manuscriptIds)
+	if err != nil {
+		return nil, err
+	}
+	cv.Manuscripts = manuscripts
 	return cv, nil
 }
 
 type CV struct {
-	Person   *Person
-	Journals []*Journal
+	Person      *Person
+	Journals    []*Journal
+	Manuscripts []*Manuscript
 }
 
 func createPersonCreateEvent(event *events_pb2.Event) (event, error) {
