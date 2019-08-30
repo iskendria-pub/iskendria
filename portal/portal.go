@@ -52,11 +52,11 @@ var journalsTemplate = `
 
 var journalsPageTemplate = `
 <head>
-  <title>Alexandria</title>
+  <title>Iskendria</title>
   <link rel="stylesheet" href="/public/alexandria.css"/>
 </head>
 <body>
-  <h1>Alexandria</h1>
+  <h1>Iskendria</h1>
   {{template "journalsTemplate" .}} 
 </body>
 `
@@ -75,12 +75,12 @@ var volumesTemplate = `
 
 var journalTemplate = `
 <head>
-  <title>Alexandria</title>
+  <title>Iskendria</title>
   <link rel="stylesheet" href="/public/alexandria.css"/>
 </head>
 <body>
   {{with .JournalView}}
-  <h1>Alexandria</h1>
+  <h1>Iskendria</h1>
   <h2>{{.Title}}</h2>
   <table>
     <tr>
@@ -113,12 +113,12 @@ var journalTemplate = `
 
 var cvTemplate = `
 <head>
-  <title>Alexandria</title>
+  <title>Iskendria</title>
   <link rel="stylesheet" href="/public/alexandria.css"/>
 </head>
 <body>
   {{with .PersonView}}
-  <h1>Alexandria</h1>
+  <h1>Iskendria</h1>
   <h2>{{.Name}}</h2>
    <table>
      <tr>
@@ -184,11 +184,11 @@ var cvTemplate = `
 
 var volumeTemplate = `
 <head>
-  <title>Alexandria</title>
+  <title>Iskendria</title>
   <link rel="stylesheet" href="/public/alexandria.css"/>
 </head>
 <body>
-  <h1>Alexandria</h1>
+  <h1>Iskendria</h1>
   {{template "journalsTemplate" .Journal}}
   <h2>{{.Volume.Issue}}</h2>
   <table>
@@ -216,11 +216,11 @@ var volumeTemplate = `
 
 var publishedManuscriptsPageTemplate = `
 <head>
-  <title>Alexandria</title>
+  <title>Iskendria</title>
   <link rel="stylesheet" href="/public/alexandria.css"/>
 </head>
 <body>
-  <h1>Alexandria</h1>
+  <h1>Iskendria</h1>
   {{template "journalsTemplate" .Journal}}
   <h2>Published, not yet assigned to volume</h2>
   {{with .Manuscripts}}
@@ -239,12 +239,12 @@ var publishedManuscriptsPageTemplate = `
 
 var manuscriptTemplate = `
 <head>
-  <title>Alexandria</title>
+  <title>Iskendria</title>
   <link rel="stylesheet" href="/public/alexandria.css"/>
 </head>
 <body>
   {{with .Manuscript}}
-  <h1>Alexandria</h1>
+  <h1>Iskendria</h1>
   <h2>{{.Title}}</h2>
   <div class="authors">{{template "authors" .Authors}}</div>
   <p/>
@@ -311,11 +311,11 @@ var manuscriptsTemplate = `
 
 var reviewPageTemplate = `
 <head>
-  <title>Alexandria</title>
+  <title>Iskendria</title>
   <link rel="stylesheet" href="/public/alexandria.css"/>
 </head>
 <body>
-  <h1>Alexandria</h1>
+  <h1>Iskendria</h1>
   <h2>Subject of review</h2>
   {{template "manuscriptsTemplate" .Manuscripts}}
   <h2>Review</h2>
