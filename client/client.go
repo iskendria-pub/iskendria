@@ -14,7 +14,7 @@ import (
 )
 
 var description = strings.TrimSpace(`
-Welcome to the Alexandria Client Tool. Use this tool to
+Welcome to the Iskendria Client Tool. Use this tool to
 register and to manage manuscripts, reviews and journals.
 `)
 
@@ -23,8 +23,8 @@ var makeGreen = "\033[32m"
 func main() {
 	context := &cli.Cli{
 		FullDescription:    description,
-		OneLineDescription: "Alexandria Client Tool",
-		Name:               "alexandria-client",
+		OneLineDescription: "Iskendria Client Tool",
+		Name:               "iskendria-client",
 		FormatEscape:       makeGreen,
 		EventPager:         cliAlexandria.PageEventStreamMessages,
 		Handlers: append(cliAlexandria.CommonRootHandlers,

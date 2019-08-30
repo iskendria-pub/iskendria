@@ -17,17 +17,17 @@ const (
 )
 
 var description = strings.TrimSpace(`
-Alexandria Major Tool. Alexandria manages scientific publications
+Iskendria Major Tool. Iskendria manages scientific publications
 on a Hyperledger Sawtooth blockchain. This is the user interface
-for majors, members of the Alexandria team. This tool allows them
+for majors, members of the Iskendria team. This tool allows them
 to manage the blockchain.
 `)
 
 func main() {
 	context := &cli.Cli{
 		FullDescription:    description,
-		OneLineDescription: "Alexandria Major Tool",
-		Name:               "alexandria-major",
+		OneLineDescription: "Iskendria Major Tool",
+		Name:               "iskendria-major",
 		FormatEscape:       makeRed,
 		EventPager:         cliAlexandria.PageEventStreamMessages,
 		Handlers: append(cliAlexandria.CommonRootHandlers,
@@ -38,7 +38,7 @@ func main() {
 				Name:               "settings",
 				Handlers: append(cliAlexandria.CommonSettingsHandlers,
 					&cli.StructRunnerHandler{
-						FullDescription:    "Welcome to the dialog to bootstrap Alexandria",
+						FullDescription:    "Welcome to the dialog to bootstrap Iskendria",
 						OneLineDescription: "Bootstrap",
 						Name:               "bootstrap",
 						Action:             bootstrap,
