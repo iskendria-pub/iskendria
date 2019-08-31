@@ -15,3 +15,5 @@ The following roles exist:
 * Major: Member of the Iskendria team.
 
 Note that Authors, Editors and Reviewers are all a Person.
+
+More information about the functionality of this software can be found in the Markdown files (.md) in the root directory. These files can be formatted using LaTeX, a howto for doing this may be included later. The resulting .pdf files are checked in in the directory pdfdoc. Note that the information is a bit outdated; it was written before coding started.
