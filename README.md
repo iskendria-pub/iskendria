@@ -17,3 +17,5 @@ The following roles exist:
 Note that Authors, Editors and Reviewers are all a Person.
 
 More information about the functionality of this software can be found in the Markdown files (.md) in the root directory. These files can be formatted using LaTeX, a howto for doing this may be included later. The resulting .pdf files are checked in in the directory pdfdoc. Note that the information is a bit outdated; it was written before coding started.
+
+On August 31 2019 I ported this project from our private gitlab repository to the present GitHub project. We also had Jira issues. First I ported these using https://github.com/hbrands/jira-issues-importer. This copied the issue names and preserved the issue numbers. The number of the Jira issue was put in the first comment of the corresponding GitHub issue. Then I manually put the Jira description as the second comment and copied the Jira comments. The creation times of the issues were preserved, but the creation times of the comments were lost.
