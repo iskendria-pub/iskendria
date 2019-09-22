@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"github.com/iskendria-pub/iskendria/dao"
 	"os"
 	"reflect"
 	"text/template"
@@ -17,8 +17,8 @@ package command
 import (
 	"errors"
 	"fmt"
-    "gitlab.bbinfra.net/3estack/alexandria/dao"
-    "gitlab.bbinfra.net/3estack/alexandria/model"
+    "github.com/iskendria-pub/iskendria/dao"
+    "github.com/iskendria-pub/iskendria/model"
 )
 
 {{define "Update"}}

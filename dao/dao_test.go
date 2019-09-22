@@ -3,8 +3,8 @@ package dao
 import (
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
-	"gitlab.bbinfra.net/3estack/alexandria/util"
+	"github.com/iskendria-pub/iskendria/model"
+	"github.com/iskendria-pub/iskendria/util"
 	"log"
 	"os"
 	"strconv"

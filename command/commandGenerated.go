@@ -6,8 +6,8 @@ package command
 import (
 	"errors"
 	"fmt"
-	"gitlab.bbinfra.net/3estack/alexandria/dao"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"github.com/iskendria-pub/iskendria/dao"
+	"github.com/iskendria-pub/iskendria/model"
 )
 
 func createModelCommandSettingsUpdate(orig, updated *dao.Settings) *model.CommandSettingsUpdate {

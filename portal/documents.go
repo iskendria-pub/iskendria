@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"github.com/iskendria-pub/iskendria/model"
 	"io/ioutil"
 	"os"
 	"sync"

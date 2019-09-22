@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"gitlab.bbinfra.net/3estack/alexandria/cli"
+	"github.com/iskendria-pub/iskendria/cli"
 	"strings"
 )
 

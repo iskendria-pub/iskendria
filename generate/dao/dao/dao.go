@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"github.com/iskendria-pub/iskendria/dao"
 	"log"
 	"os"
 )

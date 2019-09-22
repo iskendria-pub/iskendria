@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"github.com/hyperledger/sawtooth-sdk-go/signing"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
-	"gitlab.bbinfra.net/3estack/alexandria/util"
+	"github.com/iskendria-pub/iskendria/model"
+	"github.com/iskendria-pub/iskendria/util"
 	"log"
 )
 

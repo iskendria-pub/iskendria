@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
-	"gitlab.bbinfra.net/3estack/alexandria/dao"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
-	"gitlab.bbinfra.net/3estack/alexandria/util"
+	"github.com/iskendria-pub/iskendria/dao"
+	"github.com/iskendria-pub/iskendria/model"
+	"github.com/iskendria-pub/iskendria/util"
 	"strconv"
 )
 

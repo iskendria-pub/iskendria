@@ -2,7 +2,7 @@ package cli
 
 import (
 	"fmt"
-	"gitlab.bbinfra.net/3estack/alexandria/util"
+	"github.com/iskendria-pub/iskendria/util"
 	"reflect"
 	"strings"
 )

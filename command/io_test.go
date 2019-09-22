@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/golang/protobuf/proto"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"github.com/iskendria-pub/iskendria/model"
 	"testing"
 )
 

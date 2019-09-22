@@ -1,7 +1,7 @@
 package dao
 
 import (
-	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"github.com/iskendria-pub/iskendria/model"
 	"log"
 	"os"
 	"testing"

@@ -3,7 +3,7 @@ package dao
 import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"github.com/iskendria-pub/iskendria/model"
 	"log"
 	"os"
 	"testing"

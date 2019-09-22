@@ -2,7 +2,7 @@ package dao
 
 import (
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"github.com/iskendria-pub/iskendria/model"
 	"log"
 )
 

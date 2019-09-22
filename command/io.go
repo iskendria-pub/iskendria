@@ -4,7 +4,7 @@ import (
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/processor_pb2"
-	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"github.com/iskendria-pub/iskendria/dao"
 	"log"
 )
 

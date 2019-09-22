@@ -2,9 +2,9 @@ package cliAlexandria
 
 import (
 	"fmt"
-	"gitlab.bbinfra.net/3estack/alexandria/cli"
-	"gitlab.bbinfra.net/3estack/alexandria/dao"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"github.com/iskendria-pub/iskendria/cli"
+	"github.com/iskendria-pub/iskendria/dao"
+	"github.com/iskendria-pub/iskendria/model"
 )
 
 var CommonJournalHandlers = []cli.Handler{

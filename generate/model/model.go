@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"gitlab.bbinfra.net/3estack/alexandria/util"
+	"github.com/iskendria-pub/iskendria/util"
 	"os"
 	"strings"
 	"text/template"

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
-	"gitlab.bbinfra.net/3estack/alexandria/util"
+	"github.com/iskendria-pub/iskendria/util"
 )
 
 // Test running a command and check that only its input and output addresses

@@ -13,7 +13,7 @@ package command
 // DO NOT MODIFY!
 
 import (
-    "gitlab.bbinfra.net/3estack/alexandria/model"
+    "github.com/iskendria-pub/iskendria/model"
   	proto "github.com/golang/protobuf/proto"
 )
 

@@ -1,7 +1,7 @@
 package manageManuscript
 
 import (
-	"gitlab.bbinfra.net/3estack/alexandria/portal/util"
+	"github.com/iskendria-pub/iskendria/portal/util"
 	"html/template"
 )
 

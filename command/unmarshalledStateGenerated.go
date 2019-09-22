@@ -5,7 +5,7 @@ package command
 
 import (
 	proto "github.com/golang/protobuf/proto"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"github.com/iskendria-pub/iskendria/model"
 )
 
 type unmarshalledState struct {

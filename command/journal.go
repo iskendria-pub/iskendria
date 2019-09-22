@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/processor"
-	"gitlab.bbinfra.net/3estack/alexandria/model"
+	"github.com/iskendria-pub/iskendria/model"
 	"log"
 	"sort"
 	"strconv"

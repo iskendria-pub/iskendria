@@ -2,9 +2,9 @@ package cliAlexandria
 
 import (
 	"fmt"
-	"gitlab.bbinfra.net/3estack/alexandria/blockchain"
-	"gitlab.bbinfra.net/3estack/alexandria/cli"
-	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"github.com/iskendria-pub/iskendria/blockchain"
+	"github.com/iskendria-pub/iskendria/cli"
+	"github.com/iskendria-pub/iskendria/dao"
 	"sync"
 )
 

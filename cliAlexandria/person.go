@@ -3,10 +3,10 @@ package cliAlexandria
 import (
 	"errors"
 	"fmt"
-	"gitlab.bbinfra.net/3estack/alexandria/blockchain"
-	"gitlab.bbinfra.net/3estack/alexandria/cli"
-	"gitlab.bbinfra.net/3estack/alexandria/command"
-	"gitlab.bbinfra.net/3estack/alexandria/dao"
+	"github.com/iskendria-pub/iskendria/blockchain"
+	"github.com/iskendria-pub/iskendria/cli"
+	"github.com/iskendria-pub/iskendria/command"
+	"github.com/iskendria-pub/iskendria/dao"
 )
 
 var CommonPersonHandlers = []cli.Handler{
