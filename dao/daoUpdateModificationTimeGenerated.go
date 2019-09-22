@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hyperledger/sawtooth-sdk-go/protobuf/events_pb2"
-	"github.com/jmoiron/sqlx"
 	"github.com/iskendria-pub/iskendria/model"
+	"github.com/jmoiron/sqlx"
 	"strconv"
 )
 
