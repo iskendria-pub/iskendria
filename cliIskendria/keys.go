@@ -1,4 +1,4 @@
-package cliAlexandria
+package cliIskendria
 
 import (
 	"encoding/hex"

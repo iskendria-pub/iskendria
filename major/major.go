@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/iskendria-pub/iskendria/blockchain"
 	"github.com/iskendria-pub/iskendria/cli"
-	"github.com/iskendria-pub/iskendria/cliAlexandria"
+	"github.com/iskendria-pub/iskendria/cliIskendria"
 	"github.com/iskendria-pub/iskendria/command"
 	"github.com/iskendria-pub/iskendria/dao"
 	"log"
@@ -29,14 +29,14 @@ func main() {
 		OneLineDescription: "Iskendria Major Tool",
 		Name:               "iskendria-major",
 		FormatEscape:       makeRed,
-		EventPager:         cliAlexandria.PageEventStreamMessages,
-		Handlers: append(cliAlexandria.CommonRootHandlers,
-			cliAlexandria.CommonDiagnosticsGroup,
+		EventPager:         cliIskendria.PageEventStreamMessages,
+		Handlers: append(cliIskendria.CommonRootHandlers,
+			cliIskendria.CommonDiagnosticsGroup,
 			&cli.Cli{
 				FullDescription:    "Welcome to the Bootstrap and Settings Update commands",
 				OneLineDescription: "Settings",
 				Name:               "settings",
-				Handlers: append(cliAlexandria.CommonSettingsHandlers,
+				Handlers: append(cliIskendria.CommonSettingsHandlers,
 					&cli.StructRunnerHandler{
 						FullDescription:    "Welcome to the dialog to bootstrap Iskendria",
 						OneLineDescription: "Bootstrap",
@@ -57,7 +57,7 @@ func main() {
 				FullDescription:    "Welcome to the person commands",
 				OneLineDescription: "Person",
 				Name:               "person",
-				Handlers: append(cliAlexandria.CommonPersonHandlers,
+				Handlers: append(cliIskendria.CommonPersonHandlers,
 					&cli.StructRunnerHandler{
 						FullDescription:    "Welcome to the person create dialog.",
 						OneLineDescription: "Create Person",
@@ -70,7 +70,7 @@ func main() {
 						Name:                         "updatePerson",
 						ReferenceValueGetter:         personUpdateReference,
 						ReferenceValueGetterArgNames: []string{"person id"},
-						Action:                       cliAlexandria.PersonUpdate,
+						Action:                       cliIskendria.PersonUpdate,
 					},
 					&cli.SingleLineHandler{
 						Name:     "setMajor",
@@ -103,7 +103,7 @@ func main() {
 				FullDescription:    "Welcome to the journal commands.",
 				OneLineDescription: "Journal",
 				Name:               "journal",
-				Handlers: append(cliAlexandria.CommonJournalHandlers,
+				Handlers: append(cliIskendria.CommonJournalHandlers,
 					&cli.SingleLineHandler{
 						Name:     "setSigned",
 						Handler:  journalSetSigned,
@@ -125,109 +125,109 @@ func main() {
 	dbLogger := log.New(os.Stdout, "db", log.Flags())
 	dao.Init("major.db", dbLogger)
 	defer dao.Shutdown(dbLogger)
-	cliAlexandria.InitEventStream("./major-events.log", "major")
+	cliIskendria.InitEventStream("./major-events.log", "major")
 	context.Run()
 }
 
 func bootstrap(outputter cli.Outputter, bootstrap *command.Bootstrap) {
-	if !cliAlexandria.IsLoggedIn() {
+	if !cliIskendria.IsLoggedIn() {
 		outputter("You should login before you can bootstrap\n")
 		return
 	}
-	cmd := command.GetBootstrapCommand(bootstrap, cliAlexandria.LoggedIn())
+	cmd := command.GetBootstrapCommand(bootstrap, cliIskendria.LoggedIn())
 	if err := blockchain.SendCommand(cmd, outputter); err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 	}
 }
 
 func settingsUpdateReference(outputter cli.Outputter) *dao.Settings {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return nil
 	}
-	return cliAlexandria.Settings
+	return cliIskendria.Settings
 }
 
 func settingsUpdate(outputter cli.Outputter, updated *dao.Settings) {
 	theCommand := command.GetSettingsUpdateCommand(
-		cliAlexandria.Settings,
+		cliIskendria.Settings,
 		updated,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceMajorEditSettings)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceMajorEditSettings)
 	if err := blockchain.SendCommand(theCommand, outputter); err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 	}
 }
 
 func personCreate(outputter cli.Outputter, personInput *command.PersonCreate) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	cmd, personId := command.GetPersonCreateCommand(
 		personInput,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceMajorCreatePerson)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceMajorCreatePerson)
 	if err := blockchain.SendCommand(cmd, outputter); err != nil {
-		outputter(cliAlexandria.ToIoError(err) + "\n")
+		outputter(cliIskendria.ToIoError(err) + "\n")
 		return
 	}
 	outputter("The personId of the created person is: " + personId + "\n")
 }
 
 func setMajor(outputter cli.Outputter, personId string) {
-	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+	cliIskendria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetPersonUpdateSetMajorCommand(
 			personId,
-			cliAlexandria.LoggedInPerson.Id,
-			cliAlexandria.LoggedIn(),
-			cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
+			cliIskendria.LoggedInPerson.Id,
+			cliIskendria.LoggedIn(),
+			cliIskendria.Settings.PriceMajorChangePersonAuthorization)
 	})
 }
 
 func unsetMajor(outputter cli.Outputter, personId string) {
-	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+	cliIskendria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetPersonUpdateUnsetMajorCommand(
 			personId,
-			cliAlexandria.LoggedInPerson.Id,
-			cliAlexandria.LoggedIn(),
-			cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
+			cliIskendria.LoggedInPerson.Id,
+			cliIskendria.LoggedIn(),
+			cliIskendria.Settings.PriceMajorChangePersonAuthorization)
 	})
 }
 
 func setSigned(outputter cli.Outputter, personId string) {
-	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+	cliIskendria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetPersonUpdateSetSignedCommand(
 			personId,
-			cliAlexandria.LoggedInPerson.Id,
-			cliAlexandria.LoggedIn(),
-			cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
+			cliIskendria.LoggedInPerson.Id,
+			cliIskendria.LoggedIn(),
+			cliIskendria.Settings.PriceMajorChangePersonAuthorization)
 	})
 }
 
 func unsetSigned(outputter cli.Outputter, personId string) {
-	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+	cliIskendria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetPersonUpdateUnsetSignedCommand(
 			personId,
-			cliAlexandria.LoggedInPerson.Id,
-			cliAlexandria.LoggedIn(),
-			cliAlexandria.Settings.PriceMajorChangePersonAuthorization)
+			cliIskendria.LoggedInPerson.Id,
+			cliIskendria.LoggedIn(),
+			cliIskendria.Settings.PriceMajorChangePersonAuthorization)
 	})
 }
 
 func incBalance(outputter cli.Outputter, personId string, amount int32) {
-	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+	cliIskendria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetPersonUpdateIncBalanceCommand(
 			personId,
 			amount,
-			cliAlexandria.LoggedInPerson.Id,
-			cliAlexandria.LoggedIn(),
+			cliIskendria.LoggedInPerson.Id,
+			cliIskendria.LoggedIn(),
 			int32(0))
 	})
 }
 
 func personUpdateReference(outputter cli.Outputter, personId string) *dao.PersonUpdate {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return nil
 	}
 	person, err := dao.GetPersonById(personId)
@@ -235,9 +235,9 @@ func personUpdateReference(outputter cli.Outputter, personId string) *dao.Person
 		outputter(fmt.Sprintf("Could not find person %s, error: %s\n", personId, err.Error()))
 		return nil
 	}
-	cliAlexandria.OriginalPersonId = personId
-	cliAlexandria.OriginalPerson = dao.PersonToPersonUpdate(person)
-	return cliAlexandria.OriginalPerson
+	cliIskendria.OriginalPersonId = personId
+	cliIskendria.OriginalPerson = dao.PersonToPersonUpdate(person)
+	return cliIskendria.OriginalPerson
 }
 
 func journalSetSigned(outputter cli.Outputter, journalId string) {
@@ -249,12 +249,12 @@ func journalUnsetSigned(outputter cli.Outputter, journalId string) {
 }
 
 func journalChangeAuthorization(outputter cli.Outputter, journalId string, makeSigned bool) {
-	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+	cliIskendria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetCommandJournalUpdateAuthorization(
 			journalId,
 			makeSigned,
-			cliAlexandria.LoggedInPerson.Id,
-			cliAlexandria.LoggedIn(),
-			cliAlexandria.Settings.PriceMajorChangeJournalAuthorization)
+			cliIskendria.LoggedInPerson.Id,
+			cliIskendria.LoggedIn(),
+			cliIskendria.Settings.PriceMajorChangeJournalAuthorization)
 	})
 }

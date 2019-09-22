@@ -3,7 +3,7 @@ package integration
 import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
-	"github.com/iskendria-pub/iskendria/cliAlexandria"
+	"github.com/iskendria-pub/iskendria/cliIskendria"
 	"github.com/iskendria-pub/iskendria/command"
 	"github.com/iskendria-pub/iskendria/dao"
 	"github.com/iskendria-pub/iskendria/model"
@@ -26,11 +26,11 @@ func TestPersonCreate(t *testing.T) {
 		doTestPersonCreate(personCreate, t)
 		checkStateBalanceOfKey(
 			SUFFICIENT_BALANCE-priceMajorCreatePerson,
-			cliAlexandria.LoggedIn().PublicKeyStr,
+			cliIskendria.LoggedIn().PublicKeyStr,
 			t)
 		checkDaoBalanceOfKey(
 			SUFFICIENT_BALANCE-priceMajorCreatePerson,
-			cliAlexandria.LoggedIn().PublicKeyStr,
+			cliIskendria.LoggedIn().PublicKeyStr,
 			t)
 	}
 	withNewPersonCreate(f, t)
@@ -41,7 +41,7 @@ func TestPersonUpdatePropertiesAsSelf(t *testing.T) {
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
 		doTestPersonCreate(originalPersonCreate, t)
-		if err := cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile); err != nil {
+		if err := cliIskendria.Login(personPublicKeyFile, personPrivateKeyFile); err != nil {
 			t.Error("Could not login as newly created person")
 		}
 		doTestPersonUpdate(originalPersonCreate, t)
@@ -81,8 +81,8 @@ func getPersonUpdatePropertiesCommand(originalPersonCreate *command.PersonCreate
 		originalPerson.Id,
 		originalPersonUpdate,
 		newPersonUpdate,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		settings.PricePersonEdit)
 	return cmd, originalPerson.Id
 }
@@ -189,11 +189,11 @@ func TestPersonUpdatePropertiesAsSMajor(t *testing.T) {
 		doTestPersonUpdate(originalPersonCreate, t)
 		checkStateBalanceOfKey(
 			SUFFICIENT_BALANCE-priceMajorCreatePerson-pricePersonEdit,
-			cliAlexandria.LoggedIn().PublicKeyStr,
+			cliIskendria.LoggedIn().PublicKeyStr,
 			t)
 		checkDaoBalanceOfKey(
 			SUFFICIENT_BALANCE-priceMajorCreatePerson-pricePersonEdit,
-			cliAlexandria.LoggedIn().PublicKeyStr,
+			cliIskendria.LoggedIn().PublicKeyStr,
 			t)
 	}
 	withNewPersonCreate(f, t)
@@ -204,14 +204,14 @@ func TestPersonBiography(t *testing.T) {
 	blockchainAccess = command.NewBlockchainStub(dao.HandleEvent, logger)
 	f := func(t *testing.T) {
 		doTestBootstrap(t)
-		personId := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id
+		personId := getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id
 		biography := []byte("This is my biography")
 		cmd := command.GetCommandPersonUpdateBiography(
 			personId,
 			"",
 			biography,
 			personId,
-			cliAlexandria.LoggedIn(),
+			cliIskendria.LoggedIn(),
 			pricePersonEdit)
 		err := command.RunCommandForTest(cmd, "transactionIdPersonSetBiography", blockchainAccess)
 		if err != nil {
@@ -225,7 +225,7 @@ func TestPersonBiography(t *testing.T) {
 			personId,
 			model.HashBytes(biography),
 			personId,
-			cliAlexandria.LoggedIn(),
+			cliIskendria.LoggedIn(),
 			pricePersonEdit)
 		err = command.RunCommandForTest(cmd, "transactionIdPersonRemoveBiography", blockchainAccess)
 		if err != nil {
@@ -245,8 +245,8 @@ func TestPersonUpdateSetMajor(t *testing.T) {
 	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
 		doTestPersonUpdateSetMajor(originalPersonCreate, t)
 		expectedBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson - priceMajorChangePersonAuthorization
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewPersonCreate(f, t)
 }
@@ -255,8 +255,8 @@ func doTestPersonUpdateSetMajor(originalPersonCreate *command.PersonCreate, t *t
 	doTestPersonCreate(originalPersonCreate, t)
 	cmd := command.GetPersonUpdateSetMajorCommand(
 		getPersonByKey(originalPersonCreate.PublicKey, t).Id,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		getSettings(t).PriceMajorChangePersonAuthorization)
 	err := command.RunCommandForTest(cmd, "transactionSetMajor", blockchainAccess)
 	if err != nil {
@@ -284,8 +284,8 @@ func TestPersonUpdateSetSigned(t *testing.T) {
 	f := func(originalPersonCreate *command.PersonCreate, t *testing.T) {
 		doTestPersonUpdateSetSigned(originalPersonCreate, t)
 		expectedBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson - priceMajorChangePersonAuthorization
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewPersonCreate(f, t)
 }
@@ -294,8 +294,8 @@ func doTestPersonUpdateSetSigned(originalPersonCreate *command.PersonCreate, t *
 	doTestPersonCreate(originalPersonCreate, t)
 	cmd := command.GetPersonUpdateSetSignedCommand(
 		getPersonByKey(originalPersonCreate.PublicKey, t).Id,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		getSettings(t).PriceMajorChangePersonAuthorization)
 	err := command.RunCommandForTest(cmd, "transactionSetSigned", blockchainAccess)
 	if err != nil {
@@ -323,8 +323,8 @@ func TestPersonUpdateUnsetMajor(t *testing.T) {
 	f := func(t *testing.T) {
 		doTestPersonUpdateUnsetMajor(t)
 		expectedBalance := SUFFICIENT_BALANCE - priceMajorChangePersonAuthorization
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withLoggedInWithNewKey(f, t)
 }
@@ -332,17 +332,17 @@ func TestPersonUpdateUnsetMajor(t *testing.T) {
 func doTestPersonUpdateUnsetMajor(t *testing.T) {
 	doTestBootstrap(t)
 	settings := getSettings(t)
-	originalPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	originalPerson := getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t)
 	cmd := command.GetPersonUpdateUnsetMajorCommand(
 		originalPerson.Id,
 		originalPerson.Id,
-		cliAlexandria.LoggedIn(),
+		cliIskendria.LoggedIn(),
 		settings.PriceMajorChangePersonAuthorization)
 	err := command.RunCommandForTest(cmd, "transactionIdUnsetMajor", blockchainAccess)
 	if err != nil {
 		t.Error("Could not run person unset major command: " + err.Error())
 	}
-	updatedDaoPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	updatedDaoPerson := getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t)
 	if updatedDaoPerson.IsMajor != false {
 		t.Error("Majorship was not unset")
 	}
@@ -364,8 +364,8 @@ func TestPersonUpdateUnsetSigned(t *testing.T) {
 	f := func(t *testing.T) {
 		doTestPersonUpdateUnsetSigned(t)
 		expectedBalance := SUFFICIENT_BALANCE - priceMajorChangePersonAuthorization
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withLoggedInWithNewKey(f, t)
 }
@@ -373,17 +373,17 @@ func TestPersonUpdateUnsetSigned(t *testing.T) {
 func doTestPersonUpdateUnsetSigned(t *testing.T) {
 	doTestBootstrap(t)
 	settings := getSettings(t)
-	originalPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	originalPerson := getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t)
 	cmd := command.GetPersonUpdateUnsetSignedCommand(
 		originalPerson.Id,
 		originalPerson.Id,
-		cliAlexandria.LoggedIn(),
+		cliIskendria.LoggedIn(),
 		settings.PriceMajorChangePersonAuthorization)
 	err := command.RunCommandForTest(cmd, "transactionIdUnsetMajor", blockchainAccess)
 	if err != nil {
 		t.Error("Could not run person unset signed command: " + err.Error())
 	}
-	updatedDaoPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	updatedDaoPerson := getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t)
 	if updatedDaoPerson.IsMajor != true {
 		t.Error("Majorship should not have been changed")
 	}
@@ -408,18 +408,18 @@ func TestPersonUpdateIncBalance(t *testing.T) {
 func doTestPersonUpdateIncBalance(t *testing.T) {
 	doTestBootstrap(t)
 	theBalanceIncrement := int32(50)
-	originalPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	originalPerson := getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t)
 	cmd := command.GetPersonUpdateIncBalanceCommand(
 		originalPerson.Id,
 		theBalanceIncrement,
 		originalPerson.Id,
-		cliAlexandria.LoggedIn(),
+		cliIskendria.LoggedIn(),
 		int32(0))
 	err := command.RunCommandForTest(cmd, "transactionIdIncBalance", blockchainAccess)
 	if err != nil {
 		t.Error("Could not run person update inc balance command: " + err.Error())
 	}
-	updatedDaoPerson := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	updatedDaoPerson := getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t)
 	expectedBalance := SUFFICIENT_BALANCE + theBalanceIncrement
 	if updatedDaoPerson.Balance != expectedBalance {
 		t.Error("Balance has not been incremented")
@@ -436,22 +436,22 @@ func TestSettingsUpdate(t *testing.T) {
 	f := func(t *testing.T) {
 		doTestSettingsUpdate(t)
 		expectedBalance := SUFFICIENT_BALANCE - priceMajorEditSettings
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withLoggedInWithNewKey(f, t)
 }
 
 func doTestSettingsUpdate(t *testing.T) {
 	doTestBootstrap(t)
-	signer := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t)
+	signer := getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t)
 	origSettings := getSettings(t)
 	var settingsUpdate = getSettingsUpdate()
 	cmd := command.GetSettingsUpdateCommand(
 		origSettings,
 		settingsUpdate,
 		signer.Id,
-		cliAlexandria.LoggedIn(),
+		cliIskendria.LoggedIn(),
 		origSettings.PriceMajorEditSettings)
 	err := command.RunCommandForTest(cmd, "transactionIdSettingsUpdate", blockchainAccess)
 	if err != nil {
@@ -624,8 +624,8 @@ func TestJournalUpdateProperties(t *testing.T) {
 			journalId,
 			getOriginalCommandJournal(),
 			updated,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceEditorEditJournal)
 		err := command.RunCommandForTest(cmd, "transactionIdJournalUpdateProperties", blockchainAccess)
 		if err != nil {
@@ -634,8 +634,8 @@ func TestJournalUpdateProperties(t *testing.T) {
 		checkDaoJournalUpdatedProperties(getTheOnlyDaoJournal(t), t)
 		checkStateJournalUpdatedProperties(getStateJournal(journalId, t), t)
 		expectedBalance := initialBalance - priceEditorCreateJournal - priceEditorEditJournal
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewJournalCreate(f, t)
 }
@@ -661,8 +661,8 @@ func TestJournalUpdateAuthorization(t *testing.T) {
 		cmd := command.GetCommandJournalUpdateAuthorization(
 			journalId,
 			true,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceMajorChangeJournalAuthorization)
 		err := command.RunCommandForTest(cmd, "transactionIdJournalUpdateProperties", blockchainAccess)
 		if err != nil {
@@ -671,8 +671,8 @@ func TestJournalUpdateAuthorization(t *testing.T) {
 		checkDaoJournalUpdatedAuthorization(getTheOnlyDaoJournal(t), t)
 		checkStateJournalUpdatedAuthorization(getStateJournal(journalId, t), t)
 		expectedBalance := initialBalance - priceEditorCreateJournal - priceMajorChangeJournalAuthorization
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewJournalCreate(f, t)
 }
@@ -697,8 +697,8 @@ func TestJournalEditorResign(t *testing.T) {
 		journalId := getTheOnlyDaoJournal(t).JournalId
 		cmd := command.GetCommandEditorResign(
 			journalId,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn())
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn())
 		err := command.RunCommandForTest(cmd, "transactionIdJournalEditorResign", blockchainAccess)
 		if err != nil {
 			t.Error(err)
@@ -706,8 +706,8 @@ func TestJournalEditorResign(t *testing.T) {
 		checkDaoJournalEditorResigned(getTheOnlyDaoJournal(t), t)
 		checkStateJournalEditorResigned(getStateJournal(journalId, t), t)
 		expectedBalance := initialBalance - priceEditorCreateJournal - 0
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewJournalCreate(f, t)
 }
@@ -731,7 +731,7 @@ func TestJournalNewEditor(t *testing.T) {
 		doTestJournalCreate(journal, personCreate, initialBalance, t)
 		journalId := getTheOnlyDaoJournal(t).JournalId
 		doTestJournalEditorInvite(journalId, personCreate, t, initialBalance-priceEditorCreateJournal)
-		err := cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile)
+		err := cliIskendria.Login(personPublicKeyFile, personPrivateKeyFile)
 		if err != nil {
 			t.Error("Could not login as newly proposed editor")
 		}
@@ -743,8 +743,8 @@ func TestJournalNewEditor(t *testing.T) {
 func doTestJournalEditorAcceptDuty(journalId string, t *testing.T) {
 	cmd := command.GetCommandEditorAcceptDuty(
 		journalId,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		priceEditorAcceptDuty)
 	err := command.RunCommandForTest(cmd, "transactionIdEditorAcceptDuty", blockchainAccess)
 	if err != nil {
@@ -753,8 +753,8 @@ func doTestJournalEditorAcceptDuty(journalId string, t *testing.T) {
 	checkDaoJournalEditorAcceptedDuty(getTheOnlyDaoJournal(t), t)
 	checkStateJournalEditorStates(getStateJournal(journalId, t), 0, 2, t)
 	expectedBalance := SUFFICIENT_BALANCE - priceEditorAcceptDuty
-	checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-	checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+	checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 }
 
 func checkDaoJournalEditorAcceptedDuty(journal *dao.Journal, t *testing.T) {
@@ -767,8 +767,8 @@ func doTestJournalEditorInvite(journalId string, personCreate *command.PersonCre
 	cmd := command.GetCommandEditorInvite(
 		journalId,
 		getPersonByKey(personCreate.PublicKey, t).Id,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		priceEditorAddColleague)
 	err := command.RunCommandForTest(cmd, "transactionIdJournalEditorResign", blockchainAccess)
 	if err != nil {
@@ -777,8 +777,8 @@ func doTestJournalEditorInvite(journalId string, personCreate *command.PersonCre
 	checkDaoJournalEditorInvited(getTheOnlyDaoJournal(t), t)
 	checkStateJournalEditorStates(getStateJournal(journalId, t), 1, 1, t)
 	expectedBalance := initialBalance - priceEditorAddColleague
-	checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-	checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+	checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 }
 
 func checkDaoJournalEditorInvited(journal *dao.Journal, t *testing.T) {
@@ -820,8 +820,8 @@ func TestJournalUpdateDescription(t *testing.T) {
 			journalId,
 			"",
 			description,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceEditorEditJournal)
 		err := command.RunCommandForTest(cmd, "transactionIdUpdateDescription", blockchainAccess)
 		if err != nil {
@@ -834,8 +834,8 @@ func TestJournalUpdateDescription(t *testing.T) {
 		cmd = command.GetCommandJournalOmitDescription(
 			journalId,
 			getTheOnlyDaoJournal(t).Descriptionhash,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceEditorEditJournal)
 		err = command.RunCommandForTest(cmd, "transactionIdRemoveDescription", blockchainAccess)
 		if err != nil {
@@ -862,8 +862,8 @@ func TestCreateVolume(t *testing.T) {
 		}
 		cmd, volumeId := command.GetCommandVolumeCreate(
 			vol,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceEditorCreateVolume)
 		err := command.RunCommandForTest(cmd, "transactionIdVolumeCreate", blockchainAccess)
 		if err != nil {
@@ -873,8 +873,8 @@ func TestCreateVolume(t *testing.T) {
 		checkDaoGetSingleVolume(volumeId, journalId, t)
 		checkCreatedStateVolume(getStateVolume(volumeId, t), volumeId, journalId, t)
 		expectedBalance := initialBalance - priceEditorCreateJournal - priceEditorCreateVolume
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewJournalCreate(f, t)
 }
@@ -981,7 +981,7 @@ func TestManuscriptCreateNewVersion(t *testing.T) {
 			CommitMsg:     "Next version",
 			Title:         "My manuscript",
 			AuthorId: []string{
-				getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
+				getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
 				getPersonByKey(personCreate.PublicKey, t).Id,
 			},
 			PreviousManuscriptId: previousManuscriptId,
@@ -1004,8 +1004,8 @@ func TestManuscriptCreateNewVersion(t *testing.T) {
 			manuscriptCreateNewVersion,
 			threadReference,
 			historicAuthors,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceAuthorSubmitNewVersion)
 		err = command.RunCommandForTest(cmd, "transactionIdManuscriptCreateNewVersion", blockchainAccess)
 		if err != nil {
@@ -1036,8 +1036,8 @@ func TestManuscriptCreateNewVersion(t *testing.T) {
 			getPersonByKey(personCreate.PublicKey, t).Id,
 			t)
 		expectedBalance := initialBalance - priceAuthorSubmitNewManuscript - priceAuthorSubmitNewVersion
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewManuscriptCreate(f, 2, t)
 }
@@ -1184,14 +1184,14 @@ func TestManuscriptAuthorAccept(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		err = cliAlexandria.Login(personPublicKeyFile, personPrivateKeyFile)
+		err = cliIskendria.Login(personPublicKeyFile, personPrivateKeyFile)
 		if err != nil {
 			t.Error(err)
 		}
 		cmd := command.GetCommandManuscriptAcceptAuthorship(
 			manuscript,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceAuthorAcceptAuthorship)
 		err = command.RunCommandForTest(cmd, "transactionIdAuthorAcceptAuthorship", blockchainAccess)
 		if err != nil {
@@ -1204,8 +1204,8 @@ func TestManuscriptAuthorAccept(t *testing.T) {
 		checkDaoManuscriptAuthorAccepted(manuscript, t)
 		checkStateManuscriptAuthorAccepted(getStateManuscript(manuscriptId), t)
 		expectedBalance := SUFFICIENT_BALANCE - priceAuthorAcceptAuthorship
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewManuscriptCreate(f, 2, t)
 }
@@ -1222,7 +1222,7 @@ func checkDaoManuscriptAuthorAccepted(manuscript *dao.Manuscript, t *testing.T) 
 			t.Error(fmt.Sprintf("Expected that author %d signed", i))
 		}
 	}
-	if manuscript.Authors[1].PersonId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+	if manuscript.Authors[1].PersonId != getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id {
 		t.Error("Expected that the second author is the last created person (not the bootstrapper)")
 	}
 }
@@ -1239,7 +1239,7 @@ func checkStateManuscriptAuthorAccepted(state *model.StateManuscript, t *testing
 			t.Error(fmt.Sprintf("Expected that author %d signed", i))
 		}
 	}
-	if state.Author[1].AuthorId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+	if state.Author[1].AuthorId != getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id {
 		t.Error("Expected that the second author is the last created person (not the bootstrapper)")
 	}
 }
@@ -1255,8 +1255,8 @@ func TestManuscriptAllowReview(t *testing.T) {
 		t *testing.T) {
 		cmdManuscriptCreate, manuscriptId := command.GetCommandManuscriptCreate(
 			manuscriptCreate,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceAuthorSubmitNewManuscript)
 		err := command.RunCommandForTest(
 			cmdManuscriptCreate, "transactionIdManuscriptCreateOneAuthor", blockchainAccess)
@@ -1272,8 +1272,8 @@ func TestManuscriptAllowReview(t *testing.T) {
 		checkManuscriptStateManuscriptAllowReview(getStateManuscript(manuscriptId), t)
 		checkThreadStateManuscriptAllowReview(getStateThread(manuscript.ThreadId, t), t)
 		expectedBalance := initialBalance - priceAuthorSubmitNewManuscript - priceEditorAllowManuscriptReview
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withNewManuscriptCreate(f, 1, t)
 }
@@ -1338,8 +1338,8 @@ func TestManuscriptPublish(t *testing.T) {
 		cmd := command.GetCommandManuscriptPublish(
 			manuscriptJudge,
 			initialManuscript.JournalId,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceEditorPublishManuscript)
 		err := command.RunCommandForTest(cmd, "transactionIdManuscriptPublish", blockchainAccess)
 		if err != nil {
@@ -1366,8 +1366,8 @@ func TestManuscriptPublish(t *testing.T) {
 			t.Error("Status mismatch")
 		}
 		expectedBalance := initialBalance - priceEditorPublishManuscript
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withReviewCreated(f, t)
 }
@@ -1383,8 +1383,8 @@ func TestManuscriptReject(t *testing.T) {
 		cmd := command.GetCommandManuscriptReject(
 			manuscriptJudge,
 			initialManuscript.JournalId,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceEditorRejectManuscript)
 		err := command.RunCommandForTest(cmd, "transactionIdManuscriptReject", blockchainAccess)
 		if err != nil {
@@ -1411,8 +1411,8 @@ func TestManuscriptReject(t *testing.T) {
 			t.Error("Status mismatch")
 		}
 		expectedBalance := initialBalance - priceEditorRejectManuscript
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withReviewCreated(f, t)
 }
@@ -1428,8 +1428,8 @@ func TestManuscriptAssign(t *testing.T) {
 		cmd := command.GetCommandManuscriptPublish(
 			manuscriptJudge,
 			initialManuscript.JournalId,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceEditorPublishManuscript)
 		err := command.RunCommandForTest(cmd, "transactionIdManuscriptPublish", blockchainAccess)
 		if err != nil {
@@ -1441,8 +1441,8 @@ func TestManuscriptAssign(t *testing.T) {
 		}
 		cmd, volumeId := command.GetCommandVolumeCreate(
 			volume,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceEditorCreateVolume)
 		err = command.RunCommandForTest(cmd, "transactionIdVolumeCreate", blockchainAccess)
 		if err != nil {
@@ -1457,8 +1457,8 @@ func TestManuscriptAssign(t *testing.T) {
 		cmd = command.GetCommandManuscriptAssign(
 			manuscriptAssign,
 			initialManuscript.JournalId,
-			getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-			cliAlexandria.LoggedIn(),
+			getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+			cliIskendria.LoggedIn(),
 			priceEditorAssignManuscript)
 		err = command.RunCommandForTest(cmd, "transactionIdManuscriptAssign", blockchainAccess)
 		if err != nil {
@@ -1479,8 +1479,8 @@ func TestManuscriptAssign(t *testing.T) {
 			priceEditorPublishManuscript -
 			priceEditorCreateVolume -
 			priceEditorAssignManuscript
-		checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	}
 	withReviewCreated(f, t)
 }

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
-	"github.com/iskendria-pub/iskendria/cliAlexandria"
+	"github.com/iskendria-pub/iskendria/cliIskendria"
 	"github.com/iskendria-pub/iskendria/dao"
 	"github.com/iskendria-pub/iskendria/model"
 	"github.com/iskendria-pub/iskendria/portal/components/manageDocument"
@@ -387,10 +387,10 @@ func main() {
 
 func initialize(dbLogger *log.Logger) {
 	dao.Init("portal.db", dbLogger)
-	cliAlexandria.InitEventStream("./portal-events.log", "portal")
+	cliIskendria.InitEventStream("./portal-events.log", "portal")
 	go func() {
 		for {
-			_ = cliAlexandria.ReadEventStreamStatus()
+			_ = cliIskendria.ReadEventStreamStatus()
 		}
 	}()
 	initDocuments()

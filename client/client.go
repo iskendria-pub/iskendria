@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/iskendria-pub/iskendria/blockchain"
 	"github.com/iskendria-pub/iskendria/cli"
-	"github.com/iskendria-pub/iskendria/cliAlexandria"
+	"github.com/iskendria-pub/iskendria/cliIskendria"
 	"github.com/iskendria-pub/iskendria/command"
 	"github.com/iskendria-pub/iskendria/dao"
 	"io/ioutil"
@@ -26,27 +26,27 @@ func main() {
 		OneLineDescription: "Iskendria Client Tool",
 		Name:               "iskendria-client",
 		FormatEscape:       makeGreen,
-		EventPager:         cliAlexandria.PageEventStreamMessages,
-		Handlers: append(cliAlexandria.CommonRootHandlers,
-			cliAlexandria.CommonDiagnosticsGroup,
+		EventPager:         cliIskendria.PageEventStreamMessages,
+		Handlers: append(cliIskendria.CommonRootHandlers,
+			cliIskendria.CommonDiagnosticsGroup,
 			&cli.Cli{
 				FullDescription:    "Welcome to the settings commands",
 				OneLineDescription: "Settings",
 				Name:               "settings",
-				Handlers:           cliAlexandria.CommonSettingsHandlers,
+				Handlers:           cliIskendria.CommonSettingsHandlers,
 			},
 			&cli.Cli{
 				FullDescription:    "Welcome to the person commands",
 				OneLineDescription: "Person",
 				Name:               "person",
-				Handlers: append(cliAlexandria.CommonPersonHandlers,
+				Handlers: append(cliIskendria.CommonPersonHandlers,
 					&cli.StructRunnerHandler{
 						FullDescription:              "Welcome to the person update dialog.",
 						OneLineDescription:           "Update person",
 						Name:                         "updatePerson",
 						ReferenceValueGetter:         personUpdateReference,
 						ReferenceValueGetterArgNames: []string{},
-						Action:                       cliAlexandria.PersonUpdate,
+						Action:                       cliIskendria.PersonUpdate,
 					},
 					&cli.Cli{
 						FullDescription:    "Welcome to the person biography commands",
@@ -81,7 +81,7 @@ func main() {
 				FullDescription:    "Welcome to the journal commands.",
 				OneLineDescription: "Journal",
 				Name:               "journal",
-				Handlers: append(cliAlexandria.CommonJournalHandlers,
+				Handlers: append(cliIskendria.CommonJournalHandlers,
 					&cli.StructRunnerHandler{
 						FullDescription:    "Welcome to the journal create dialog.",
 						OneLineDescription: "Create journal",
@@ -211,35 +211,35 @@ func main() {
 	dbLogger := log.New(os.Stdout, "db", log.Flags())
 	dao.Init("client.db", dbLogger)
 	defer dao.Shutdown(dbLogger)
-	cliAlexandria.InitEventStream("./client-events.log", "client")
+	cliIskendria.InitEventStream("./client-events.log", "client")
 	context.Run()
 }
 
 func personUpdateReference(outputter cli.Outputter) *dao.PersonUpdate {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return nil
 	}
-	cliAlexandria.OriginalPersonId = cliAlexandria.LoggedInPerson.Id
-	cliAlexandria.OriginalPerson = dao.PersonToPersonUpdate(cliAlexandria.LoggedInPerson)
-	return cliAlexandria.OriginalPerson
+	cliIskendria.OriginalPersonId = cliIskendria.LoggedInPerson.Id
+	cliIskendria.OriginalPerson = dao.PersonToPersonUpdate(cliIskendria.LoggedInPerson)
+	return cliIskendria.OriginalPerson
 }
 
 func personUpdateBiography(outputter cli.Outputter, biographyFileName string) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	data, err := ioutil.ReadFile(biographyFileName)
 	if err != nil {
-		outputter(cliAlexandria.ToIoError(err) + "\n")
+		outputter(cliIskendria.ToIoError(err) + "\n")
 		return
 	}
 	theCommand := command.GetCommandPersonUpdateBiography(
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedInPerson.BiographyHash,
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedInPerson.BiographyHash,
 		data,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PricePersonEdit)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PricePersonEdit)
 	err = blockchain.SendCommand(theCommand, outputter)
 	if err != nil {
 		outputter("Error sending command to blockchain: " + err.Error() + "\n")
@@ -247,15 +247,15 @@ func personUpdateBiography(outputter cli.Outputter, biographyFileName string) {
 }
 
 func personRemoveBiography(outputter cli.Outputter) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	theCommand := command.GetCommandPersonOmitBiography(
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedInPerson.BiographyHash,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PricePersonEdit)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedInPerson.BiographyHash,
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PricePersonEdit)
 	err := blockchain.SendCommand(theCommand, outputter)
 	if err != nil {
 		outputter("Error sending command to blockchain: " + err.Error() + "\n")
@@ -263,15 +263,15 @@ func personRemoveBiography(outputter cli.Outputter) {
 }
 
 func personVerifyBiography(outputter cli.Outputter, biographyFileName string) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	data, err := ioutil.ReadFile(biographyFileName)
 	if err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 		return
 	}
-	err = dao.VerifyPersonBiography(cliAlexandria.LoggedInPerson.Id, data)
+	err = dao.VerifyPersonBiography(cliIskendria.LoggedInPerson.Id, data)
 	if err != nil {
 		outputter("Verification failed: " + err.Error() + "\n")
 		return
@@ -280,10 +280,10 @@ func personVerifyBiography(outputter cli.Outputter, biographyFileName string) {
 }
 
 func personVerifyBiographyOmitted(outputter cli.Outputter) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
-	err := dao.VerifyPersonBiography(cliAlexandria.LoggedInPerson.Id, []byte{})
+	err := dao.VerifyPersonBiography(cliIskendria.LoggedInPerson.Id, []byte{})
 	if err != nil {
 		outputter("Verification failed: " + err.Error() + "\n")
 		return
@@ -292,23 +292,23 @@ func personVerifyBiographyOmitted(outputter cli.Outputter) {
 }
 
 func journalCreate(outputter cli.Outputter, journal *command.Journal) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	cmd, journalId := command.GetCommandJournalCreate(
 		journal,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceEditorCreateJournal)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceEditorCreateJournal)
 	if err := blockchain.SendCommand(cmd, outputter); err != nil {
-		outputter(cliAlexandria.ToIoError(err) + "\n")
+		outputter(cliIskendria.ToIoError(err) + "\n")
 		return
 	}
 	outputter("The journalId of the created journal is: " + journalId + "\n")
 }
 
 func journalUpdatePropertiesReference(outputter cli.Outputter, journalId string) *command.Journal {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return nil
 	}
 	daoJournal, err := dao.GetJournal(journalId)
@@ -332,21 +332,21 @@ func journalUpdateProperties(outputter cli.Outputter, journal *command.Journal) 
 		originalJournalId,
 		originalJournal,
 		journal,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceEditorEditJournal)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceEditorEditJournal)
 	if err := blockchain.SendCommand(theCommand, outputter); err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 	}
 }
 
 func journalUpdateDescription(outputter cli.Outputter, journalId, descriptionFileName string) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	data, err := ioutil.ReadFile(descriptionFileName)
 	if err != nil {
-		outputter(cliAlexandria.ToIoError(err) + "\n")
+		outputter(cliIskendria.ToIoError(err) + "\n")
 		return
 	}
 	origJournal, err := dao.GetJournal(journalId)
@@ -359,9 +359,9 @@ func journalUpdateDescription(outputter cli.Outputter, journalId, descriptionFil
 		journalId,
 		origJournal.Descriptionhash,
 		data,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceEditorEditJournal)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceEditorEditJournal)
 	err = blockchain.SendCommand(theCommand, outputter)
 	if err != nil {
 		outputter("Error sending command to blockchain: " + err.Error() + "\n")
@@ -369,7 +369,7 @@ func journalUpdateDescription(outputter cli.Outputter, journalId, descriptionFil
 }
 
 func journalRemoveDescription(outputter cli.Outputter, journalId string) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	origJournal, err := dao.GetJournal(journalId)
@@ -381,9 +381,9 @@ func journalRemoveDescription(outputter cli.Outputter, journalId string) {
 	theCommand := command.GetCommandJournalOmitDescription(
 		journalId,
 		origJournal.Descriptionhash,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceEditorEditJournal)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceEditorEditJournal)
 	err = blockchain.SendCommand(theCommand, outputter)
 	if err != nil {
 		outputter("Error sending command to blockchain: " + err.Error() + "\n")
@@ -393,7 +393,7 @@ func journalRemoveDescription(outputter cli.Outputter, journalId string) {
 func journalVerifyDescription(outputter cli.Outputter, journalId, descriptionFileName string) {
 	data, err := ioutil.ReadFile(descriptionFileName)
 	if err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 		return
 	}
 	err = dao.VerifyJournalDescription(journalId, data)
@@ -414,58 +414,58 @@ func journalVerifyDescriptionOmitted(outputter cli.Outputter, journalId string) 
 }
 
 func proposeEditor(outputter cli.Outputter, journalId, editorId string) {
-	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+	cliIskendria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetCommandEditorInvite(
 			journalId,
 			editorId,
-			cliAlexandria.LoggedInPerson.Id,
-			cliAlexandria.LoggedIn(),
-			cliAlexandria.Settings.PriceEditorAddColleague)
+			cliIskendria.LoggedInPerson.Id,
+			cliIskendria.LoggedIn(),
+			cliIskendria.Settings.PriceEditorAddColleague)
 	})
 }
 
 func acceptEditorship(outputter cli.Outputter, journalId string) {
-	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+	cliIskendria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetCommandEditorAcceptDuty(
 			journalId,
-			cliAlexandria.LoggedInPerson.Id,
-			cliAlexandria.LoggedIn(),
-			cliAlexandria.Settings.PriceEditorAcceptDuty)
+			cliIskendria.LoggedInPerson.Id,
+			cliIskendria.LoggedIn(),
+			cliIskendria.Settings.PriceEditorAcceptDuty)
 	})
 }
 
 func resignAsEditor(outputter cli.Outputter, journalId string) {
-	cliAlexandria.SendCommandAsPerson(outputter, func() *command.Command {
+	cliIskendria.SendCommandAsPerson(outputter, func() *command.Command {
 		return command.GetCommandEditorResign(
 			journalId,
-			cliAlexandria.LoggedInPerson.Id,
-			cliAlexandria.LoggedIn())
+			cliIskendria.LoggedInPerson.Id,
+			cliIskendria.LoggedIn())
 	})
 }
 
 func volumeCreate(outputter cli.Outputter, volume *command.Volume) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	cmd, volumeId := command.GetCommandVolumeCreate(
 		volume,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceEditorCreateVolume)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceEditorCreateVolume)
 	if err := blockchain.SendCommand(cmd, outputter); err != nil {
-		outputter(cliAlexandria.ToIoError(err) + "\n")
+		outputter(cliIskendria.ToIoError(err) + "\n")
 		return
 	}
 	outputter("The volumeId of the created volume is: " + volumeId + "\n")
 }
 
 func manuscriptCreate(outputter cli.Outputter, manuscriptCreate *ManuscriptCreate) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	manuscriptData, err := ioutil.ReadFile(manuscriptCreate.ManuscriptFileName)
 	if err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 	}
 	cmd, manuscriptId := command.GetCommandManuscriptCreate(
 		&command.ManuscriptCreate{
@@ -475,11 +475,11 @@ func manuscriptCreate(outputter cli.Outputter, manuscriptCreate *ManuscriptCreat
 			AuthorId:      manuscriptCreate.AuthorId,
 			JournalId:     manuscriptCreate.JournalId,
 		},
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceAuthorSubmitNewManuscript)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceAuthorSubmitNewManuscript)
 	if err := blockchain.SendCommand(cmd, outputter); err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 	}
 	outputter("The manuscriptId of the created manuscript is: " + manuscriptId + "\n")
 }
@@ -493,12 +493,12 @@ type ManuscriptCreate struct {
 }
 
 func manuscriptCreateNewVersion(outputter cli.Outputter, manuscriptCreateNewVersion *ManuscriptCreateNewVersion) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	manuscriptData, err := ioutil.ReadFile(manuscriptCreateNewVersion.ManuscriptFileName)
 	if err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 		return
 	}
 	previousManuscript, err := dao.GetManuscript(manuscriptCreateNewVersion.PreviousManuscriptId)
@@ -531,11 +531,11 @@ func manuscriptCreateNewVersion(outputter cli.Outputter, manuscriptCreateNewVers
 		},
 		threadReference,
 		historicAuthors,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceAuthorSubmitNewVersion)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceAuthorSubmitNewVersion)
 	if err := blockchain.SendCommand(cmd, outputter); err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 		return
 	}
 	outputter("The manuscriptId of the created manuscript is: " + manuscriptId + "\n")
@@ -550,7 +550,7 @@ type ManuscriptCreateNewVersion struct {
 }
 
 func manuscriptAcceptAuthorship(outputter cli.Outputter, manuscriptId string) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	manuscript, err := dao.GetManuscript(manuscriptId)
@@ -561,17 +561,17 @@ func manuscriptAcceptAuthorship(outputter cli.Outputter, manuscriptId string) {
 	}
 	cmd := command.GetCommandManuscriptAcceptAuthorship(
 		manuscript,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceAuthorAcceptAuthorship)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceAuthorAcceptAuthorship)
 	if err := blockchain.SendCommand(cmd, outputter); err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 		return
 	}
 }
 
 func manuscriptAllowReview(outputter cli.Outputter, manuscriptId string) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	manuscript, err := dao.GetManuscript(manuscriptId)
@@ -589,11 +589,11 @@ func manuscriptAllowReview(outputter cli.Outputter, manuscriptId string) {
 		manuscript.ThreadId,
 		referenceThread,
 		manuscript.JournalId,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceEditorAllowManuscriptReview)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceEditorAllowManuscriptReview)
 	if err := blockchain.SendCommand(cmd, outputter); err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 		return
 	}
 }
@@ -607,7 +607,7 @@ func addNegativeReview(outputter cli.Outputter, r *ReviewCreation) {
 }
 
 func addReview(outputter cli.Outputter, r *ReviewCreation, commandCreator reviewCreatorType) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	cr, err := getCommandReviewCreate(r)
@@ -617,7 +617,7 @@ func addReview(outputter cli.Outputter, r *ReviewCreation, commandCreator review
 	cmd, reviewId := commandCreator(cr)
 	err = blockchain.SendCommand(cmd, outputter)
 	if err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 		return
 	}
 	outputter(fmt.Sprintf("The id of the created review is: %s\n", reviewId))
@@ -644,17 +644,17 @@ func getCommandReviewCreate(r *ReviewCreation) (*command.ReviewCreate, error) {
 func getCommandReviewSubmitPositive(cr *command.ReviewCreate) (*command.Command, string) {
 	return command.GetCommandWritePositiveReview(
 		cr,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceReviewerSubmit)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceReviewerSubmit)
 }
 
 func getCommandReviewSubmitNegative(cr *command.ReviewCreate) (*command.Command, string) {
 	return command.GetCommandWriteNegativeReview(
 		cr,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceReviewerSubmit)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceReviewerSubmit)
 }
 
 func manuscriptPublish(outputter cli.Outputter, judge *command.ManuscriptJudge) {
@@ -666,7 +666,7 @@ func manuscriptReject(outputter cli.Outputter, judge *command.ManuscriptJudge) {
 }
 
 func manuscriptJudge(outputter cli.Outputter, judge *command.ManuscriptJudge, commandGetter judgeCommandGetter) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	manuscript, err := dao.GetManuscript(judge.ManuscriptId)
@@ -677,7 +677,7 @@ func manuscriptJudge(outputter cli.Outputter, judge *command.ManuscriptJudge, co
 	cmd := commandGetter(judge, manuscript.JournalId)
 	err = blockchain.SendCommand(cmd, outputter)
 	if err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 		return
 	}
 }
@@ -688,22 +688,22 @@ func getPositiveJudgeCommand(judge *command.ManuscriptJudge, journalId string) *
 	return command.GetCommandManuscriptPublish(
 		judge,
 		journalId,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceEditorPublishManuscript)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceEditorPublishManuscript)
 }
 
 func getNegativeJudgeCommand(judge *command.ManuscriptJudge, journalId string) *command.Command {
 	return command.GetCommandManuscriptReject(
 		judge,
 		journalId,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceEditorRejectManuscript)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceEditorRejectManuscript)
 }
 
 func manuscriptAssign(outputter cli.Outputter, manuscriptAssign *command.ManuscriptAssign) {
-	if !cliAlexandria.CheckBootstrappedAndKnownPerson(outputter) {
+	if !cliIskendria.CheckBootstrappedAndKnownPerson(outputter) {
 		return
 	}
 	manuscript, err := dao.GetManuscript(manuscriptAssign.ManuscriptId)
@@ -714,11 +714,11 @@ func manuscriptAssign(outputter cli.Outputter, manuscriptAssign *command.Manuscr
 	cmd := command.GetCommandManuscriptAssign(
 		manuscriptAssign,
 		manuscript.JournalId,
-		cliAlexandria.LoggedInPerson.Id,
-		cliAlexandria.LoggedIn(),
-		cliAlexandria.Settings.PriceEditorAssignManuscript)
+		cliIskendria.LoggedInPerson.Id,
+		cliIskendria.LoggedIn(),
+		cliIskendria.Settings.PriceEditorAssignManuscript)
 	err = blockchain.SendCommand(cmd, outputter)
 	if err != nil {
-		outputter(cliAlexandria.ToIoError(err))
+		outputter(cliIskendria.ToIoError(err))
 	}
 }

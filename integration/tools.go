@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
-	"github.com/iskendria-pub/iskendria/cliAlexandria"
+	"github.com/iskendria-pub/iskendria/cliIskendria"
 	"github.com/iskendria-pub/iskendria/command"
 	"github.com/iskendria-pub/iskendria/dao"
 	"github.com/iskendria-pub/iskendria/model"
@@ -60,16 +60,16 @@ func withLoggedInWithNewKey(testFunc func(t *testing.T), t *testing.T) {
 	withLogin := func(t *testing.T) {
 		publicKeyFile := "testBootstrap.pub"
 		privateKeyFile := "testBootstrap.priv"
-		err := cliAlexandria.CreateKeyPair(publicKeyFile, privateKeyFile)
+		err := cliIskendria.CreateKeyPair(publicKeyFile, privateKeyFile)
 		if err != nil {
 			t.Error("Could not create keypair: " + err.Error())
 		}
-		defer cliAlexandria.RemoveKeyFiles(publicKeyFile, privateKeyFile, logger)
-		err = cliAlexandria.Login(publicKeyFile, privateKeyFile)
+		defer cliIskendria.RemoveKeyFiles(publicKeyFile, privateKeyFile, logger)
+		err = cliIskendria.Login(publicKeyFile, privateKeyFile)
 		if err != nil {
 			t.Error("Could not login: " + err.Error())
 		}
-		defer func() { _ = cliAlexandria.Logout() }()
+		defer func() { _ = cliIskendria.Logout() }()
 		testFunc(t)
 	}
 	withInitializedDao(withLogin, t)
@@ -78,12 +78,12 @@ func withLoggedInWithNewKey(testFunc func(t *testing.T), t *testing.T) {
 func withNewPersonCreate(testFunc func(personCreate *command.PersonCreate, t *testing.T), t *testing.T) {
 	withNewPersonCreate := func(t *testing.T) {
 		doTestBootstrap(t)
-		err := cliAlexandria.CreateKeyPair(personPublicKeyFile, personPrivateKeyFile)
+		err := cliIskendria.CreateKeyPair(personPublicKeyFile, personPrivateKeyFile)
 		if err != nil {
 			t.Error("Could not create key pair for new person")
 		}
-		defer cliAlexandria.RemoveKeyFiles(personPublicKeyFile, personPrivateKeyFile, logger)
-		_, personPublicKey, err := cliAlexandria.ReadPublicKeyFile(personPublicKeyFile)
+		defer cliIskendria.RemoveKeyFiles(personPublicKeyFile, personPrivateKeyFile, logger)
+		_, personPublicKey, err := cliIskendria.ReadPublicKeyFile(personPublicKeyFile)
 		if err != nil {
 			t.Error("Could not read public key file of new person")
 		}
@@ -102,8 +102,8 @@ func withNewJournalCreate(testFunc func(*command.Journal, *command.PersonCreate,
 	f := func(personCreate *command.PersonCreate, t *testing.T) {
 		doTestPersonCreate(personCreate, t)
 		initialBalance := SUFFICIENT_BALANCE - priceMajorCreatePerson
-		checkStateBalanceOfKey(initialBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-		checkDaoBalanceOfKey(initialBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+		checkStateBalanceOfKey(initialBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+		checkDaoBalanceOfKey(initialBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 		testFunc(journal, personCreate, initialBalance, t)
 	}
 	withNewPersonCreate(f, t)
@@ -153,7 +153,7 @@ func getAuthorsForWithNewManuscriptId(
 	for i := 0; i < numAuthors; i++ {
 		switch i {
 		case 0:
-			result[0] = getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id
+			result[0] = getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id
 		case 1:
 			result[1] = getPersonByKey(personCreate.PublicKey, t).Id
 		}
@@ -231,7 +231,7 @@ func checkCreatedStateJournal(journal *model.StateJournal, journalId, editorId s
 func doTestBootstrap(t *testing.T) {
 	bootstrap := getBootstrap()
 	transactionId := "transactionId"
-	commandBootstrap := command.GetBootstrapCommand(bootstrap, cliAlexandria.LoggedIn())
+	commandBootstrap := command.GetBootstrapCommand(bootstrap, cliIskendria.LoggedIn())
 	err := command.RunCommandForTest(commandBootstrap, transactionId, blockchainAccess)
 	if err != nil {
 		t.Error("Error executing command: " + err.Error())
@@ -240,7 +240,7 @@ func doTestBootstrap(t *testing.T) {
 	if err != nil {
 		t.Error("After doing bootstrap, could not read settings from database: " + err.Error())
 	}
-	persons, err := dao.SearchPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr)
+	persons, err := dao.SearchPersonByKey(cliIskendria.LoggedIn().PublicKeyStr)
 	if err != nil {
 		t.Error("After doing bootstrap, could not read person")
 	}
@@ -442,7 +442,7 @@ func checkBootstrapStatePerson(person *model.StatePerson, t *testing.T) {
 	if util.Abs(person.ModifiedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
 		t.Error("ModifiedOn mismatch")
 	}
-	if person.PublicKey != cliAlexandria.LoggedIn().PublicKeyStr {
+	if person.PublicKey != cliIskendria.LoggedIn().PublicKeyStr {
 		t.Error("PublicKey mismatch")
 	}
 	if person.Name != majorName {
@@ -493,7 +493,7 @@ func checkBootstrapDaoPerson(person *dao.Person, t *testing.T) {
 	if util.Abs(person.ModifiedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
 		t.Error("ModifiedOn mismatch")
 	}
-	if person.PublicKey != cliAlexandria.LoggedIn().PublicKeyStr {
+	if person.PublicKey != cliIskendria.LoggedIn().PublicKeyStr {
 		t.Error("PublicKey mismatch")
 	}
 	if person.Name != majorName {
@@ -538,8 +538,8 @@ func addSufficientBalance(personId string, t *testing.T) {
 	cmd := command.GetPersonUpdateIncBalanceCommand(
 		personId,
 		SUFFICIENT_BALANCE,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		int32(0))
 	err := command.RunCommandForTest(cmd, "transactionIdAddSufficientBalance", blockchainAccess)
 	if err != nil {
@@ -559,8 +559,8 @@ func doTestPersonCreate(personCreate *command.PersonCreate, t *testing.T) {
 	newPersonKey := personCreate.PublicKey
 	personCreateCommand, newPersonId := command.GetPersonCreateCommand(
 		personCreate,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		int32(priceMajorCreatePerson))
 	err := command.RunCommandForTest(personCreateCommand, "secondTransaction", blockchainAccess)
 	if err != nil {
@@ -614,7 +614,7 @@ func checkCreatedStatePerson(person *model.StatePerson, expectedPublicKey string
 	if !model.IsPersonAddress(person.Id) {
 		t.Error("Id is not a person address")
 	}
-	if person.Id == getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+	if person.Id == getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id {
 		t.Error("Id equals the id of the existing person")
 	}
 	if util.Abs(person.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
@@ -668,7 +668,7 @@ func checkCreatedDaoPerson(person *dao.Person, expectedPublicKey string, t *test
 	if !model.IsPersonAddress(person.Id) {
 		t.Error("Id is not a person address")
 	}
-	if person.Id == getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+	if person.Id == getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id {
 		t.Error("Id equals the id of the existing person")
 	}
 	if util.Abs(person.CreatedOn-model.GetCurrentTime()) >= TIME_DIFF_THRESHOLD_SECONDS {
@@ -727,11 +727,11 @@ func getSettings(t *testing.T) *dao.Settings {
 }
 
 func doTestJournalCreate(journal *command.Journal, _ *command.PersonCreate, initialBalance int32, t *testing.T) {
-	editorId := getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id
+	editorId := getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id
 	cmd, journalId := command.GetCommandJournalCreate(
 		journal,
 		editorId,
-		cliAlexandria.LoggedIn(),
+		cliIskendria.LoggedIn(),
 		priceEditorCreateJournal)
 	err := command.RunCommandForTest(cmd, "transactionJournalCreate", blockchainAccess)
 	if err != nil {
@@ -740,8 +740,8 @@ func doTestJournalCreate(journal *command.Journal, _ *command.PersonCreate, init
 	checkCreatedDaoJournal(getTheOnlyDaoJournal(t), journalId, editorId, t)
 	checkCreatedStateJournal(getStateJournal(journalId, t), journalId, editorId, t)
 	expectedBalance := initialBalance - priceEditorCreateJournal
-	checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-	checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+	checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 }
 
 func getTheOnlyDaoJournal(t *testing.T) *dao.Journal {
@@ -780,8 +780,8 @@ func doTestManuscriptCreate(
 	t *testing.T) (string, string) {
 	cmd, manuscriptId := command.GetCommandManuscriptCreate(
 		manuscriptCreate,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		priceAuthorSubmitNewManuscript)
 	err := command.RunCommandForTest(cmd, "transactionIdAuthorSubmitNewJournal", blockchainAccess)
 	if err != nil {
@@ -805,8 +805,8 @@ func doTestManuscriptCreate(
 		getPersonByKey(personCreate.PublicKey, t).Id,
 		t)
 	expectedBalance := initialBalance - priceAuthorSubmitNewManuscript
-	checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-	checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+	checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	return manuscriptId, threadId
 }
 
@@ -880,7 +880,7 @@ func checkCreatedStateManuscript(
 }
 
 func checkCreatedStateFirstAuthor(author *model.Author, t *testing.T) {
-	if author.AuthorId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+	if author.AuthorId != getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id {
 		t.Error("First author id mismatch")
 	}
 	if author.AuthorNumber != int32(0) {
@@ -960,7 +960,7 @@ func checkCreatedDaoFirstAuthor(author *dao.Author, manuscriptId string, t *test
 	if author.ManuscriptId != manuscriptId {
 		t.Error("First author manuscriptId mismatch")
 	}
-	if author.PersonId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+	if author.PersonId != getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id {
 		t.Error(("First author personId mismatch"))
 	}
 	if author.DidSign != true {
@@ -1013,8 +1013,8 @@ func doTestWritePositiveReview(manuscriptCreate *command.ManuscriptCreate, initi
 	*dao.Review, *dao.Manuscript, int32) {
 	cmdManuscriptCreate, manuscriptId := command.GetCommandManuscriptCreate(
 		manuscriptCreate,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		priceAuthorSubmitNewManuscript)
 	err := command.RunCommandForTest(
 		cmdManuscriptCreate, "transactionIdManuscriptCreateOneAuthor", blockchainAccess)
@@ -1028,8 +1028,8 @@ func doTestWritePositiveReview(manuscriptCreate *command.ManuscriptCreate, initi
 	}
 	cmdWriteReview, reviewId := command.GetCommandWritePositiveReview(
 		reviewCreate,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		priceReviewerSubmit)
 	err = command.RunCommandForTest(cmdWriteReview, "transactionIdWriteReview", blockchainAccess)
 	if err != nil {
@@ -1045,8 +1045,8 @@ func doTestWritePositiveReview(manuscriptCreate *command.ManuscriptCreate, initi
 		priceAuthorSubmitNewManuscript -
 		priceEditorAllowManuscriptReview -
 		priceReviewerSubmit
-	checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-	checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+	checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	finalManuscript, err := dao.GetManuscript(manuscriptId)
 	if err != nil {
 		t.Error(err)
@@ -1067,8 +1067,8 @@ func runEditorAllowReview(manuscriptId string, t *testing.T) *dao.Manuscript {
 		manuscript.ThreadId,
 		threadReference,
 		getTheOnlyDaoJournal(t).JournalId,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		priceEditorAllowManuscriptReview)
 	err = command.RunCommandForTest(
 		cmdAllowReview, "transactionIdManuscriptAllowReview", blockchainAccess)
@@ -1089,7 +1089,7 @@ func checkStateReview(
 	if r.ManuscriptId != manuscriptId {
 		t.Error("ManuscriptId mismatch")
 	}
-	if r.ReviewAuthorId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+	if r.ReviewAuthorId != getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id {
 		t.Error("ReviewAuthorId mismatch")
 	}
 	if r.Hash != model.HashBytes([]byte("My review")) {
@@ -1113,7 +1113,7 @@ func checkDaoReview(r *dao.Review, reviewId, manuscriptId string, expectedJudgem
 	if r.ManuscriptId != manuscriptId {
 		t.Error("ManuscriptId mismatch")
 	}
-	if r.ReviewAuthorId != getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id {
+	if r.ReviewAuthorId != getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id {
 		t.Error("ReviewAuthorId mismatch")
 	}
 	if r.Hash != model.HashBytes([]byte("My review")) {
@@ -1131,8 +1131,8 @@ func doTestWriteNegativeReview(manuscriptCreate *command.ManuscriptCreate, initi
 	*dao.Review, *dao.Manuscript, int32) {
 	cmdManuscriptCreate, manuscriptId := command.GetCommandManuscriptCreate(
 		manuscriptCreate,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		priceAuthorSubmitNewManuscript)
 	err := command.RunCommandForTest(
 		cmdManuscriptCreate, "transactionIdManuscriptCreateOneAuthor", blockchainAccess)
@@ -1146,8 +1146,8 @@ func doTestWriteNegativeReview(manuscriptCreate *command.ManuscriptCreate, initi
 	}
 	cmdWriteReview, reviewId := command.GetCommandWriteNegativeReview(
 		reviewCreate,
-		getPersonByKey(cliAlexandria.LoggedIn().PublicKeyStr, t).Id,
-		cliAlexandria.LoggedIn(),
+		getPersonByKey(cliIskendria.LoggedIn().PublicKeyStr, t).Id,
+		cliIskendria.LoggedIn(),
 		priceReviewerSubmit)
 	err = command.RunCommandForTest(cmdWriteReview, "transactionIdWriteReview", blockchainAccess)
 	if err != nil {
@@ -1163,8 +1163,8 @@ func doTestWriteNegativeReview(manuscriptCreate *command.ManuscriptCreate, initi
 		priceAuthorSubmitNewManuscript -
 		priceEditorAllowManuscriptReview -
 		priceReviewerSubmit
-	checkStateBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
-	checkDaoBalanceOfKey(expectedBalance, cliAlexandria.LoggedIn().PublicKeyStr, t)
+	checkStateBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
+	checkDaoBalanceOfKey(expectedBalance, cliIskendria.LoggedIn().PublicKeyStr, t)
 	finalManuscript, err := dao.GetManuscript(manuscriptId)
 	if err != nil {
 		t.Error(err)
